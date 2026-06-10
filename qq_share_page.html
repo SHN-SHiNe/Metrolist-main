@@ -1,0 +1,234 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+    <meta charset="utf-8">
+    <title>QQ音乐</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0,viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="description" content="QQ音乐，发现更多好音乐。">
+    <meta name="keywords" content="直播,专辑,歌曲,视频,歌手,QQ音乐">
+    <script>(function (e, d, a) {
+    var b = 'orientationchange' in e ? 'orientationchange' : 'resize',
+        f = d.documentElement;
+    f.style = 'width:100vw';
+    if (f.style.width.match('vw')) {
+        return true;
+    }
+    function c() {
+        switch (a) {
+            case 'height':
+                var h = Math.max(f.clientHeight, e.innerHeight),
+                    g = 100 * (h / 667) || 100;
+                break;
+            default:
+                var h = Math.max(f.clientWidth, e.innerWidth),
+                    g = 100 * (h / 375) || 100;
+        }
+        if (g < 60) {
+            g = 60;
+        }
+        if (g > 120) {
+            g = 120;
+        }
+        f.style.fontSize = g + 'px';
+    }
+    e.addEventListener(b, c, false);
+    c();
+})(window, document, 'width');
+</script>
+    <script src="//y.qq.com/component/m/qmfe-assets-retry/index.umd.js?max_age=2592000"></script>
+    <script src="//y.qq.com/component/m/qmfe-fqm-sdk/dist/index.js?max_age=2592000"></script>
+    <script>!(function () {
+    'use strict';
+    function n(t) {
+        return 'function' == typeof t;
+    }
+    var o,
+        a,
+        e,
+        i = document,
+        c = setTimeout,
+        t = window,
+        r = window,
+        u = r.innerHeight,
+        f = r.localStorage,
+        s = r.MutationObserver,
+        d = r.performance,
+        m = r.Promise,
+        v = ((d && d.timing) || {}).navigationStart,
+        g = location.pathname,
+        l = JSON.parse,
+        h = JSON.stringify,
+        p = t.TTI_LIMIT,
+        I = !!(v && s && m),
+        E = p || 1e4,
+        y = 50,
+        S = 'spd-' + g;
+    function T(t) {
+        if (t)
+            try {
+                f.setItem(S, h(t));
+            } catch (t) {}
+    }
+    function w() {
+        try {
+            return f.removeItem(S);
+        } catch (t) {}
+    }
+    function L(t) {
+        return (0 < t ? t : Date.now()) - v;
+    }
+    function N(t) {
+        var n = t.textContent;
+        return n && n.trim();
+    }
+    function M(t) {
+        var n = t && t.tagName;
+        return n && !/^(?:HEAD|META|LINK|STYLE|SCRIPT)$/.test(n);
+    }
+    i.addEventListener('DOMContentLoaded', function () {
+        (o = !0), a && a();
+    });
+    var b,
+        C,
+        k,
+        D,
+        O = [],
+        P = [],
+        x = {},
+        A = {},
+        G = [],
+        H = 1,
+        J = !1;
+    function R(t) {
+        var n,
+            e,
+            r = 0;
+        return (
+            t !== i.body &&
+                (n = t.getBoundingClientRect()).top < u &&
+                0 < n.width &&
+                0 < n.height &&
+                ('IMG' !== t.tagName
+                    ? (!N(t) && 'none' === getComputedStyle(t).backgroundImage) || ((r = 1), (e = t.childNodes) && e[0] && (r += Y(e)))
+                    : t.src && (r = 1)),
+            r
+        );
+    }
+    function _() {
+        var t, n, e, r, i;
+        function o() {
+            (r = L()),
+                (i = r - e) - H < 10 ? (H < 16 ? (H *= 2) : H < 25 ? (H += 1) : (H = 25)) : 50 < i && (H = Math.max(1, H / 2)),
+                50 < r - e && (n = r),
+                r - n < 1e3 && r < E ? a() : J || ((A.tti = n), T(A));
+        }
+        function a() {
+            J || ((e = L()), (t = t || (n = e)), (D = c(o, H)));
+        }
+        clearTimeout(D), a();
+    }
+    function B(t) {
+        if (0 < t) {
+            var n = L(),
+                e = { t: n, s: t, m: 0, p: b };
+            (b = e), (A.fcp = A.fcp || n);
+            for (var r = e; (e = e.p); ) n - e.t > y ? delete e.p : ((t += e.s), e.s > r.s && (r = e));
+            (C ? C.m : 0) <= t && ((r.m = t), C !== r && ((C = r), (A.fmp = r.t), (i = _), o ? i() : (a = i)));
+        }
+        var i;
+    }
+    function K() {
+        B(R(this)), this.removeEventListener('load', K);
+    }
+    function Y(t) {
+        for (var n, e = 0, r = 0, i = t.length; r < i; r++) {
+            var o = t[r];
+            'IMG' === o.tagName
+                ? o.addEventListener('load', K)
+                : M(o)
+                ? (e += R(o))
+                : (n = o) && 1 === n.nodeType && N(n) && M(n.parentElement) && (e += 1);
+        }
+        return e;
+    }
+    function $(t, n) {
+        v &&
+            0 < t &&
+            0 <= n &&
+            n < 3e4 &&
+            ((n |= 0), !I || (22 != t && 23 != t) ? (P[t] = n) : ((A[22 == t ? 'fmp' : 'tti'] = n), T(A), (J = !0), k && k.disconnect()));
+    }
+    function j() {
+        var t = e.report;
+        n(t) && t();
+    }
+    (e = {
+        version: 4,
+        enabled: I,
+        flag: O,
+        timing: P,
+        _timing: P,
+        start: v,
+        now: L,
+        last: (function () {
+            try {
+                var t = f.getItem(S);
+                return (t = t && l(t));
+            } catch (t) {}
+        })(),
+        result: A,
+        ready: function (t) {
+            n(t) && (G ? G.push(t) : t(A));
+        },
+        init: function (t) {
+            for (var n = 0, e = (t && t.flag) || []; n < e.length; n++) O[n] = e[n];
+        },
+        mark: function (t, n) {
+            $(t, L(n)), j();
+        },
+        markStart: function (t, n) {
+            x[t] = L(n);
+        },
+        markEnd: function (t, n) {
+            0 <= x[t] && ($(t, L(n) - x[t]), j());
+        },
+    }),
+        I &&
+            (w(),
+            (k = new s(function (t) {
+                var n = 0;
+                t.forEach(function (t) {
+                    n += Y(t.addedNodes);
+                }),
+                    B(n);
+            })).observe(i, { childList: !0, subtree: !0 }),
+            c(function () {
+                G &&
+                    (w(),
+                    k.disconnect(),
+                    A.tti || J || (A.tti = L()),
+                    G.forEach(function (t) {
+                        return t(A);
+                    }),
+                    (J = !0),
+                    (G = null));
+            }, E)),
+        (t.SPD = e);
+})();
+</script>
+    <link rel="stylesheet" href="//y.qq.com/mediastyle/mobile/project_v9/skin_2.css?max_age=2592000">
+<link href="//y.qq.com/n3/other/pages/details/playlist.d67f49ceb.css?max_age=6048000" rel="stylesheet"></head>
+
+<body class="c_bg3">
+    <section id="js_app" class="wrap"></section>
+    <script src="//y.qq.com/lib/commercial/h5/polyfill.min.js?max_age=2592000"></script>
+    <script src="//y.qq.com/lib/commercial/h5/react-18.2.0.min.js?max_age=2592000"></script>
+    <script src="//y.qq.com/lib/commercial/h5/react-dom-18.2.0.min.js?max_age=2592000"></script>
+    <script src="//y.qq.com/lib/commercial/h5/music-react-2.3.0.min.js?max_age=604800&amp;app=qqmusic"></script>
+    <script crossorigin="" src="//y.qq.com/lib/commercial/h5/music-lite-init-1.0.1.min.js?max_age=604800"></script>
+    <script>
+        SPD.init({ flag: [1649, 1, 460] });
+        FQM.init({ appId: '5289ca0c-5ff9-4079-9d09-5826c195e541' });
+    </script>
+<script src="//y.qq.com/n3/other/pages/details/playlist.ae5fc7753d4c0be5a49c.bundle.js?max_age=6048000"></script>
+
+</body></html>

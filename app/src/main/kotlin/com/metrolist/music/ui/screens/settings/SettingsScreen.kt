@@ -1,0 +1,196 @@
+/**
+ * Metrolist Project (C) 2026
+ * Licensed under GPL-3.0 | See git history for contributors
+ */
+
+package com.metrolist.music.ui.screens.settings
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.metrolist.music.LocalPlayerAwareWindowInsets
+import com.metrolist.music.R
+import com.metrolist.music.ui.component.IconButton
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
+import com.metrolist.music.ui.utils.backToMain
+import androidx.compose.runtime.remember
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    navController: NavController,
+    latestVersionName: String,
+) {
+    val context = LocalContext.current
+    val hasAndroidAuto = remember {
+        try {
+            context.packageManager.getPackageInfo(
+                "com.google.android.projection.gearhead", 0
+            )
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    Column(
+        Modifier
+            .windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(
+            Modifier.windowInsetsPadding(
+                LocalPlayerAwareWindowInsets.current.only(
+                    WindowInsetsSides.Top
+                )
+            )
+        )
+
+        // User Interface Section
+        Material3SettingsGroup(
+            title = stringResource(R.string.settings_section_ui),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.palette),
+                    title = { Text(stringResource(R.string.appearance)) },
+                    onClick = { navController.navigate("settings/appearance") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Player & Content Section (moved up and combined with content)
+        Material3SettingsGroup(
+            title = stringResource(R.string.settings_section_player_content),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.play),
+                    title = { Text(stringResource(R.string.player_and_audio)) },
+                    onClick = { navController.navigate("settings/player") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.language),
+                    title = { Text(stringResource(R.string.content)) },
+                    onClick = { navController.navigate("settings/content") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.translate),
+                    title = { Text(stringResource(R.string.ai_lyrics_translation)) },
+                    onClick = { navController.navigate("settings/ai") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Android Auto Section — only shown if Android Auto is installed
+        if (hasAndroidAuto) {
+            Material3SettingsGroup(
+                title = "Android Auto",
+                items = listOf(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.ic_android_auto),
+                        title = { Text(stringResource(R.string.android_auto)) },
+                        onClick = { navController.navigate("settings/android_auto") }
+                    )
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
+        // China Music Source Section
+        Material3SettingsGroup(
+            title = "国内音乐源",
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.language),
+                    title = { Text("音乐源设置") },
+                    description = { Text("配置自定义音乐 API 地址和密钥", style = MaterialTheme.typography.bodySmall) },
+                    onClick = { navController.navigate("settings/china_music_source") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Privacy & Security Section
+        Material3SettingsGroup(
+            title = stringResource(R.string.settings_section_privacy),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.security),
+                    title = { Text(stringResource(R.string.privacy)) },
+                    onClick = { navController.navigate("settings/privacy") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Storage & Data Section
+        Material3SettingsGroup(
+            title = stringResource(R.string.settings_section_storage),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.storage),
+                    title = { Text(stringResource(R.string.storage)) },
+                    onClick = { navController.navigate("settings/storage") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.restore),
+                    title = { Text(stringResource(R.string.backup_restore)) },
+                    onClick = { navController.navigate("settings/backup_restore") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // System & About Section
+        Material3SettingsGroup(
+            title = stringResource(R.string.settings_section_system),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.info),
+                    title = { Text(stringResource(R.string.about)) },
+                    onClick = { navController.navigate("settings/about") }
+                )
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    TopAppBar(
+        title = { Text(stringResource(R.string.settings)) },
+        navigationIcon = {
+            IconButton(
+                onClick = navController::navigateUp,
+                onLongClick = navController::backToMain
+            ) {
+                Icon(
+                    painterResource(R.drawable.arrow_back),
+                    contentDescription = null
+                )
+            }
+        }
+    )
+}

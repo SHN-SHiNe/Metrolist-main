@@ -1,0 +1,386 @@
+﻿Reusing configuration cache.
+> Task :lrclib:preBuild UP-TO-DATE
+> Task :innertube:preBuild UP-TO-DATE
+> Task :betterlyrics:preBuild UP-TO-DATE
+> Task :kizzy:preBuild UP-TO-DATE
+> Task :kugou:preBuild UP-TO-DATE
+> Task :shazamkit:preBuild UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :lrclib:preDebugBuild UP-TO-DATE
+> Task :chinamusic:preBuild UP-TO-DATE
+> Task :lastfm:preBuild UP-TO-DATE
+> Task :paxsenix:preBuild UP-TO-DATE
+> Task :kugou:preDebugBuild UP-TO-DATE
+> Task :kizzy:preDebugBuild UP-TO-DATE
+> Task :innertube:preDebugBuild UP-TO-DATE
+> Task :betterlyrics:preDebugBuild UP-TO-DATE
+> Task :kugou:extractDebugSupportedLocales UP-TO-DATE
+> Task :kizzy:extractDebugSupportedLocales UP-TO-DATE
+> Task :lrclib:extractDebugSupportedLocales UP-TO-DATE
+> Task :lastfm:preDebugBuild UP-TO-DATE
+> Task :betterlyrics:extractDebugSupportedLocales UP-TO-DATE
+> Task :shazamkit:preDebugBuild UP-TO-DATE
+> Task :paxsenix:preDebugBuild UP-TO-DATE
+> Task :lastfm:extractDebugSupportedLocales UP-TO-DATE
+> Task :innertube:extractDebugSupportedLocales UP-TO-DATE
+> Task :betterlyrics:processDebugNavigationResources UP-TO-DATE
+> Task :app:preFossDebugBuild UP-TO-DATE
+> Task :kizzy:processDebugNavigationResources UP-TO-DATE
+> Task :chinamusic:preDebugBuild UP-TO-DATE
+> Task :lastfm:processDebugNavigationResources UP-TO-DATE
+> Task :shazamkit:extractDebugSupportedLocales UP-TO-DATE
+> Task :paxsenix:processDebugNavigationResources UP-TO-DATE
+> Task :lrclib:processDebugNavigationResources UP-TO-DATE
+> Task :innertube:processDebugNavigationResources UP-TO-DATE
+> Task :paxsenix:extractDebugSupportedLocales UP-TO-DATE
+> Task :kugou:processDebugNavigationResources UP-TO-DATE
+> Task :betterlyrics:generateDebugResources UP-TO-DATE
+> Task :shazamkit:processDebugNavigationResources UP-TO-DATE
+> Task :chinamusic:processDebugNavigationResources UP-TO-DATE
+> Task :innertube:generateDebugResources UP-TO-DATE
+> Task :chinamusic:extractDebugSupportedLocales UP-TO-DATE
+> Task :chinamusic:generateDebugResources UP-TO-DATE
+> Task :app:generateFossDebugBuildConfig UP-TO-DATE
+> Task :kugou:generateDebugResources UP-TO-DATE
+> Task :paxsenix:generateDebugResources UP-TO-DATE
+> Task :lrclib:generateDebugResources UP-TO-DATE
+> Task :kizzy:generateDebugResources UP-TO-DATE
+> Task :lastfm:generateDebugResources UP-TO-DATE
+> Task :app:generateFossDebugResValues UP-TO-DATE
+> Task :betterlyrics:javaPreCompileDebug UP-TO-DATE
+> Task :betterlyrics:packageDebugResources UP-TO-DATE
+> Task :app:extractFossDebugSupportedLocales UP-TO-DATE
+> Task :app:mapFossDebugSourceSetPaths UP-TO-DATE
+> Task :kizzy:packageDebugResources UP-TO-DATE
+> Task :lrclib:packageDebugResources UP-TO-DATE
+> Task :app:generateFossDebugResources UP-TO-DATE
+> Task :shazamkit:generateDebugResources UP-TO-DATE
+> Task :betterlyrics:parseDebugLocalResources UP-TO-DATE
+> Task :innertube:packageDebugResources UP-TO-DATE
+> Task :kizzy:parseDebugLocalResources UP-TO-DATE
+> Task :chinamusic:javaPreCompileDebug UP-TO-DATE
+> Task :lrclib:parseDebugLocalResources UP-TO-DATE
+> Task :innertube:parseDebugLocalResources UP-TO-DATE
+> Task :chinamusic:packageDebugResources UP-TO-DATE
+> Task :innertube:javaPreCompileDebug UP-TO-DATE
+> Task :lastfm:packageDebugResources UP-TO-DATE
+> Task :app:processFossDebugNavigationResources UP-TO-DATE
+> Task :paxsenix:packageDebugResources UP-TO-DATE
+> Task :betterlyrics:generateDebugRFile UP-TO-DATE
+> Task :kugou:packageDebugResources UP-TO-DATE
+> Task :shazamkit:packageDebugResources UP-TO-DATE
+> Task :kizzy:javaPreCompileDebug UP-TO-DATE
+> Task :kizzy:generateDebugRFile UP-TO-DATE
+> Task :lrclib:generateDebugRFile UP-TO-DATE
+> Task :chinamusic:parseDebugLocalResources UP-TO-DATE
+> Task :paxsenix:parseDebugLocalResources UP-TO-DATE
+> Task :lastfm:parseDebugLocalResources UP-TO-DATE
+> Task :innertube:generateDebugRFile UP-TO-DATE
+> Task :app:generateFossDebugLocaleConfig UP-TO-DATE
+> Task :shazamkit:parseDebugLocalResources UP-TO-DATE
+> Task :paxsenix:generateDebugRFile UP-TO-DATE
+> Task :kugou:parseDebugLocalResources UP-TO-DATE
+> Task :kugou:javaPreCompileDebug UP-TO-DATE
+> Task :shazamkit:generateDebugRFile UP-TO-DATE
+> Task :lrclib:javaPreCompileDebug UP-TO-DATE
+> Task :lastfm:generateDebugRFile UP-TO-DATE
+> Task :lastfm:javaPreCompileDebug UP-TO-DATE
+> Task :app:packageFossDebugResources UP-TO-DATE
+> Task :kugou:generateDebugRFile UP-TO-DATE
+> Task :chinamusic:generateDebugRFile UP-TO-DATE
+> Task :shazamkit:javaPreCompileDebug UP-TO-DATE
+> Task :app:parseFossDebugLocalResources UP-TO-DATE
+> Task :paxsenix:javaPreCompileDebug UP-TO-DATE
+> Task :betterlyrics:compileDebugKotlin UP-TO-DATE
+> Task :kizzy:compileDebugKotlin UP-TO-DATE
+> Task :innertube:compileDebugKotlin UP-TO-DATE
+> Task :lrclib:compileDebugKotlin UP-TO-DATE
+> Task :kugou:compileDebugKotlin UP-TO-DATE
+> Task :lastfm:compileDebugKotlin UP-TO-DATE
+> Task :betterlyrics:compileDebugJavaWithJavac NO-SOURCE
+> Task :betterlyrics:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :lastfm:compileDebugJavaWithJavac NO-SOURCE
+> Task :innertube:compileDebugJavaWithJavac NO-SOURCE
+> Task :lastfm:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :kizzy:compileDebugJavaWithJavac NO-SOURCE
+> Task :lrclib:compileDebugJavaWithJavac NO-SOURCE
+> Task :innertube:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :kugou:compileDebugJavaWithJavac NO-SOURCE
+> Task :shazamkit:compileDebugKotlin UP-TO-DATE
+> Task :kizzy:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :kugou:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :lrclib:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :shazamkit:compileDebugJavaWithJavac NO-SOURCE
+> Task :app:generateFossDebugRFile UP-TO-DATE
+> Task :shazamkit:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :chinamusic:compileDebugKotlin UP-TO-DATE
+> Task :paxsenix:compileDebugKotlin UP-TO-DATE
+> Task :chinamusic:compileDebugJavaWithJavac NO-SOURCE
+> Task :paxsenix:compileDebugJavaWithJavac NO-SOURCE
+> Task :chinamusic:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :paxsenix:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :app:kspFossDebugKotlin UP-TO-DATE
+
+> Task :app:compileFossDebugKotlin
+.\gradlew.bat : e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/Messa
+geCodec.kt:9:43 Unresolved reference 'proto'.
+所在位置 行:1 字符: 1
++ .\gradlew.bat :app:compileFossDebugKotlin 2>&1 | Out-File -FilePath b ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///F:/S...erence 'proto'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:62:24
+ Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:75:24
+ Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:117:3
+7 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:120:3
+5 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:124:3
+8 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:127:3
+7 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:132:3
+1 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:139:3
+4 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:140:3
+6 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:141:3
+7 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:148:3
+8 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:151:3
+5 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:156:3
+1 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:157:3
+5 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:160:4
+4 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:163:4
+3 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:167:3
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:170:3
+9 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:192:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:196:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:200:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:209:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:213:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:217:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:221:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:223:3
+3 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:223:4
+0 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:229:1
+7 Inapplicable candidate(s): constructor(action: String, trackId: String? = ..., position: Long? = ..., trackInfo:
+ TrackInfo? = ..., insertNext: Boolean? = ..., queue: List<TrackInfo>? = ..., queueTitle: String? = ..., volume: F
+loat? = ..., serverTime: Long? = ...): PlaybackActionPayload
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:231:4
+2 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:231:4
+9 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:3
+6 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:4
+3 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:4
+8 Unresolved reference 'hasTrackInfo'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:6
+6 Unresolved reference 'trackInfo'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:7
+7 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:7
+7 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:233:8
+1 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:234:4
+8 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:234:5
+5 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:235:6
+5 Unresolved reference 'it'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:236:4
+8 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:236:5
+5 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:237:4
+0 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:237:4
+7 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:238:4
+8 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:238:5
+5 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:238:6
+0 'operator' modifier is required on 'fun <T> Comparable<T>.compareTo(other: T): Int'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:242:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:246:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:250:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:251:3
+0 Argument type mismatch: actual type is 'Int', but 'String' was expected.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:254:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:258:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:262:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:263:1
+7 Inapplicable candidate(s): constructor(currentTrack: TrackInfo?, isPlaying: Boolean, position: Long, lastUpdate:
+ Long, queue: List<TrackInfo>? = ..., volume: Float? = ...): SyncStatePayload
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:3
+9 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:4
+6 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:5
+1 Unresolved reference 'hasCurrentTrack'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:7
+2 Unresolved reference 'currentTrack'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:8
+6 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:8
+6 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:264:9
+0 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:268:6
+5 Unresolved reference 'it'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:273:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:282:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:286:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:290:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:299:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:306:2
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:307:1
+7 Inapplicable candidate(s): constructor(suggestionId: String, reason: String? = ...): SuggestionRejectedPayload
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:307:7
+0 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:307:7
+7 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:315:5
+3 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:316:1
+6 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:327:4
+1 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:328:1
+6 Inapplicable candidate(s): constructor(id: String, title: String, artist: String, album: String? = ..., duration
+: Long, thumbnail: String? = ..., suggestedBy: String? = ...): TrackInfo
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:329:2
+4 Unresolved reference 'id'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:330:2
+7 Unresolved reference 'title'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:331:2
+8 Unresolved reference 'artist'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:332:2
+7 Unresolved reference 'album'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:332:3
+3 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:332:4
+0 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:333:3
+0 Unresolved reference 'duration'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:334:3
+1 Unresolved reference 'thumbnail'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:334:4
+1 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:334:4
+8 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:335:3
+3 Unresolved reference 'suggestedBy'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:335:4
+5 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:335:5
+2 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:339:4
+0 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:341:2
+8 Unresolved reference 'userId'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:342:3
+0 Unresolved reference 'username'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:343:2
+8 Unresolved reference 'isHost'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:344:3
+3 Unresolved reference 'isConnected'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:348:4
+1 Unresolved reference 'Listentogether'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:349:1
+6 Inapplicable candidate(s): constructor(roomCode: String, hostId: String, users: List<UserInfo>, currentTrack: Tr
+ackInfo? = ..., isPlaying: Boolean, position: Long, lastUpdate: Long, volume: Float = ..., queue: List<TrackInfo> 
+= ...): RoomState
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:350:3
+0 Unresolved reference 'roomCode'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:351:2
+8 Unresolved reference 'hostId'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:352:2
+7 Unresolved reference 'usersList'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:352:5
+9 Unresolved reference 'it'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:3
+4 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:3
+4 Unresolved reference. None of the following candidates is applicable because of a receiver type mismatch:
+fun <T> T.takeIf(predicate: (T) -> Boolean): T?
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:4
+1 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:4
+6 Unresolved reference 'hasCurrentTrack'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:6
+7 Unresolved reference 'currentTrack'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:8
+1 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:8
+1 Cannot infer type for type parameter 'R'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:353:8
+5 Cannot infer type for type parameter 'T'. Specify it explicitly.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:354:3
+1 Unresolved reference 'isPlaying'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:355:3
+0 Unresolved reference 'position'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:356:3
+2 Unresolved reference 'lastUpdate'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:357:2
+8 Unresolved reference 'volume'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:358:2
+7 Unresolved reference 'queueList'.
+e: file:///F:/SHiNeAPP/Metrolist-main/app/src/main/kotlin/com/metrolist/music/listentogether/MessageCodec.kt:358:6
+0 Unresolved reference 'it'.
+
+> Task :app:compileFossDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFossDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 23s
+93 actionable tasks: 1 executed, 92 up-to-date
+Configuration cache entry reused.
