@@ -84,15 +84,25 @@ SHiNe MUSIC 支持以下音乐平台，可在应用内自由切换：
 
 ## 截图
 
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_1.jpg" alt="截图 1" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_2.jpg" alt="截图 2" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_3.jpg" alt="截图 3" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_4.jpg" alt="截图 4" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_5.jpg" alt="截图 5" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_6.jpg" alt="截图 6" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_7.jpg" alt="截图 7" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_8.jpg" alt="截图 8" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_9.jpg" alt="截图 9" width="32%" />
-<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_10.jpg" alt="截图 10" width="32%" />
+<table>
+<tr>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_1.jpg" alt="截图 1" /></td>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_2.jpg" alt="截图 2" /></td>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_3.jpg" alt="截图 3" /></td>
+</tr>
+<tr>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_4.jpg" alt="截图 4" /></td>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_5.jpg" alt="截图 5" /></td>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_6.jpg" alt="截图 6" /></td>
+</tr>
+<tr>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_7.jpg" alt="截图 7" /></td>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_8.jpg" alt="截图 8" /></td>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_9.jpg" alt="截图 9" /></td>
+</tr>
+<tr>
+<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_10.jpg" alt="截图 10" /></td>
+</tr>
+</table>
 
 </div>
