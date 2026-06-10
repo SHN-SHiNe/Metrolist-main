@@ -4,7 +4,7 @@
 
 # SHiNe MUSIC
 
-Android 多平台音乐播放器
+Android 音乐播放器 | 完美适配落雪音乐六音源
 
 </div>
 
@@ -12,13 +12,17 @@ Android 多平台音乐播放器
 
 ## 关于本项目
 
-本项目基于 [Metrolist](https://github.com/MetrolistGroup/Metrolist) 的 Material 3 UI 框架深度修改而来。后端功能已完全重写，与 YouTube Music 无任何关联。仅继承并改造了其 UI 界面。
+SHiNe MUSIC 是基于 [Metrolist](https://github.com/MetrolistGroup/Metrolist) 深度定制的 Android 音乐播放器。
+
+本项目**继承并改造了 Metrolist 的前端 UI 和整体架构**，在此基础上将后端完全重写，使其全面适配国内音乐平台。**核心目标是打造一款完美支持洛雪音乐（LX Music）六音源的 Android 客户端**，让移动端用户也能享受洛雪音乐带来的多平台音乐体验。
+
+与原始的 YouTube Music 客户端完全不同，SHiNe MUSIC 已彻底剥离所有 YouTube 相关功能，专注于国内音乐生态。
 
 ---
 
-## 音乐源
+## 完全适配洛雪音乐六音源
 
-SHiNe MUSIC 支持以下音乐平台，可在应用内自由切换：
+SHiNe MUSIC **已完全适配洛雪音乐（LX Music）的六大音乐平台**，支持以下音乐源：
 
 | 平台 | 说明 |
 |------|------|
@@ -31,13 +35,17 @@ SHiNe MUSIC 支持以下音乐平台，可在应用内自由切换：
 
 ### 音乐源获取方式
 
-在应用内 **设置 → 音乐源管理** 中配置自定义后端 API：
+软件已完美兼容洛雪音乐源格式，获取音乐源请访问：
 
+> **https://github.com/guoyue2010/lxmusic-/tree/main**
+
+在应用内 **设置 → 音乐源管理** 中配置：
+
+- **URL 导入**：粘贴洛雪音乐源 JS 脚本链接，自动提取配置
+- **文件导入**：选择本地洛雪音乐 `.js` 源文件，自动解析
 - **手动输入**：填写 API 地址和密钥
-- **URL 导入**：粘贴 LX-Music 格式的 JS 脚本链接，自动提取配置
-- **文件导入**：选择本地 `.js` 文件自动解析
 
-应用通过各平台公开 API 进行搜索和浏览，实际播放链接由你配置的后端 API 提供。
+一行代码、一个链接即可完成配置，享受洛雪六音源的全部内容。
 
 ---
 
