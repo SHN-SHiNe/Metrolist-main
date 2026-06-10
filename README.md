@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/icon.png" alt="Metrolist app icon" width="200" />
+<img src="./fastlane/metadata/android/en-US/images/icon.png" alt="Metrolist app icon" width="200" />
 
 # Metrolist
 
@@ -8,13 +8,13 @@
 
 <br/>
 
-<a href="https://trendshift.io/repositories/20652" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20652" alt="MetrolistGroup%2FMetrolist | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/20652" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20652" alt="SHN-SHiNe%2FMetrolist-main | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
 <br/>
 
-[![Latest release](https://img.shields.io/github/v/release/MetrolistGroup/Metrolist?style=for-the-badge&labelColor=0d1117)](https://github.com/MetrolistGroup/Metrolist/releases)
-[![License](https://img.shields.io/github/license/MetrolistGroup/metrolist?style=for-the-badge&labelColor=0d1117)](https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/MetrolistGroup/Metrolist/total?style=for-the-badge&labelColor=0d1117)](https://github.com/MetrolistGroup/Metrolist/releases)
+[![Latest release](https://img.shields.io/github/v/release/SHN-SHiNe/Metrolist-main?style=for-the-badge&labelColor=0d1117)](https://github.com/SHN-SHiNe/Metrolist-main/releases)
+[![License](https://img.shields.io/github/license/SHN-SHiNe/Metrolist-main?style=for-the-badge&labelColor=0d1117)](https://github.com/SHN-SHiNe/Metrolist-main/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/SHN-SHiNe/Metrolist-main/total?style=for-the-badge&labelColor=0d1117)](https://github.com/SHN-SHiNe/Metrolist-main/releases)
 
 <br/>
 
@@ -36,12 +36,12 @@
 
 <h1><a id="screenshots"></a>Screenshots</h1>
 
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Home screen" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Artist screen" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Recognize music screen" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Listen together screen" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Player screen" width="30%" />
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Player lyrics screen" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Home screen" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Artist screen" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Recognize music screen" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Listen together screen" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Player screen" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Player lyrics screen" width="30%" />
 
 </div>
 
@@ -130,7 +130,7 @@
   </tr>
   <tr>
     <td align="center">
-      <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/MetrolistGroup/Metrolist/">
+      <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/SHN-SHiNe/Metrolist-main/">
         <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Download from Obtainium" height="50">
       </a>
     </td>
@@ -151,7 +151,7 @@
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/MetrolistGroup/Metrolist/releases/latest/download/Metrolist.apk">
+      <a href="https://github.com/SHN-SHiNe/Metrolist-main/releases/latest/download/Metrolist.apk">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
       </a>
     </td>
@@ -169,7 +169,7 @@
   <tbody>
     <tr>
       <td align="center">
-        <a href="https://nightly.link/MetrolistGroup/Metrolist/workflows/build/main/app-with-Google-Cast.zip">
+        <a href="https://nightly.link/SHN-SHiNe/Metrolist-main/workflows/build/main/app-with-Google-Cast.zip">
           <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
         </a>
       </td>
@@ -219,7 +219,7 @@
 
 ### Monero (XMR)
 
-<img src="https://github.com/MetrolistGroup/Metrolist/blob/main/assets/XMR.png" alt="Monero QR code" width="150" />
+<img src="./assets/XMR.png" alt="Monero QR code" width="150" />
 
 ```text
 44XjSELSWcgJTZiCKzjpCQWyXhokrH9RqH3rpp35FkSKi57T25hniHWHQNhLeXyFn3DDYqufmfRB1iEtENerZpJc7xJCcqt
@@ -228,7 +228,7 @@
 ### Buy Me a Coffee
 
 <a href="https://www.buymeacoffee.com/mostafaalagamy">
-  <img src="https://github.com/MetrolistGroup/Metrolist/blob/main/assets/buymeacoffee.png?raw=true" alt="Buy Me a Coffee" width="150" />
+  <img src="./assets/buymeacoffee.png?raw=true" alt="Buy Me a Coffee" width="150" />
 </a>
 
 </div>
@@ -309,8 +309,8 @@
 
 <h3>This project wouldn't exist without these amazing people!</h3>
 
-<a href="https://github.com/MetrolistGroup/Metrolist/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MetrolistGroup/Metrolist" alt="Contributors"/>
+<a href="https://github.com/SHN-SHiNe/Metrolist-main/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=SHN-SHiNe/Metrolist-main" alt="Contributors"/>
 </a>
 
 </div>
@@ -333,7 +333,7 @@ All trademarks, service marks, and intellectual property rights referenced in th
 
 <br/>
 
-**Made with ❤️ by [Mo Agamy](https://github.com/mostafaalagamy)**
+**Made with ❤️ by [SHN-SHiNe](https://github.com/SHN-SHiNe)**
 
 **This project stands with Palestine 🇵🇸**
 
