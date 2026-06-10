@@ -84,6 +84,11 @@ SHiNe MUSIC 支持以下音乐平台，可在应用内自由切换：
 
 ## 截图
 
-> 截图暂缺，请提供 6 张应用截图（建议尺寸 1080×1920），放置于 `fastlane/metadata/android/en-US/images/screenshots/` 目录下。
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_1.jpg" alt="截图 1" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_2.jpg" alt="截图 2" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_3.jpg" alt="截图 3" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_4.jpg" alt="截图 4" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_5.jpg" alt="截图 5" width="30%" />
+<img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_6.jpg" alt="截图 6" width="30%" />
 
 </div>
