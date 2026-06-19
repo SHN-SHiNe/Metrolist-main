@@ -549,6 +549,7 @@ val ChinaHomeLastGenreTagIdKey = stringPreferencesKey("chinaHomeLastGenreTagId")
 val ChinaHomeLastGenreTagNameKey = stringPreferencesKey("chinaHomeLastGenreTagName")
 val ChinaHomeLastBoardIdKey = stringPreferencesKey("chinaHomeLastBoardId")
 val ChinaHomeLastBoardNameKey = stringPreferencesKey("chinaHomeLastBoardName")
+val ChinaHomeSourceIdKey = stringPreferencesKey("chinaHomeSourceId")
 
 val LanguageCodeToName =
     mapOf(

@@ -37,6 +37,7 @@ import com.metrolist.music.constants.ChinaHomeLastGenreTagIdKey
 import com.metrolist.music.constants.ChinaHomeLastGenreTagNameKey
 import com.metrolist.music.constants.ChinaHomeLastTagIdKey
 import com.metrolist.music.constants.ChinaHomeLastTagNameKey
+import com.metrolist.music.constants.ChinaHomeSourceIdKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.QuickPicks
 import com.metrolist.music.constants.QuickPicksKey
@@ -435,8 +436,10 @@ class HomeViewModel @Inject constructor(
         if (chinaHomeSource.value == source) return
         chinaHomeSource.value = source
         viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.edit { prefs ->
+                prefs[ChinaHomeSourceIdKey] = source.id
+            }
             loadChinaHomeTags(source)
-            loadChinaHomeSonglists()
         }
     }
 
@@ -587,6 +590,11 @@ class HomeViewModel @Inject constructor(
         loadChinaArtistRecommendations(source)
     }
 
+    private fun getChinaHomeSource(sourceId: String?): MusicSource =
+        MusicSource.fromId(sourceId.orEmpty())
+            ?.takeIf { it in MusicSource.realSources }
+            ?: MusicSource.NETEASE
+
     private suspend fun loadChinaArtistRecommendations(source: MusicSource = chinaHomeSource.value) {
         try {
             val events = database.events().first()
@@ -631,8 +639,22 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            loadChinaHomeTags()
+            val source = getChinaHomeSource(context.dataStore.data.first()[ChinaHomeSourceIdKey])
+            chinaHomeSource.value = source
+            loadChinaHomeTags(source)
             load()
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            context.dataStore.data
+                .map { prefs -> getChinaHomeSource(prefs[ChinaHomeSourceIdKey]) }
+                .distinctUntilChanged()
+                .collect { source ->
+                    if (chinaHomeSource.value != source) {
+                        chinaHomeSource.value = source
+                        loadChinaHomeTags(source)
+                    }
+                }
         }
 
         // Reactively update artist recommendations when listening history changes
