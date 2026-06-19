@@ -21,6 +21,11 @@ class KuwoSource : MusicSourceProvider {
 
     private val mInfoRegex = Regex("""level:(\w+),bitrate:(\d+),format:(\w+),size:([\w.]+)""")
 
+    private fun normalizeCoverUrl(url: String?): String? {
+        val raw = url?.takeIf { it.isNotBlank() } ?: return null
+        return if (raw.startsWith("//")) "http:$raw" else raw
+    }
+
     override suspend fun search(keyword: String, page: Int, limit: Int): SearchResult {
         val encodedKeyword = URLEncoder.encode(keyword, "UTF-8")
         val url = "http://search.kuwo.cn/r.s?client=kt&all=$encodedKeyword&pn=${page - 1}&rn=$limit&uid=794762570&ver=kwplayer_ar_9.2.2.1&vipver=1&show_copyright_off=1&newver=1&ft=music&cluster=0&strategy=2012&encoding=utf8&rformat=json&vermerge=1&mobi=1&issubtitle=1"
@@ -49,7 +54,7 @@ class KuwoSource : MusicSourceProvider {
                         val picUrl = "https://artistpicserver.kuwo.cn/pic.web?corp=kuwo&type=rid_pic&pictype=500&size=500&rid=${song.songmid}"
                         val picResponse = ChinaMusicApi.httpClient.get(picUrl)
                         val body = picResponse.bodyAsText().trim()
-                        if (body.startsWith("http")) song.copy(img = body) else song
+                        normalizeCoverUrl(body)?.let { song.copy(img = it) } ?: song
                     } catch (e: Exception) {
                         song
                     }
@@ -95,7 +100,7 @@ class KuwoSource : MusicSourceProvider {
                     id = id,
                     name = decodeName(item["name"]?.jsonPrimitive?.content ?: ""),
                     author = decodeName(item["nickname"]?.jsonPrimitive?.content ?: ""),
-                    img = item["pic"]?.jsonPrimitive?.content,
+                    img = normalizeCoverUrl(item["pic"]?.jsonPrimitive?.content),
                     playCount = item["playcnt"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0,
                     source = sourceId,
                 )
@@ -135,7 +140,7 @@ class KuwoSource : MusicSourceProvider {
                     id = "digest-${itemDigest}__${itemId}",
                     name = decodeName(item["name"]?.jsonPrimitive?.content ?: ""),
                     author = decodeName(item["uname"]?.jsonPrimitive?.content ?: ""),
-                    img = item["img"]?.jsonPrimitive?.content,
+                    img = normalizeCoverUrl(item["img"]?.jsonPrimitive?.content),
                     playCount = item["listencnt"]?.jsonPrimitive?.longOrNull ?: 0,
                     source = sourceId,
                 )
@@ -210,7 +215,7 @@ class KuwoSource : MusicSourceProvider {
             id = id,
             name = decodeName(json["title"]?.jsonPrimitive?.content ?: ""),
             author = decodeName(json["uname"]?.jsonPrimitive?.content ?: ""),
-            img = json["pic"]?.jsonPrimitive?.content,
+            img = normalizeCoverUrl(json["pic"]?.jsonPrimitive?.content),
             desc = decodeName(json["info"]?.jsonPrimitive?.content ?: ""),
             songs = songs,
             total = total,
@@ -263,7 +268,7 @@ class KuwoSource : MusicSourceProvider {
                     try {
                         val picUrl = "http://artistpicserver.kuwo.cn/pic.web?corp=kuwo&type=rid_pic&pictype=500&size=500&rid=${song.songmid}"
                         val imgUrl = ChinaMusicApi.httpClient.get(picUrl).bodyAsText().trim()
-                        if (imgUrl.startsWith("http")) song.copy(img = imgUrl) else song
+                        normalizeCoverUrl(imgUrl)?.let { song.copy(img = it) } ?: song
                     } catch (e: Exception) {
                         song
                     }
@@ -386,6 +391,7 @@ class KuwoSource : MusicSourceProvider {
                 val name = decodeName(item["name"]?.jsonPrimitive?.content ?: "")
                 val artist = decodeName(item["artist"]?.jsonPrimitive?.content ?: "")
                 val albumName = decodeName(item["album"]?.jsonPrimitive?.content ?: "")
+                val albumId = item["albumid"]?.jsonPrimitive?.content ?: ""
                 val duration = item["duration"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
                 ChinaSong(
                     name = name,
@@ -393,12 +399,14 @@ class KuwoSource : MusicSourceProvider {
                     source = sourceId,
                     songmid = id,
                     albumName = albumName,
+                    albumId = albumId,
                     interval = formatPlayTime(duration),
                     durationSeconds = duration,
-                    img = item["pic"]?.jsonPrimitive?.content,
+                    img = normalizeCoverUrl(item["pic"]?.jsonPrimitive?.content),
                 )
             } catch (e: Exception) { null }
         }
-        return BoardSongsResult(songs, total, page, limit, sourceId)
+        val songsWithCovers = if (songs.any { it.img.isNullOrBlank() }) fetchKuwoCovers(songs) else songs
+        return BoardSongsResult(songsWithCovers, total, page, limit, sourceId)
     }
 }

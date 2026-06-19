@@ -2613,10 +2613,12 @@ private fun ChinaSourceSwitchButton(
 }
 private fun chinaHdCoverUrl(url: String?, size: Int = 400): String? {
     if (url.isNullOrBlank()) return null
-    return if (url.contains("music.126.net") || url.contains("p1.music.126.net") || url.contains("p2.music.126.net")) {
-        "${url.split("?")[0]}?param=${size}y${size}"
+    val sized = url.replace("{size}", size.toString())
+    val absolute = if (sized.startsWith("//")) "http:$sized" else sized
+    return if (absolute.contains("music.126.net") || absolute.contains("p1.music.126.net") || absolute.contains("p2.music.126.net")) {
+        "${absolute.split("?")[0]}?param=${size}y${size}"
     } else {
-        url
+        absolute
     }
 }
 

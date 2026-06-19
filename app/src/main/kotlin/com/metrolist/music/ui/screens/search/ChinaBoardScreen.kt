@@ -167,9 +167,10 @@ private fun BoardSongItem(
             color = if (index <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(36.dp).padding(end = 8.dp),
         )
-        if (!song.img.isNullOrBlank()) {
+        val coverUrl = chinaCoverUrl(song.img)
+        if (!coverUrl.isNullOrBlank()) {
             AsyncImage(
-                model = song.img,
+                model = coverUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -203,5 +204,16 @@ private fun BoardSongItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+private fun chinaCoverUrl(url: String?, size: Int = 400): String? {
+    if (url.isNullOrBlank()) return null
+    val sized = url.replace("{size}", size.toString())
+    val absolute = if (sized.startsWith("//")) "http:$sized" else sized
+    return if (absolute.contains("music.126.net")) {
+        "${absolute.split("?")[0]}?param=${size}y${size}"
+    } else {
+        absolute
     }
 }

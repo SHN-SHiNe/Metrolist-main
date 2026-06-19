@@ -16,6 +16,23 @@ class KugouSource : MusicSourceProvider {
     override val sourceId = "kg"
     override val sourceName = "酷狗音乐"
 
+    private fun normalizeCoverUrl(url: String?, size: Int = 400): String? {
+        val raw = url?.takeIf { it.isNotBlank() } ?: return null
+        val sized = raw.replace("{size}", size.toString())
+        return if (sized.startsWith("http://")) sized.replaceFirst("http://", "https://") else sized
+    }
+
+    private fun parseCoverUrl(item: JsonObject, size: Int = 400): String? {
+        val transParam = item["trans_param"]?.jsonObject
+        return normalizeCoverUrl(
+            item["album_sizable_cover"]?.jsonPrimitive?.content
+                ?: transParam?.get("union_cover")?.jsonPrimitive?.content
+                ?: item["img"]?.jsonPrimitive?.content
+                ?: item["imgurl"]?.jsonPrimitive?.content,
+            size,
+        )
+    }
+
     override suspend fun search(keyword: String, page: Int, limit: Int): SearchResult {
         val encodedKeyword = URLEncoder.encode(keyword, "UTF-8")
         val url = "https://songsearch.kugou.com/song_search_v2?keyword=$encodedKeyword&page=$page&pagesize=$limit&userid=0&clientver=&platform=WebFilter&filter=2&iscorrection=1&privilege_filter=0&area_code=1"
@@ -135,7 +152,7 @@ class KugouSource : MusicSourceProvider {
                     id = id,
                     name = decodeName(item["specialname"]?.jsonPrimitive?.content ?: ""),
                     author = item["nickname"]?.jsonPrimitive?.content ?: "",
-                    img = item["imgurl"]?.jsonPrimitive?.content?.replace("{size}", "240"),
+                    img = normalizeCoverUrl(item["imgurl"]?.jsonPrimitive?.content, 240),
                     playCount = item["playcount"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0,
                     source = sourceId,
                 )
@@ -167,14 +184,11 @@ class KugouSource : MusicSourceProvider {
                 val id = item["specialid"]?.jsonPrimitive?.content
                     ?: item["special_id"]?.jsonPrimitive?.content
                     ?: return@mapNotNull null
-                var img = item["img"]?.jsonPrimitive?.content
-                    ?: item["imgurl"]?.jsonPrimitive?.content
-                if (img?.contains("{size}") == true) img = img.replace("{size}", "240")
                 SonglistItem(
                     id = "id_$id",
                     name = decodeName(item["specialname"]?.jsonPrimitive?.content ?: item["name"]?.jsonPrimitive?.content ?: ""),
                     author = item["nickname"]?.jsonPrimitive?.content ?: item["username"]?.jsonPrimitive?.content ?: "",
-                    img = img,
+                    img = parseCoverUrl(item, 240),
                     playCount = item["playcount"]?.jsonPrimitive?.content?.toLongOrNull()
                         ?: item["play_count"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0,
                     source = sourceId,
@@ -274,9 +288,11 @@ class KugouSource : MusicSourceProvider {
             } catch (e: Exception) { null }
         }
 
-        var coverImg = infoData?.get("img")?.jsonPrimitive?.content
-            ?: infoData?.get("imgurl")?.jsonPrimitive?.content
-        if (coverImg?.contains("{size}") == true) coverImg = coverImg.replace("{size}", "480")
+        val coverImg = normalizeCoverUrl(
+            infoData?.get("img")?.jsonPrimitive?.content
+                ?: infoData?.get("imgurl")?.jsonPrimitive?.content,
+            480,
+        )
         val allPage = if (limit > 0 && total > 0) Math.ceil(total.toDouble() / limit).toInt() else 1
 
         return SonglistDetail(
@@ -360,7 +376,7 @@ class KugouSource : MusicSourceProvider {
                     val img = if (imageTemplate != null && imgSizes != null && imgSizes.isNotEmpty()) {
                         imageTemplate.replace("{size}", imgSizes[0].jsonPrimitive.content)
                     } else imageTemplate
-                    if (img != null) song.copy(img = img) else song
+                    normalizeCoverUrl(img)?.let { song.copy(img = it) } ?: song
                 } catch (e: Exception) {
                     song
                 }
@@ -454,6 +470,7 @@ class KugouSource : MusicSourceProvider {
                 val authors = item["authors"]?.jsonArray
                 val singer = authors?.mapNotNull { it.jsonObject["author_name"]?.jsonPrimitive?.content }?.joinToString("、") ?: ""
                 val albumName = item["remark"]?.jsonPrimitive?.content ?: ""
+                val albumId = item["album_id"]?.jsonPrimitive?.content ?: ""
                 val duration = item["duration"]?.jsonPrimitive?.intOrNull ?: 0
                 val hash = item["hash"]?.jsonPrimitive?.content
                 ChinaSong(
@@ -462,12 +479,15 @@ class KugouSource : MusicSourceProvider {
                     source = sourceId,
                     songmid = audioId,
                     albumName = albumName,
+                    albumId = albumId,
                     interval = formatPlayTime(duration),
                     durationSeconds = duration,
                     hash = hash,
+                    img = parseCoverUrl(item),
                 )
             } catch (e: Exception) { null }
         }
-        return BoardSongsResult(songs, total, page, limit, sourceId)
+        val songsWithCovers = if (songs.any { it.img.isNullOrBlank() }) fetchCovers(songs) else songs
+        return BoardSongsResult(songsWithCovers, total, page, limit, sourceId)
     }
 }
