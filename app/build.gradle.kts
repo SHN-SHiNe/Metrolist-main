@@ -94,8 +94,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 148
-        versionName = "13.4.4"
+        versionCode = 149
+        versionName = "13.4.5"
         multiDexEnabled = true
         multiDexKeepFile = file("multidex-config.txt")
         resValue("string", "app_name", appNameOverride ?: "SHiNe MUSIC")
