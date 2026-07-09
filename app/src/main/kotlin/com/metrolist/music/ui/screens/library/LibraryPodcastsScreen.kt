@@ -120,10 +120,7 @@ fun LibraryPodcastsScreen(
 
     val subscribedChannels by viewModel.subscribedChannels.collectAsStateWithLifecycle()
     val downloadedEpisodes by viewModel.downloadedEpisodes.collectAsStateWithLifecycle()
-    val savedEpisodes by viewModel.savedEpisodes.collectAsStateWithLifecycle()
-    val sePlaylist by viewModel.sePlaylist.collectAsStateWithLifecycle()
     val podcastChannels by viewModel.podcastChannels.collectAsStateWithLifecycle()
-    val rdpnPlaylist by viewModel.rdpnPlaylist.collectAsStateWithLifecycle()
 
     // Refresh channels when screen becomes visible (ON_RESUME)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -221,32 +218,6 @@ fun LibraryPodcastsScreen(
                         chipsHeader()
                     }
 
-                    // RDPN "New Episodes" auto-playlist card
-                    item(key = "rdpn_playlist", contentType = CONTENT_TYPE_HEADER) {
-                        AutoPlaylistCard(
-                            title = stringResource(R.string.new_episodes),
-                            thumbnailUrl = rdpnPlaylist?.thumbnail,
-                            episodeCount = rdpnPlaylist?.songCountText,
-                            onClick = { navController.navigate("online_playlist/RDPN") },
-                        )
-                    }
-
-                    // Episodes for Later - card/folder (works both logged in and out)
-                    item(key = "episodes_for_later", contentType = CONTENT_TYPE_HEADER) {
-                        AutoPlaylistCard(
-                            title = stringResource(R.string.episodes_for_later),
-                            thumbnailUrl = sePlaylist?.thumbnail ?: savedEpisodes.firstOrNull()?.song?.thumbnailUrl,
-                            episodeCount =
-                                sePlaylist?.songCountText ?: if (savedEpisodes.isNotEmpty()) {
-                                    pluralStringResource(R.plurals.n_episode, savedEpisodes.size, savedEpisodes.size)
-                                } else {
-                                    null
-                                },
-                            onClick = { navController.navigate("online_playlist/SE") },
-                        )
-                    }
-
-                    // Saved podcast shows (episode playlists) from YT Music library
                     itemsIndexed(
                         items = subscribedChannels,
                         key = { _, item -> item.id },
@@ -273,7 +244,7 @@ fun LibraryPodcastsScreen(
                 }
             }
 
-            // ── CHANNELS tab — podcast host artist pages from YT Music ───
+            // ── CHANNELS tab — locally bookmarked podcast host artists ───
             PodcastFilter.CHANNELS -> {
                 LazyColumn(
                     state = lazyListState,
@@ -491,78 +462,6 @@ fun LibraryPodcastsScreen(
     }
 }
 
-/** Auto-playlist card — mirrors YT Music design. Used for both SE and RDPN playlists. */
-@Composable
-private fun AutoPlaylistCard(
-    title: String,
-    thumbnailUrl: String?,
-    episodeCount: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(ThumbnailCornerRadius))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (thumbnailUrl != null) {
-                AsyncImage(
-                    model = thumbnailUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(ThumbnailCornerRadius)),
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.queue_music),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-        }
-
-        Spacer(Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text =
-                    buildString {
-                        append(stringResource(R.string.auto_playlist))
-                        if (!episodeCount.isNullOrBlank()) {
-                            append(" • ")
-                            append(episodeCount)
-                        }
-                    },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
 /** Episode playlist row shown in the Episodes tab — represents a saved podcast show */
 @Composable
 private fun PodcastEpisodePlaylistItem(
@@ -647,9 +546,6 @@ private fun PodcastEpisodePlaylistMenu(
     val syncUtils = LocalSyncUtils.current
     val isPinned by database.speedDialDao.isPinned(podcast.id).collectAsStateWithLifecycle(initialValue = false)
 
-    val playlistId = podcast.id.removePrefix("MPSP")
-    val shareUrl = "https://music.youtube.com/playlist?list=$playlistId"
-
     Spacer(Modifier.height(12.dp))
     Material3MenuGroup(
         items =
@@ -667,7 +563,7 @@ private fun PodcastEpisodePlaylistMenu(
                             Intent().apply {
                                 action = Intent.ACTION_SEND
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                putExtra(Intent.EXTRA_TEXT, podcast.title)
                             }
                         context.startActivity(Intent.createChooser(intent, null))
                         onDismiss()

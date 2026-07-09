@@ -106,7 +106,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -135,9 +134,6 @@ import coil3.request.crossfade
 import coil3.toBitmap
 import com.metrolist.chinamusic.ChinaMusicApi
 import com.metrolist.chinamusic.model.MusicSource
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.constants.AppBarHeight
 import com.metrolist.music.constants.AppLanguageKey
 import com.metrolist.music.constants.CheckForUpdatesKey
@@ -177,13 +173,11 @@ import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.lyrics.LyricsProviderRegistry
 import com.metrolist.music.models.toMediaItem as chinaSongToMediaItem
-import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.DownloadUtil
 import com.metrolist.music.playback.MusicService
 import com.metrolist.music.playback.MusicService.MusicBinder
 import com.metrolist.music.playback.PlayerConnection
 import com.metrolist.music.playback.queues.ListQueue
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.AccountSettingsDialog
 import com.metrolist.music.ui.component.AppNavigationBar
 import com.metrolist.music.ui.component.AppNavigationRail
@@ -193,7 +187,6 @@ import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.ui.component.rememberBottomSheetState
 import com.metrolist.music.ui.component.shimmer.ShimmerTheme
-import com.metrolist.music.ui.menu.YouTubeSongMenu
 import com.metrolist.music.ui.player.BottomSheetPlayer
 import com.metrolist.music.ui.screens.Screens
 import com.metrolist.music.ui.screens.navigationBuilder
@@ -635,7 +628,6 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val homeViewModel: HomeViewModel = hiltViewModel()
-                val accountImageUrl by homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val (previousTab, setPreviousTab) = rememberSaveable { mutableStateOf("home") }
 
@@ -660,6 +652,7 @@ class MainActivity : ComponentActivity() {
                         listOf(
                             Screens.Home.route,
                             Screens.Library.route,
+                            Screens.LocalMusic.route,
                             "settings",
                         )
                     }
@@ -856,9 +849,6 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val coroutineScope = rememberCoroutineScope()
-                var sharedSong: SongItem? by remember {
-                    mutableStateOf(null)
-                }
                 var pendingNeteaseLink by remember {
                     mutableStateOf<NeteaseClipboardLink?>(null)
                 }
@@ -921,6 +911,7 @@ class MainActivity : ComponentActivity() {
                             Screens.Home.route -> R.string.home
                             Screens.Search.route -> R.string.search
                             Screens.Library.route -> R.string.filter_library
+                            Screens.LocalMusic.route -> R.string.local_music
                             else -> null
                         }
                     }
@@ -1210,7 +1201,9 @@ class MainActivity : ComponentActivity() {
                                     startDestination =
                                         when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                             NavigationTab.HOME -> Screens.Home
+                                            NavigationTab.SEARCH -> Screens.Search
                                             NavigationTab.LIBRARY -> Screens.Library
+                                            NavigationTab.LOCAL_MUSIC -> Screens.LocalMusic
                                             else -> Screens.Home
                                         }.route,
                                     // Enter Transition - smoother with smaller offset and longer duration
@@ -1414,31 +1407,6 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    sharedSong?.let { song ->
-                        playerConnection?.let {
-                            Dialog(
-                                onDismissRequest = { sharedSong = null },
-                                properties = DialogProperties(usePlatformDefaultWidth = false),
-                            ) {
-                                Surface(
-                                    modifier = Modifier.padding(24.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = AlertDialogDefaults.containerColor,
-                                    tonalElevation = AlertDialogDefaults.TonalElevation,
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                    ) {
-                                        YouTubeSongMenu(
-                                            song = song,
-                                            navController = navController,
-                                            onDismiss = { sharedSong = null },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -1594,8 +1562,6 @@ class MainActivity : ComponentActivity() {
         val uri = intent.data ?: intent.extras?.getString(Intent.EXTRA_TEXT)?.toUri() ?: return
         intent.data = null
         intent.removeExtra(Intent.EXTRA_TEXT)
-        val coroutineScope = lifecycle.coroutineScope
-
         val listenCode =
             uri.getQueryParameter("code")
                 ?: uri.getQueryParameter("room")
@@ -1607,92 +1573,13 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        when (val path = uri.pathSegments.firstOrNull()) {
-            "playlist" -> {
-                uri.getQueryParameter("list")?.let { playlistId ->
-                    if (playlistId.startsWith("OLAK5uy_")) {
-                        coroutineScope.launch(Dispatchers.IO) {
-                            YouTube
-                                .albumSongs(playlistId)
-                                .onSuccess { songs ->
-                                    songs.firstOrNull()?.album?.id?.let { browseId ->
-                                        withContext(Dispatchers.Main) {
-                                            navController.navigate("album/$browseId")
-                                        }
-                                    }
-                                }.onFailure { reportException(it) }
-                        }
-                    } else {
-                        navController.navigate("online_playlist/$playlistId")
-                    }
-                }
-            }
-
-            "browse" -> {
-                uri.lastPathSegment?.let { browseId ->
-                    navController.navigate("album/$browseId")
-                }
-            }
-
-            "channel", "c" -> {
-                uri.lastPathSegment?.let { artistId ->
-                    navController.navigate("artist/$artistId")
-                }
-            }
-
+        when (uri.pathSegments.firstOrNull()) {
             "search" -> {
                 uri.getQueryParameter("q")?.let {
                     navController.navigate("search/${URLEncoder.encode(it, "UTF-8")}")
                 }
             }
-
-            else -> {
-                val videoId =
-                    when {
-                        path == "watch" -> uri.getQueryParameter("v")
-                        uri.host == "youtu.be" -> uri.pathSegments.firstOrNull()
-                        else -> null
-                    }
-
-                val playlistId = uri.getQueryParameter("list")
-
-                if (videoId != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        YouTube
-                            .queue(listOf(videoId), playlistId)
-                            .onSuccess { queue ->
-                                withContext(Dispatchers.Main) {
-                                    playerConnection?.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = queue.firstOrNull()?.id, playlistId = playlistId),
-                                            queue.firstOrNull()?.toMediaMetadata(),
-                                        ),
-                                    )
-                                }
-                            }.onFailure {
-                                reportException(it)
-                            }
-                    }
-                } else if (playlistId != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        YouTube
-                            .queue(null, playlistId)
-                            .onSuccess { queue ->
-                                val firstItem = queue.firstOrNull()
-                                withContext(Dispatchers.Main) {
-                                    playerConnection?.playQueue(
-                                        YouTubeQueue(
-                                            WatchEndpoint(videoId = firstItem?.id, playlistId = playlistId),
-                                            firstItem?.toMediaMetadata(),
-                                        ),
-                                    )
-                                }
-                            }.onFailure {
-                                reportException(it)
-                            }
-                    }
-                }
-            }
+            else -> Unit
         }
     }
 

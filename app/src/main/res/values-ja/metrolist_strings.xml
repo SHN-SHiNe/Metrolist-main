@@ -68,11 +68,11 @@
     <string name="dislikes">低評価数</string>
     <string name="auto_download_on_like">高評価した曲を自動でダウンロード</string>
     <string name="description">説明</string>
-    <string name="not_logged_in_youtube">YouTubeにログインしてください</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">対応しているリンクを開く</string>
     <string name="views">視聴回数</string>
     <string name="likes">高評価数</string>
-    <string name="allows_for_sync_witch_youtube">YouTube Musicと同期します。これは後から変更できません</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="sort_by_last_updated">更新日</string>
     <plurals name="n_time">
         <item quantity="other">%d回</item>
@@ -84,8 +84,8 @@
     <string name="lyrics_auto_scroll">歌詞を自動でスクロール</string>
     <string name="lyrics_romanize_japanese">日本語の歌詞にローマ字を追加</string>
     <string name="lyrics_romanize_korean">韓国語の歌詞にローマ字を追加</string>
-    <string name="token_adv_login_description">これは高度なログイン方法です。ウェブポータルを使用する代わりに、ログイントークンを直接入力または更新できます。複数のデバイスで迅速にサインインする際に便利です。認識されない形式のトークンは拒否されます</string>
-    <string name="yt_sync">アカウントと自動で同期</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">アカウントと自動で同期</string>
     <string name="more_content">その他のコンテンツ</string>
     <string name="default_lib_chips">デフォルトのライブラリタブを変更</string>
     <string name="set_quick_picks">ホームタブのおすすめの曲の基準</string>
@@ -127,7 +127,7 @@
     <string name="swipe_song_to_remove">曲をスワイプしてプレイリストから削除</string>
     <string name="show_uploaded_playlist">アップロードした曲のプレイリストを表示</string>
     <string name="edit_playlist_cover">カバー画像を変更</string>
-    <string name="edit_playlist_cover_note">プレイリストのカバー画像を変更するには、アカウントが電話番号に紐付けられ、YouTube Musicで確認済みである必要があります</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">新しいカバー画像が反映するまでに時間がかかる場合があります</string>
     <string name="choose_from_library">写真から選択</string>
     <string name="remove_custom_image">変更した画像を削除</string>
@@ -187,7 +187,7 @@
     <string name="download_in_progress_desc">ダウンロード中です</string>
     <string name="share_playlist_desc">このプレイリストを他の人と共有します</string>
     <string name="delete_playlist_desc">このプレイリストを完全に削除します</string>
-    <string name="sync_playlist_desc">このプレイリストをYouTube Musicと同期します</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="crop_album_art">アルバムアートを切り抜く</string>
     <string name="crop_album_art_desc">動画のサムネイルを切り抜いて正方形の比率にします</string>
     <string name="primary_color_style">メインカラー</string>
@@ -227,7 +227,7 @@
     <string name="add_to_library_desc">ライブラリに保存します</string>
     <string name="download_desc">オフライン再生用にダウンロードします</string>
     <string name="add_to_playlist_desc">プレイリストに追加します</string>
-    <string name="refetch_desc">YouTube Musicから最新のメタデータを取得します</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">このコンテンツのリンクを共有します</string>
     <string name="delete_desc">このコンテンツを完全に削除します</string>
     <string name="advanced_desc">曲の再生速度と音程を調整します</string>
@@ -488,12 +488,12 @@
     <string name="first_row_is_header">1行目をヘッダーとして扱う</string>
     <string name="artist_name_column">アーティスト名の列</string>
     <string name="song_title_column">曲名の列</string>
-    <string name="youtube_url_column">YouTubeのURLの列（任意）</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">続行</string>
     <string name="importing_csv">CSVをインポート中…</string>
     <string name="recently_converted">最近変換した項目</string>
     <string name="column_label">列%d</string>
-    <string name="hide_youtube_shorts">YouTubeショートを非表示</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">トップバーにListen Togetherを表示</string>
     <string name="listen_together_in_top_bar_desc">Listen Togetherをナビゲーションバーから非表示にし、トップバーに表示します</string>
     <string name="prevent_duplicate_tracks_in_queue">キュー内の曲の重複を防止</string>
@@ -560,7 +560,7 @@
     <string name="from_the_community">コミュニティのおすすめ</string>
     <string name="enable_lrclib_desc">コミュニティ主導の歌詞データベースです</string>
     <string name="enable_kugou_desc">中国で人気の音楽プラットフォームであるKuGouから歌詞を取得します</string>
-    <string name="youtube_music_lyrics_note">使用できる歌詞ソースがない場合は、YouTube Musicの歌詞が自動的に表示されます。YouTube Musicの歌詞は通常、再生に合わせて表示されません</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">歌詞の提供元にLyricsPlusを使用</string>
     <string name="enable_lyricsplus_desc">複数のソースの歌詞を提供する提供元です</string>
     <string name="lyrics_provider_selection">歌詞の提供元</string>
@@ -760,8 +760,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">表示する項目</string>
     <string name="android_auto_reorder_hint">項目をタップするとオン/オフを切り替えられます。長押しで並び替えができます。先頭の項目がデフォルトで表示されます</string>
-    <string name="android_auto_youtube_playlists">YouTubeのおすすめのプレイリストを表示</string>
-    <string name="android_auto_youtube_playlists_desc">Android AutoでYouTube Musicのおすすめのプレイリストを表示します</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">クイック追加先</string>
     <string name="android_auto_target_playlist_desc">Android Autoのクイック追加ボタン使用時に曲を保存するプレイリストを選択します</string>
     <string name="android_auto_target_playlist_auto">未設定</string>

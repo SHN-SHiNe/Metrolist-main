@@ -17,7 +17,7 @@
     <string name="cached_playlist">En caché</string>
     <string name="sync_playlist">Sincronizar lista de reproducción</string>
     <string name="sync_disabled">Sincronización deshabilitada</string>
-    <string name="allows_for_sync_witch_youtube">Nota: Esto habilita la sincronización con YouTube Music. y NO se puede cambiar después</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="remove_from_cache">Eliminar de la caché</string>
     <string name="copy_link">Copiar enlace</string>
     <string name="select">Seleccionar todo</string>
@@ -52,7 +52,7 @@
     <string name="advanced_login">Iniciar sesión con token</string>
     <string name="token_hidden">Toca para mostrar el token</string>
     <string name="token_shown">Toca de nuevo para copiar o editar</string>
-    <string name="token_adv_login_description">Este es un método de inicio de sesión AVANZADO. En lugar de usar el portal web, puedes introducir o actualizar directamente tu token de inicio de sesión. Esto puede ser útil para iniciar sesión rápidamente en varios dispositivos. Los tokens con un formato no reconocido serán rechazados</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">General</string>
     <string name="proxy">Proxy</string>
     <string name="default_lib_chips">Cambiar chip de biblioteca predeterminado</string>
@@ -64,7 +64,7 @@
     <string name="percentage_format">%d%%</string>
     <string name="clear_song_cache_dialog">¿Estás seguro de que quieres borrar todas las canciones en caché?</string>
     <string name="clear_downloads_dialog">¿Estás seguro de que quieres eliminar todas las descargas?</string>
-    <string name="not_logged_in_youtube">No has iniciado sesión en YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Abrir enlaces compatibles</string>
     <string name="open_app_settings_error">No se pudieron abrir los ajustes de la aplicación</string>
     <string name="release_notes">Notas de la versión</string>
@@ -106,7 +106,7 @@
     <string name="new_player_design">Nuevo diseño del reproductor</string>
     <string name="lyrics_romanize_japanese">Romanizar letras japonesas</string>
     <string name="lyrics_romanize_korean">Romanizar letras coreanas</string>
-    <string name="yt_sync">Sincronización automática con la cuenta</string>
+    <string name="account_auto_sync">Sincronización automática con la cuenta</string>
     <string name="more_content">Más contenido</string>
     <string name="swipe_sensitivity">Sensibilidad al deslizar el mini reproductor</string>
     <string name="clear_image_cache_dialog">¿Estás seguro de que deseas borrar todas las imágenes almacenadas en caché?</string>
@@ -150,7 +150,7 @@
     <string name="line_by_line_dialog_desc">Esta función es experimental y puede tener sus fallos.\n\nPor defecto, el idioma se determina a partir de la canción completa, pero con esta opción activada, se determinará línea por línea. Esto permitirá que las canciones multilingües funcionen, PERO el idioma podría no ser siempre correcto (por ejemplo, si hay una letra en ucraniano que no contiene letras específicas del idioma, podría romanizarse al ruso).\n\nSi no tienes problemas, se recomienda desactivar esta opción</string>
     <string name="romanize_current_track">Romanizar la pista actual</string>
     <string name="edit_playlist_cover">Editar la portada de la lista de reproducción</string>
-    <string name="edit_playlist_cover_note">Nota: Tu cuenta debe estar vinculada a un número de teléfono y verificada en YouTube Music para cambiar la portada de la lista de reproducción</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Después de seleccionar una imagen, espera un momento hasta que la nueva portada aparezca en la lista de reproducción</string>
     <string name="choose_from_library">Elegir desde la biblioteca</string>
     <string name="remove_custom_image">Eliminar imagen personalizada</string>
@@ -195,7 +195,7 @@
     <string name="add_to_library_desc">Guardar en la biblioteca</string>
     <string name="download_desc">Descargar para reproducir sin conexión</string>
     <string name="add_to_playlist_desc">Añadir a una lista de reproducción</string>
-    <string name="refetch_desc">Actualizar los metadatos desde YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Compartir un enlace a este elemento</string>
     <string name="delete_desc">Eliminar este elemento de forma permanente</string>
     <string name="advanced_desc">Ajustar el tempo y el tono de la canción</string>
@@ -213,7 +213,7 @@
     <string name="download_in_progress_desc">La descarga está en proceso</string>
     <string name="share_playlist_desc">Compartir esta lista de reproducción con otros</string>
     <string name="delete_playlist_desc">Eliminar esta lista de reproducción de forma permanente</string>
-    <string name="sync_playlist_desc">Sincronizar lista de reproducción con YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="enable_better_lyrics">Habilitar Better Lyrics</string>
     <string name="enable_better_lyrics_desc">Letras sincronizadas por sílabas para cualquier canción, ideales para karaoke</string>
     <string name="lyrics_animation_style">Estilo de animación de la letra</string>
@@ -470,7 +470,7 @@
     <string name="ai_error_translation_failed">Traducción fallida</string>
     <string name="play_all">Reproducir todo</string>
     <string name="recognize_music">Identificar música</string>
-    <string name="youtube_url_column">Columna de URL de YouTube (opcional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="re_listen">Volver a escuchar</string>
     <string name="clear_recognition_history_confirm">¿Estás seguro de que quieres borrar todo el historial de identificación?</string>
     <string name="no_match_found">No se encontró ninguna coincidencia</string>
@@ -502,7 +502,7 @@
     <string name="crossfade_beta_message">La transición suave es una función nueva y puede tener errores. Si experimentas algún problema, por favor repórtalo. \n\nEsta función desactiva la descarga de audio debido a limitaciones técnicas</string>
     <string name="audio_offload_disabled_by_crossfade">Desactivado porque la transición suave está activa</string>
     <string name="crossfade">Transición suave</string>
-    <string name="hide_youtube_shorts">Ocultar YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Escuchar juntos en la barra superior</string>
     <string name="listen_together_in_top_bar_desc">Mostrar «Escuchar juntos» en la barra superior en vez de en la barra de navegación</string>
     <string name="prevent_duplicate_tracks_in_queue">Evitar pistas duplicadas en la cola</string>
@@ -570,7 +570,7 @@
     <string name="from_the_community">De la comunidad</string>
     <string name="enable_lrclib_desc">Base de datos de letras sincronizadas impulsada por la comunidad</string>
     <string name="enable_kugou_desc">Obtiene las letras de KuGou, una popular plataforma de música china</string>
-    <string name="youtube_music_lyrics_note">NOTA: Las letras de YouTube Music se mostrarán automáticamente cuando no haya otras letras disponibles. Las letras de YTM no suelen estar sincronizadas</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Activar LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Letras sincronizadas de múltiples fuentes</string>
     <string name="lyrics_provider_selection">Selección de proveedor</string>
@@ -824,8 +824,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Secciones visibles</string>
     <string name="android_auto_reorder_hint">Toca una sección para habilitarla o deshabilitarla\nMantén presionado el control de arrastre para reordenar. La primera sección se mostrará por defecto</string>
-    <string name="android_auto_youtube_playlists">Mostrar lista de reproducción sugeridas por Youtube</string>
-    <string name="android_auto_youtube_playlists_desc">Mostrar listas de reproducción recomendadas por Youtube music dentro en la sección de lista de reproducción al navegar con Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Destinación de agregado rapido</string>
     <string name="android_auto_target_playlist_desc">Selecciona la lista de reproducción donde las canciones se van a guardar usando el botón de añadir rápidamente en Android Auto</string>
     <string name="android_auto_target_playlist_auto">No establecido</string>

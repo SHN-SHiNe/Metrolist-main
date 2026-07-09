@@ -12,7 +12,7 @@
     <string name="yesterday">Eile</string>
     <string name="most_played_songs">Kõige rohkem esitatud lood</string>
     <string name="most_played_artists">Kõige rohkem esitatud esinejad</string>
-    <string name="search_yt_music">Otsi YouTube Musicust…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Otsi muusikakogust…</string>
     <string name="filter_library">Muusikakogu</string>
     <string name="filter_liked">Meeldivaks märgitud</string>
@@ -61,7 +61,7 @@
         <item quantity="other">%d valitud</item>
     </plurals>
     <string name="quick_picks">Kiirvalikud</string>
-    <string name="your_youtube_playlists">Sinu YouTube\'i esitusloendid</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="keep_listening">Jätka kuulamist</string>
     <string name="similar_to">Sarnane nagu</string>
     <string name="this_week">Sel nädalal</string>
@@ -277,6 +277,6 @@
     <string name="action_logout">Logi välja</string>
     <string name="login_failed">Sisselogimine ei õnnestunud</string>
     <string name="use_login_for_browse">Sisu sirvimiseks logi sisse</string>
-    <string name="use_login_for_browse_desc">See võib mõjutada mis sisu sa näed, sealhulgas kui kasutad YouTube Premium-kontot, siis YouTube Premiumi jaoks mõeldud albumeid</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Logi sisse</string>
 </resources>

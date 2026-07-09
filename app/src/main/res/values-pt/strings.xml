@@ -16,13 +16,13 @@
     <string name="quick_picks_empty">Ouça músicas para gerar as escolhas rápidas</string>
     <string name="forgotten_favorites">Favoritas esquecidas</string>
     <string name="keep_listening">Continuar a ouvir</string>
-    <string name="your_youtube_playlists">Listas de reprodução YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Semelhantes</string>
     <string name="today">Hoje</string>
     <string name="yesterday">Ontem</string>
     <string name="most_played_albums">Álbuns mais reproduzidos</string>
     <string name="search">Pesquisar</string>
-    <string name="search_yt_music">Pesquisar no YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="filter_liked">Gosto</string>
     <string name="filter_downloaded">Transferidas</string>
     <string name="filter_all">Tudo</string>
@@ -286,6 +286,6 @@
     <string name="stop_music_on_task_clear">Parar ao limpar a tarefa</string>
     <string name="discord_information">Metrolist utiliza a biblioteca KizzyRPC para definir o estado da sua conta Discord. Isto envolve uma ligação ao Discord Gateway, que pode ser considerada uma violação dos termos do serviço Discord. Contudo ,não há casos conhecidos de contas suspensas por este motivo. Utilize por sua conta e risco.\n\nMetrolist apenas irá extrair o seu token e tudo o resto é armazenado localmente.</string>
     <string name="use_login_for_browse">Inicie a sessão para ver o conteúdo de navegação</string>
-    <string name="use_login_for_browse_desc">Isto influencia o conteúdo visível, e por exemplo, mostra apenas álbuns Premium, se estiver autenticado com uma conta Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Iniciar sessão</string>
 </resources>

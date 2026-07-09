@@ -71,7 +71,7 @@
     <string name="my_top">Moj top</string>
     <string name="cached_playlist">Keširano</string>
     <string name="sync_disabled">Sinhronizacoja onemogućena</string>
-    <string name="allows_for_sync_witch_youtube">Napomena: Ovo omogućava sinhronizaciju s YouTube Music. Ovo se NE može kasnije promijeniti.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generisanje slike</string>
     <string name="cancel">Otkaži</string>
     <string name="share_lyrics">Podjeli stihove</string>
@@ -95,12 +95,12 @@
     <string name="past_year">Prošle godine</string>
     <string name="playlist_add_local_to_synced_note">Napomena: Dodavanje lokalnih pjesama na sinhronizovane/udaljene plejliste nije podržano. Bilo koja druga kombinacija je važeća</string>
     <string name="percentage_format">%d%%</string>
-    <string name="not_logged_in_youtube">Niste prijavljeni na YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="history_duration">Trajanje istorije</string>
     <plurals name="seconds">
         <item quantity="one">%dsekund</item>
         <item quantity="few">%dsekunde</item>
         <item quantity="other">%dsekundi</item>
     </plurals>
-    <string name="token_adv_login_description">Ovo je NAPREDNA metoda prijave. Kao alternativa web portalu, ovdje možete direktno unijeti ili ažurirati svoj token za prijavu. Na primjer, ovo može ubrzati prijavu na više uređaja. Imajte na umu da neće biti prihvaćeni nevažeći formati tokena koje aplikacija ne uspije analizirati</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
 </resources>

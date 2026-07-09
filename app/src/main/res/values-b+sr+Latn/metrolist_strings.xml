@@ -18,7 +18,7 @@
     <string name="cached_playlist">Keširano</string>
     <string name="sync_playlist">Sinhronizuj plejlistu</string>
     <string name="sync_disabled">Sinhronizacija onemogućena</string>
-    <string name="allows_for_sync_witch_youtube">Napomena: Ovo omogućava sinhronizaciju sa YouTube Music. Ovo se NE MOŽE promeniti kasnije.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generišem sliku</string>
     <string name="please_wait">Molimo sačekajte</string>
     <string name="cancel">Otkaži</string>
@@ -67,7 +67,7 @@
     <string name="remove_download_playlist_desc">Obriši sve preuzete pesme iz ove plejliste</string>
     <string name="download_in_progress_desc">Preuzimanje je u toku</string>
     <string name="share_playlist_desc">Podeli ovu plejlistu sa drugima</string>
-    <string name="sync_playlist_desc">Sinhronizuj plejlistu sa Youtube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="close">Zatvori</string>
     <string name="seek_seconds_addup_description">Kada je aktivirano, dodaje 5 sekundi za svako preskakanje traženja</string>
     <string name="new_player_design">Novi dizajn plejera</string>

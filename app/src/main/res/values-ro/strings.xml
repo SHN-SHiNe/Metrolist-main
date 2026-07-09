@@ -13,7 +13,7 @@
     <string name="quick_picks_empty">Ascultă melodii pentru a-ți genera alegerile rapide</string>
     <string name="forgotten_favorites">Preferințe uitate</string>
     <string name="keep_listening">Continuă să asculți</string>
-    <string name="your_youtube_playlists">Playlisturile tale de pe YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Similar cu</string>
     <string name="new_release_albums">Albume noi</string>
     <string name="today">Astăzi</string>
@@ -24,7 +24,7 @@
     <string name="most_played_artists">Cei mai redați artiști</string>
     <string name="most_played_albums">Cele mai redate albume</string>
     <string name="search">Caută</string>
-    <string name="search_yt_music">Caută pe YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Caută în bibliotecă…</string>
     <string name="filter_library">Bibliotecă</string>
     <string name="filter_liked">Apreciate</string>
@@ -260,7 +260,7 @@
     <string name="clear_search_history">Șterge istoricul căutărilor</string>
     <string name="clear_search_history_confirm">Sigur vrei să ștergi tot istoricul căutărilor?</string>
     <string name="use_login_for_browse">Folosește autentificarea pentru a răsfoi conținut</string>
-    <string name="use_login_for_browse_desc">Această setare poate influența ce conținut vezi, de exemplu poate arăta albume doar pentru utilizatorii Premium dacă ești autentificat cu un cont Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">Dezactivează capturile de ecran</string>
     <string name="disable_screenshot_desc">Când această opțiune este pornită, capturile de ecran sunt dezactivate și aplicația nu poate fi văzută în Recente.</string>
     <string name="enable_lrclib">Activează furnizorul de versuri LrcLib</string>

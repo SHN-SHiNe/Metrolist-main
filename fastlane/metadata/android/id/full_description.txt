@@ -1,15 +1,15 @@
-Klien YouTube Music berbasis Material 3 untuk Android
+Klien SHiNe MUSIC berbasis Material 3 untuk Android
 
 Fitur:
 
-- Putar lagu atau video apa pun dari YouTube Music
+- Putar lagu atau video apa pun dari SHiNe MUSIC
 - Pemutaran di latar belakang
 - Pilihan cepat yang dipersonalisasi
 - Pengelolaan pustaka
 - Unduh dan simpan lagu untuk diputar luring
 - Cari lagu, album, artis, video, dan daftar putar
 - Lirik langsung
-- Dukungan masuk akun YouTube Music
+- Dukungan masuk akun SHiNe MUSIC
 - Sinkronisasi lagu, artis, album, dan daftar putar dari dan ke akun Anda
 - Lewati bagian hening
 - Impor daftar putar

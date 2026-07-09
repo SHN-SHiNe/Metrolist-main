@@ -59,7 +59,7 @@ export default {
     },
     {
       id: 'txtybb',
-      name: 'YouTube榜',
+      name: '海外榜',
       bangid: 128,
     },
   ],

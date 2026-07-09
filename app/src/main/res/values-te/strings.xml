@@ -101,9 +101,9 @@
     <string name="mood_and_genres">మూడ్ మరియు కళా ప్రక్రియలు</string>
     <string name="quick_picks">త్వరిత ఎంపికలు</string>
     <string name="quick_picks_empty">మీ త్వరిత ఎంపికలను రూపొందించడానికి పాటలను వినండి</string>
-    <string name="your_youtube_playlists">మీ యూట్యూబ్ప్లేజాబితాలు</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">దీనికి సమానమైనది</string>
-    <string name="search_yt_music">యూట్యూబ్ మ్యూజిక్‌లో వెతకండి…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">లైబ్రరీలో వెతకండి…</string>
     <string name="filter_library">లైబ్రరీ</string>
     <string name="filter_downloaded">డౌన్‌లోడ్ చేయబడింది</string>
@@ -257,7 +257,7 @@
     <string name="clear_search_history">శోధన చరిత్రను క్లియర్ చేయండి</string>
     <string name="clear_search_history_confirm">మీరు ఖచ్చితంగా మొత్తం శోధన చరిత్రను క్లియర్ చేయాలనుకుంటున్నారా?</string>
     <string name="use_login_for_browse">కంటెంట్ బ్రౌజింగ్ కోసం లాగిన్ ఉపయోగించండి</string>
-    <string name="use_login_for_browse_desc">ఇది మీరు చూసే కంటెంట్‌ను ప్రభావితం చేస్తుంది మరియు ఉదాహరణకు మీరు ప్రీమియం ఖాతాతో లాగిన్ అయి ఉంటే ప్రీమియం-మాత్రమే ఆల్బమ్‌లను చూపుతుంది</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">స్క్రీన్‌షాట్‌ను నిలిపివేయండి</string>
     <string name="disable_screenshot_desc">ఈ ఎంపిక ఆన్‌లో ఉన్నప్పుడు, స్క్రీన్‌షాట్‌లు మరియు ఇటీవలి వాటిలో యాప్‌ల వీక్షణ నిలిపివేయబడతాయి.</string>
     <string name="enable_lrclib">LrcLib లిరిక్స్ ప్రొవైడర్‌ను ప్రారంభించండి</string>

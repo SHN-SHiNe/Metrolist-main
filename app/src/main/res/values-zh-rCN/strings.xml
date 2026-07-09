@@ -23,11 +23,14 @@
     <string name="most_played_artists">最常播放的音乐人</string>
     <string name="most_played_albums">最常播放的专辑</string>
     <string name="search">搜索</string>
-    <string name="search_yt_music">搜索 YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">搜索媒体库…</string>
+    <string name="search_advanced_local_music">搜索本地音乐…</string>
+    <string name="search_source_library">媒体库</string>
+    <string name="search_source_advanced">高级</string>
     <string name="filter_library">媒体库</string>
     <string name="filter_liked">喜欢</string>
-    <string name="filter_downloaded">已下载</string>
+    <string name="filter_downloaded">已缓存</string>
     <string name="filter_all">全部</string>
     <string name="filter_songs">歌曲</string>
     <string name="filter_videos">视频</string>
@@ -40,7 +43,8 @@
     <string name="no_results_found">未找到结果</string>
     <string name="from_your_library">来自您的媒体库</string>
     <string name="liked_songs">喜欢的歌曲</string>
-    <string name="downloaded_songs">已下载的歌曲</string>
+    <string name="downloaded_songs">离线缓存</string>
+    <string name="file_downloaded_music">本地文件</string>
     <string name="playlist_is_empty">播放列表为空</string>
     <string name="retry">重试</string>
     <string name="radio">电台</string>
@@ -54,9 +58,9 @@
     <string name="add_to_queue">添加到待播列表</string>
     <string name="add_to_library">添加到媒体库</string>
     <string name="remove_from_library">从媒体库中移除</string>
-    <string name="action_download">下载</string>
-    <string name="downloading">正在下载</string>
-    <string name="remove_download">移除下载</string>
+    <string name="action_download">缓存离线</string>
+    <string name="downloading">正在缓存</string>
+    <string name="remove_download">移除缓存</string>
     <string name="import_playlist">导入播放列表</string>
     <string name="add_to_playlist">添加到播放列表</string>
     <string name="view_artist">浏览音乐人</string>
@@ -185,7 +189,7 @@
     <string name="song_cache">歌曲缓存</string>
     <string name="max_cache_size">最大缓存大小</string>
     <string name="unlimited">无限制</string>
-    <string name="clear_all_downloads">清除所有下载</string>
+    <string name="clear_all_downloads">清除离线缓存</string>
     <string name="max_image_cache_size">图像缓存大小</string>
     <string name="clear_image_cache">清除图像缓存</string>
     <string name="max_song_cache_size">歌曲缓存大小</string>
@@ -212,8 +216,8 @@
     <string name="translation_models">翻译模型</string>
     <string name="clear_translation_models">清除翻译模型</string>
     <string name="delete_playlist_confirm">是否确定要删除播放列表“%s”？</string>
-    <string name="remove_download_playlist_confirm">是否确定要从已下载的歌曲存储中移除所有“%s”播放列表歌曲？</string>
-    <string name="your_youtube_playlists">您的 YouTube 播放列表</string>
+    <string name="remove_download_playlist_confirm">是否确定要从离线缓存中移除所有“%s”播放列表歌曲？</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="other_versions">其他版本</string>
     <string name="library_artist_empty">媒体库音乐人将显示在此处</string>
     <string name="library_album_empty">媒体库专辑将显示在此处</string>
@@ -267,7 +271,7 @@
     <string name="auto_skip_next_on_error">发生错误时自动跳到下一首歌曲</string>
     <string name="stop_music_on_task_clear">任务清除时停止音乐</string>
     <string name="discord_information">Metrolist 使用 KizzyRPC 库来设置您的 Discord 账号的状态。这会用到 Discord 网关连接，可能会违反 Discord 的服务条款。不过，目前还没有因此原因暂停用户账号的情况。使用风险自负。 \n \nMetrolist 只提取您的令牌，其他内容都存储在本地。</string>
-    <string name="use_login_for_browse_desc">这可能会影响您看到的内容，例如，如果您使用会员账号登录，则会显示仅会员专辑</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="use_login_for_browse">登录账号浏览内容</string>
     <string name="action_login">登录</string>
 </resources>

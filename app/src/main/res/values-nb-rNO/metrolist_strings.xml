@@ -6,9 +6,9 @@
     <string name="link_copied">Lenke kopiert til utklippstavlen</string>
     <string name="token_hidden">Klikk for å vise tokenen</string>
     <string name="enable_swipe_thumbnail">Sveip for å bytte sanger</string>
-    <string name="token_adv_login_description">Dette er en AVANSERT innloggingsmetode. Som alternativ til nettportalen, kan du direkte legge inn eller oppdatere innloggingstokenen din her. Dette kan f.eks. gjøre innlogging på flere enheter raskere. NB: Ugyldige tokenformater som appen ikke lykkes til i å tolke, vil ikke godtas</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="lyrics">Sangtekster</string>
-    <string name="allows_for_sync_witch_youtube">NB: Dette tillater synkronisering med YouTube Music. Dette kan ikke endres senere.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="share_lyrics">Del sangtekster</string>
     <string name="similar_content">Lignende innhold</string>
     <string name="local_history">Lokal</string>
@@ -84,7 +84,7 @@
     <string name="download_in_progress_desc">Nedlasting er underveis</string>
     <string name="share_playlist_desc">Del denne spillelisten med andre</string>
     <string name="delete_playlist_desc">Fjern denne spillelisten permanent</string>
-    <string name="sync_playlist_desc">Synkroniser spilleliste med YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="starting_radio">Starter radio</string>
     <string name="now_playing">Spiller nå</string>
     <string name="close">Lukk</string>

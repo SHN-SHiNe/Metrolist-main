@@ -25,7 +25,7 @@
     <string name="most_played_artists">Artistes les plus joués</string>
     <string name="most_played_albums">Albums les plus joués</string>
     <string name="search">Rechercher</string>
-    <string name="search_yt_music">Rechercher sur YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Rechercher dans votre bibliothèque…</string>
     <string name="filter_library">Bibliothèque</string>
     <string name="filter_liked">Favoris</string>
@@ -274,7 +274,7 @@
     <string name="auto_load_more_desc">Ajouter automatiquement, si possible, des titres à la fin de la file d\'attente quand elle est atteinte</string>
     <string name="auto_skip_next_on_error_desc">Permet d\'assurer une lecture continue</string>
     <string name="library_album_empty">Les albums de la bibliothèque s\'afficheront ici</string>
-    <string name="your_youtube_playlists">Vos playlists YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="remove_all_from_library">Tout supprimer de la bibliothèque</string>
     <string name="remove_from_queue">Retirer de la file d\'attente</string>
     <string name="small">Petit</string>
@@ -286,6 +286,6 @@
     <string name="auto_skip_next_on_error">Aller au titre suivant si une erreur apparaît</string>
     <string name="discord_information">Metrolist utilise la bibliothèque KizzyRPC pour définir le statut de votre compte Discord. Cela implique l\'utilisation de la connexion Discord Gateway, ce qui peut être considéré comme une violation des conditions d\'utilisation de Discord. Cependant, il n\'existe aucun cas connu de comptes d\'utilisateurs suspendus pour cette raison. Utilisez-le à vos propres risques. \n \nMetrolist extraira uniquement votre jeton, et tout le reste sera stocké localement.</string>
     <string name="use_login_for_browse">Utiliser le compte connecté pour parcourir le contenu</string>
-    <string name="use_login_for_browse_desc">Ceci peut influencer le contenu que vous voyez et affiche par exemple les albums Premium si vous êtes connecté avec un compte Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Se connecter</string>
 </resources>

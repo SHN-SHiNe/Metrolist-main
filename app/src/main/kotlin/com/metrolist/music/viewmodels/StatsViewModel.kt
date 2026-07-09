@@ -10,8 +10,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.Artist
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.LastMonthlyMostPlaylistSyncKey
 import com.metrolist.music.constants.LastWeeklyMostPlaylistSyncKey
@@ -20,9 +18,10 @@ import com.metrolist.music.constants.StatPeriod
 import com.metrolist.music.constants.statToPeriod
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.PlaylistEntity
+import com.metrolist.music.models.MediaMetadata.Artist
 import com.metrolist.music.ui.screens.OptionStats
-import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.reportException
+import com.metrolist.music.utils.dataStore
 import androidx.datastore.preferences.core.edit
 import com.metrolist.music.R
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,7 +38,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -136,9 +134,7 @@ constructor(
                         } else {
                             statToPeriod(selection, t - 1)
                         },
-                    ).map { artists ->
-                        artists.filter { it.artist.isYouTubeArtist }
-                    }
+                    )
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val mostPlayedAlbums =
@@ -411,47 +407,5 @@ constructor(
 
     init {
         syncMostPlaylistsIfNeeded(force = true)
-
-        viewModelScope.launch {
-            mostPlayedArtists.collect { artists ->
-                artists
-                    .map { it.artist }
-                    .filter {
-                        it.thumbnailUrl == null || Duration.between(
-                            it.lastUpdateTime,
-                            LocalDateTime.now()
-                        ) > Duration.ofDays(10)
-                    }.forEach { artist ->
-                        YouTube.artist(artist.id).onSuccess { artistPage ->
-                            database.query {
-                                update(artist, artistPage)
-                            }
-                        }
-                    }
-            }
-        }
-        viewModelScope.launch {
-            mostPlayedAlbums.collect { albums ->
-                albums
-                    .filter {
-                        it.album.songCount == 0
-                    }.forEach { album ->
-                        YouTube
-                            .album(album.id)
-                            .onSuccess { albumPage ->
-                                database.query {
-                                    update(album.album, albumPage, album.artists)
-                                }
-                            }.onFailure {
-                                reportException(it)
-                                if (it.message?.contains("NOT_FOUND") == true) {
-                                    database.query {
-                                        delete(album.album)
-                                    }
-                                }
-                            }
-                    }
-            }
-        }
     }
 }

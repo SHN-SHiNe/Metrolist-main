@@ -45,7 +45,6 @@ import androidx.core.net.toUri
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
-import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
@@ -59,7 +58,6 @@ import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
 import com.metrolist.music.playback.queues.ListQueue
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.Material3MenuGroup
 import com.metrolist.music.ui.component.Material3MenuItemData
@@ -163,9 +161,6 @@ fun PlaylistMenu(
                         ),
                     )
                 }
-                coroutineScope.launch(Dispatchers.IO) {
-                    playlist.playlist.browseId?.let { YouTube.renamePlaylist(it, name) }
-                }
             },
         )
     }
@@ -253,9 +248,6 @@ fun PlaylistMenu(
                             delete(playlist.playlist)
                         }
 
-                        coroutineScope.launch(Dispatchers.IO) {
-                            playlist.playlist.browseId?.let { YouTube.deletePlaylist(it) }
-                        }
                     },
                 ) {
                     Text(text = stringResource(android.R.string.ok))
@@ -365,7 +357,7 @@ fun PlaylistMenu(
                                 com.metrolist.chinamusic.PlaylistUrlParser.getPlaylistUrlFromBrowseId(browseId)
                                     ?: songs.joinToString("\n") { it.song.title }
                             } else {
-                                "https://music.youtube.com/playlist?list=${dbPlaylist?.playlist?.browseId}"
+                                songs.joinToString("\n") { it.song.title }
                             }
                             val intent =
                                 Intent().apply {
@@ -435,34 +427,6 @@ fun PlaylistMenu(
             Material3MenuGroup(
                 items =
                     buildList {
-                        if (!isGuest && !isChinaPlaylist) {
-                            playlist.playlist.browseId?.let { browseId ->
-                                add(
-                                    Material3MenuItemData(
-                                        title = { Text(text = stringResource(R.string.start_radio)) },
-                                        description = { Text(text = stringResource(R.string.start_radio_desc)) },
-                                        icon = {
-                                            Icon(
-                                                painter = painterResource(R.drawable.radio),
-                                                contentDescription = null,
-                                            )
-                                        },
-                                        onClick = {
-                                            coroutineScope.launch(Dispatchers.IO) {
-                                                YouTube.playlist(browseId).getOrNull()?.playlist?.let { playlistItem ->
-                                                    playlistItem.radioEndpoint?.let { radioEndpoint ->
-                                                        withContext(Dispatchers.Main) {
-                                                            playerConnection.playQueue(YouTubeQueue(radioEndpoint))
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            onDismiss()
-                                        },
-                                    ),
-                                )
-                            }
-                        }
                         if (!isGuest) {
                             add(
                                 Material3MenuItemData(

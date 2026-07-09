@@ -5,6 +5,7 @@
 
 package com.metrolist.music.ui.menu
 
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
@@ -63,13 +64,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
+import dagger.hilt.android.EntryPointAccessors
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
@@ -80,15 +82,19 @@ import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.db.entities.Event
+import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.db.entities.LocalMusicEntity
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.db.entities.PodcastEntity
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.SpeedDialItem
+import com.metrolist.music.di.LocalMusicAnalysisEntryPoint
 import com.metrolist.music.download.FileMusicDownloader
 import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.localmusic.analysis.LocalMusicAnalysisStatus
+import com.metrolist.music.localmusic.analysis.hasCompleteAnalysis
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3MenuGroup
@@ -99,10 +105,10 @@ import com.metrolist.music.ui.component.SongListItem
 import com.metrolist.music.ui.component.TextFieldDialog
 import com.metrolist.music.viewmodels.CachePlaylistViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.io.File
 import java.time.LocalDateTime
 
 @Composable
@@ -119,8 +125,30 @@ fun SongMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
+    val localMusicAnalysisManager =
+        remember(context) {
+            EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                LocalMusicAnalysisEntryPoint::class.java,
+            ).localMusicAnalysisManager()
+        }
     val songState = database.song(originalSong.id).collectAsStateWithLifecycle(initialValue = originalSong)
     val song = songState.value ?: originalSong
+    val downloadedLocalMusic by database.localMusic(song.id).collectAsStateWithLifecycle(initialValue = null)
+    val activeDownloadedLocalMusic = downloadedLocalMusic?.takeIf { it.missingSince == null }
+    val localMusicAnalysisStates by localMusicAnalysisManager.states.collectAsStateWithLifecycle()
+    val localMusicAnalysisState = activeDownloadedLocalMusic?.songId?.let(localMusicAnalysisStates::get)
+    val isLocalMusicAnalyzing =
+        localMusicAnalysisState?.status == LocalMusicAnalysisStatus.Queued ||
+            localMusicAnalysisState?.status == LocalMusicAnalysisStatus.Running
+    val isLocalSong =
+        isLocalMenuSong(
+            isLocalMetadata = song.song.isLocal,
+            mediaId = song.id,
+            libraryIsLocal = false,
+            hasLocalFile = activeDownloadedLocalMusic != null,
+        )
+    val menuVisibility = musicMenuVisibility(isLocalSong)
     val download by LocalDownloadUtil.current
         .getDownload(originalSong.id)
         .collectAsStateWithLifecycle(initialValue = null)
@@ -223,7 +251,9 @@ fun SongMenu(
 
     var showChoosePlaylistDialog by rememberSaveable { mutableStateOf(false) }
     var showErrorPlaylistAddDialog by rememberSaveable { mutableStateOf(false) }
-    var showFileDownloadDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteLocalMusicDialog by rememberSaveable { mutableStateOf(false) }
+    var deleteLocalMusicInProgress by rememberSaveable { mutableStateOf(false) }
+    var fileDownloadMode by rememberSaveable { mutableStateOf<LocalFileDownloadMode?>(null) }
     var fileDownloadInProgress by rememberSaveable { mutableStateOf(false) }
 
     AddToPlaylistDialog(
@@ -231,9 +261,6 @@ fun SongMenu(
         onGetSong = { playlist ->
             database.withTransaction {
                 insert(song.toMediaMetadata())
-            }
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, song.id) }
             }
             listOf(song.id)
         },
@@ -243,20 +270,41 @@ fun SongMenu(
         },
     )
 
-    if (showFileDownloadDialog) {
+    fileDownloadMode?.let { pendingFileDownloadMode ->
         SongFileDownloadQualityDialog(
             inProgress = fileDownloadInProgress,
-            onDismiss = { showFileDownloadDialog = false },
+            confirmText = if (pendingFileDownloadMode == LocalFileDownloadMode.DownloadAndAnalyze) "下载并分析" else "开始下载",
+            onDismiss = { fileDownloadMode = null },
             onQualitySelected = { quality ->
                 fileDownloadInProgress = true
                 coroutineScope.launch {
-                    val result = FileMusicDownloader.download(context, song.toMediaMetadata(), quality)
+                    val metadata = song.toMediaMetadata()
+                    val result =
+                        runLocalFileDownloadAction(
+                            context = context,
+                            database = database,
+                            mediaMetadata = metadata,
+                            quality = quality,
+                            mode = pendingFileDownloadMode,
+                            analysisManager = localMusicAnalysisManager,
+                        )
                     fileDownloadInProgress = false
-                    showFileDownloadDialog = false
+                    fileDownloadMode = null
                     Toast.makeText(
                         context,
                         result.fold(
-                            onSuccess = { "已下载到 Music/SHiNe MUSIC/$it" },
+                            onSuccess = { actionResult ->
+                                when {
+                                    actionResult.reusedExisting && actionResult.analysisStarted ->
+                                        "已在本地，开始分析：${actionResult.displayPath}"
+                                    actionResult.reusedExisting ->
+                                        "已在本地：${actionResult.displayPath}"
+                                    actionResult.analysisStarted ->
+                                        "已下载到 ${actionResult.displayPath}，开始分析"
+                                    else ->
+                                        "已下载到 ${actionResult.displayPath}"
+                                }
+                            },
                             onFailure = { "下载失败：${it.message ?: "未知错误"}" },
                         ),
                         Toast.LENGTH_LONG,
@@ -295,100 +343,62 @@ fun SongMenu(
         }
     }
 
-    var showSelectArtistDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showDeleteUploadedDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var isDeleting by remember { mutableStateOf(false) }
-
-    if (showDeleteUploadedDialog) {
-        DefaultDialog(
-            onDismiss = { if (!isDeleting) showDeleteUploadedDialog = false },
-            icon = {
-                Icon(
-                    painter = painterResource(R.drawable.delete),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            },
-            title = { Text(stringResource(R.string.delete_uploaded_song)) },
-            buttons = {
-                TextButton(
-                    onClick = { showDeleteUploadedDialog = false },
-                    enabled = !isDeleting,
-                ) {
-                    Text(stringResource(R.string.cancel))
+    if (showDeleteLocalMusicDialog && activeDownloadedLocalMusic != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!deleteLocalMusicInProgress) {
+                    showDeleteLocalMusicDialog = false
                 }
+            },
+            title = { Text("删除本地文件") },
+            text = {
+                Text("将删除音频文件，并从本地音乐库数据库中移除这首歌。此操作无法撤销。")
+            },
+            confirmButton = {
                 TextButton(
+                    enabled = !deleteLocalMusicInProgress,
                     onClick = {
-                        val entityId = song.song.uploadEntityId
-                        if (entityId == null) {
-                            Toast
-                                .makeText(
-                                    context,
-                                    R.string.delete_uploaded_song_failed,
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            showDeleteUploadedDialog = false
-                            return@TextButton
-                        }
-                        isDeleting = true
-                        coroutineScope.launch(Dispatchers.IO) {
-                            YouTube
-                                .deleteUploadedSong(entityId)
-                                .onSuccess {
-                                    database.query {
-                                        delete(song.song)
-                                    }
-                                    withContext(Dispatchers.Main) {
-                                        Toast
-                                            .makeText(
-                                                context,
-                                                R.string.delete_uploaded_song_success,
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                        isDeleting = false
-                                        showDeleteUploadedDialog = false
-                                        onDismiss()
-                                    }
-                                }.onFailure {
-                                    withContext(Dispatchers.Main) {
-                                        Toast
-                                            .makeText(
-                                                context,
-                                                R.string.delete_uploaded_song_failed,
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                        isDeleting = false
-                                        showDeleteUploadedDialog = false
-                                    }
-                                }
+                        val localMusic = activeDownloadedLocalMusic
+                        deleteLocalMusicInProgress = true
+                        coroutineScope.launch {
+                            val result =
+                                deleteLocalMusicFileAndDatabase(
+                                    context = context,
+                                    database = database,
+                                    localMusic = localMusic,
+                                )
+                            deleteLocalMusicInProgress = false
+                            showDeleteLocalMusicDialog = false
+                            Toast.makeText(
+                                context,
+                                result.fold(
+                                    onSuccess = { "已删除本地文件和数据库记录" },
+                                    onFailure = { "删除失败：${it.message ?: "未知错误"}" },
+                                ),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            if (result.isSuccess) {
+                                onDismiss()
+                            }
                         }
                     },
-                    enabled = !isDeleting,
                 ) {
-                    if (isDeleting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.delete),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    Text(if (deleteLocalMusicInProgress) "删除中" else "删除")
                 }
             },
-        ) {
-            Text(
-                text = stringResource(R.string.delete_uploaded_song_confirm),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
+            dismissButton = {
+                TextButton(
+                    enabled = !deleteLocalMusicInProgress,
+                    onClick = { showDeleteLocalMusicDialog = false },
+                ) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+
+    var showSelectArtistDialog by rememberSaveable {
+        mutableStateOf(false)
     }
 
     if (showSelectArtistDialog) {
@@ -459,35 +469,6 @@ fun SongMenu(
                                     isEpisode = true,
                                 ),
                             )
-                        }
-                        coroutineScope.launch(Dispatchers.IO) {
-                            if (isCurrentlySaved) {
-                                val setVideoIdEntity = database.getSetVideoId(song.id)
-                                val setVideoId = setVideoIdEntity?.setVideoId
-                                if (setVideoId != null) {
-                                    YouTube
-                                        .removeEpisodeFromSavedEpisodes(song.id, setVideoId)
-                                        .onSuccess {
-                                            Timber.d("[EPISODE_SAVE] Removed episode from Episodes for Later: ${song.id}")
-                                        }.onFailure { e ->
-                                            Timber.e(e, "[EPISODE_SAVE] Failed to remove episode: ${song.id}")
-                                            withContext(Dispatchers.Main) {
-                                                Toast.makeText(context, R.string.error_episode_remove, Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                }
-                            } else {
-                                YouTube
-                                    .addEpisodeToSavedEpisodes(song.id)
-                                    .onSuccess {
-                                        Timber.d("[EPISODE_SAVE] Saved episode to Episodes for Later: ${song.id}")
-                                    }.onFailure { e ->
-                                        Timber.e(e, "[EPISODE_SAVE] Failed to save episode: ${song.id}")
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, R.string.error_episode_save, Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                            }
                         }
                     } else {
                         // Regular song: toggle like
@@ -576,7 +557,7 @@ fun SongMenu(
                                         com.metrolist.chinamusic.PlaylistUrlParser.getSongUrlFromMediaId(song.id)
                                             ?: song.song.title
                                     } else {
-                                        "https://music.youtube.com/watch?v=${song.id}"
+                                        "${song.song.title} - ${song.artists.joinToString { it.name }}"
                                     }
                                 )
                                     }
@@ -702,6 +683,45 @@ fun SongMenu(
                                 },
                             ),
                         )
+                        if (isLocalSong && activeDownloadedLocalMusic != null) {
+                            add(
+                                Material3MenuItemData(
+                                    title = {
+                                        Text(
+                                            text =
+                                                when {
+                                                    isLocalMusicAnalyzing -> "分析中"
+                                                    activeDownloadedLocalMusic.hasCompleteAnalysis() -> "重新分析"
+                                                    else -> "立即分析"
+                                                },
+                                        )
+                                    },
+                                    description = { Text(text = "重新生成情绪、BPM 和调性") },
+                                    icon = {
+                                        if (isLocalMusicAnalyzing) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                        } else {
+                                            Icon(
+                                                painter = painterResource(R.drawable.advanced_search),
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    },
+                                    onClick =
+                                        if (isLocalMusicAnalyzing) {
+                                            null
+                                        } else {
+                                            {
+                                                localMusicAnalysisManager.analyze(activeDownloadedLocalMusic)
+                                                onDismiss()
+                                            }
+                                        },
+                                ),
+                            )
+                        }
                         if (event != null) {
                             add(
                                 Material3MenuItemData(
@@ -774,164 +794,236 @@ fun SongMenu(
                                 ),
                             )
                         }
-                        // Delete uploaded song option
-                        if (song.song.isUploaded) {
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.delete_uploaded_song)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.delete),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    onClick = {
-                                        showDeleteUploadedDialog = true
-                                    },
-                                ),
-                            )
-                        }
                     },
             )
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
+        if (isLocalSong && activeDownloadedLocalMusic != null) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item {
+                Material3MenuGroup(
+                    items =
+                        listOf(
+                            Material3MenuItemData(
+                                title = { Text(text = "删除本地文件") },
+                                description = { Text(text = "删除音频文件，并移除本地音乐数据库记录") },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.delete),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    showDeleteLocalMusicDialog = true
+                                },
+                            ),
+                        ),
+                )
+            }
+        }
 
-        item {
-            Material3MenuGroup(
-                items =
-                    listOf(
-                        when (download?.state) {
-                            Download.STATE_COMPLETED -> {
-                                Material3MenuItemData(
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.remove_download),
-                                        )
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.offline),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    onClick = {
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.id,
-                                            false,
-                                        )
-                                    },
-                                )
+        if (menuVisibility.showDownloadAction) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                Material3MenuGroup(
+                    items =
+                        buildList {
+                            when (download?.state) {
+                                Download.STATE_COMPLETED -> {
+                                    add(
+                                        Material3MenuItemData(
+                                            title = {
+                                                Text(
+                                                    text = stringResource(R.string.remove_download),
+                                                )
+                                            },
+                                            icon = {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.offline),
+                                                    contentDescription = null,
+                                                )
+                                            },
+                                            onClick = {
+                                                DownloadService.sendRemoveDownload(
+                                                    context,
+                                                    ExoDownloadService::class.java,
+                                                    song.id,
+                                                    false,
+                                                )
+                                            },
+                                        ),
+                                    )
+                                }
+
+                                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+                                    add(
+                                        Material3MenuItemData(
+                                            title = { Text(text = stringResource(R.string.downloading)) },
+                                            icon = {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            },
+                                            onClick = {
+                                                DownloadService.sendRemoveDownload(
+                                                    context,
+                                                    ExoDownloadService::class.java,
+                                                    song.id,
+                                                    false,
+                                                )
+                                            },
+                                        ),
+                                    )
+                                }
+
+                                else -> Unit
                             }
-
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.downloading)) },
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                    },
-                                    onClick = {
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            song.id,
-                                            false,
-                                        )
-                                    },
+                            if (download?.state != Download.STATE_QUEUED && download?.state != Download.STATE_DOWNLOADING) {
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = "下载到本地") },
+                                        description = { Text(text = "保存为本地音乐文件") },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.download),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
+                                            fileDownloadMode = LocalFileDownloadMode.DownloadOnly
+                                        },
+                                    ),
                                 )
-                            }
-
-                            else -> {
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.action_download)) },
-                                    description = { Text(text = "下载到手机音乐文件夹") },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.download),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    onClick = {
-                                        showFileDownloadDialog = true
-                                    },
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = "下载并分析") },
+                                        description = { Text(text = "保存后分析情绪、BPM 和调性") },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.advanced_search),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
+                                            fileDownloadMode = LocalFileDownloadMode.DownloadAndAnalyze
+                                        },
+                                    ),
                                 )
                             }
                         },
-                    ),
-            )
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
-
-        item {
-            Material3MenuGroup(
-                items =
-                    buildList {
-                        // Don't show "View Artist" for podcast episodes or when already on artist page
-                        if (!song.song.isEpisode && !hideArtistOption) {
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.view_artist)) },
-                                    description = { Text(text = song.artists.joinToString { it.name }) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.artist),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    onClick = {
-                                        if (song.artists.size == 1) {
-                                            Timber.tag("ChinaArtist").d("SongMenu navigate artist id=${song.artists[0].id} name=${song.artists[0].name}")
-                                            val artistId = song.artists[0].id ?: "china_artist_${Uri.encode(song.artists[0].name)}"
-                                            navController.navigate("artist/${Uri.encode(artistId)}?name=${Uri.encode(song.artists[0].name)}")
+        if (menuVisibility.showOnlineMetadataActions) {
+            item {
+                Material3MenuGroup(
+                    items =
+                        buildList {
+                            // Don't show "View Artist" for podcast episodes or when already on artist page
+                            if (!song.song.isEpisode && !hideArtistOption) {
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = stringResource(R.string.view_artist)) },
+                                        description = { Text(text = song.artists.joinToString { it.name }) },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.artist),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
+                                            if (song.artists.size == 1) {
+                                                Timber.tag("ChinaArtist").d("SongMenu navigate artist id=${song.artists[0].id} name=${song.artists[0].name}")
+                                                val artistId = song.artists[0].id ?: "china_artist_${Uri.encode(song.artists[0].name)}"
+                                                navController.navigate("artist/${Uri.encode(artistId)}?name=${Uri.encode(song.artists[0].name)}")
+                                                onDismiss()
+                                            } else {
+                                                showSelectArtistDialog = true
+                                            }
+                                        },
+                                    ),
+                                )
+                            }
+                            if (song.song.albumId != null) {
+                                // Show "View Podcast" for episodes, "View Album" for songs
+                                val isPodcast = song.song.isEpisode
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = stringResource(if (isPodcast) R.string.view_podcast else R.string.view_album)) },
+                                        description = {
+                                            song.song.albumName?.let {
+                                                Text(text = it)
+                                            }
+                                        },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(if (isPodcast) R.drawable.mic else R.drawable.album),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
                                             onDismiss()
-                                        } else {
-                                            showSelectArtistDialog = true
-                                        }
-                                    },
-                                ),
-                            )
-                        }
-                        if (song.song.albumId != null) {
-                            // Show "View Podcast" for episodes, "View Album" for songs
-                            val isPodcast = song.song.isEpisode
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(if (isPodcast) R.string.view_podcast else R.string.view_album)) },
-                                    description = {
-                                        song.song.albumName?.let {
-                                            Text(text = it)
-                                        }
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(if (isPodcast) R.drawable.mic else R.drawable.album),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    onClick = {
-                                        onDismiss()
-                                        navController.navigate(
-                                            "search_input_with_query?q=${Uri.encode(song.song.albumName.orEmpty())}&source=CHINA_SONGLIST"
-                                        )
-                                    },
-                                ),
-                            )
-                        }
-                    },
-            )
+                                            navController.navigate(
+                                                "search_input_with_query?q=${Uri.encode(song.song.albumName.orEmpty())}&source=CHINA_SONGLIST"
+                                            )
+                                        },
+                                    ),
+                                )
+                            }
+                        },
+                )
+            }
         }
     }
+}
+
+internal suspend fun deleteLocalMusicFileAndDatabase(
+    context: Context,
+    database: MusicDatabase,
+    localMusic: LocalMusicEntity,
+): Result<Unit> =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val uri = Uri.parse(localMusic.contentUri)
+            val fileDeleted =
+                when (uri.scheme) {
+                    "content" -> deleteContentLocalMusicFile(context, uri)
+                    "file" -> {
+                        val file = File(uri.path ?: "")
+                        !file.exists() || file.delete()
+                    }
+                    else -> false
+                }
+
+            check(fileDeleted) { "无法删除本地文件" }
+
+            database.withTransaction {
+                deleteLocalMusicBySongId(localMusic.songId)
+                deleteSongById(localMusic.songId)
+            }
+            database.speedDialDao.delete(localMusic.songId)
+        }
+    }
+
+private fun deleteContentLocalMusicFile(
+    context: Context,
+    uri: Uri,
+): Boolean {
+    DocumentFile.fromSingleUri(context, uri)?.let { document ->
+        return !document.exists() || document.delete()
+    }
+    return context.contentResolver.delete(uri, null, null) > 0
 }
 
 @Composable
 private fun SongFileDownloadQualityDialog(
     inProgress: Boolean,
+    confirmText: String,
     onDismiss: () -> Unit,
     onQualitySelected: (FileMusicDownloader.Quality) -> Unit,
 ) {
@@ -974,7 +1066,7 @@ private fun SongFileDownloadQualityDialog(
                 enabled = !inProgress,
                 onClick = { onQualitySelected(selectedQuality) },
             ) {
-                Text(if (inProgress) "下载中" else "开始下载")
+                Text(if (inProgress) "下载中" else confirmText)
             }
         },
         dismissButton = {

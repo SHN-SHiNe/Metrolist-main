@@ -8,18 +8,13 @@ package com.metrolist.music.ui.screens.wrapped
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.AccountInfo
 import com.metrolist.music.constants.ArtistSongSortType
 import com.metrolist.music.db.DatabaseDao
-import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.PlaylistEntity
-import com.metrolist.music.db.entities.SongWithStats
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -108,7 +103,7 @@ class WrappedManager(
         }
 
         withContext(Dispatchers.IO) {
-            val playlistMap = mutableMapOf<WrappedScreenType, String>()
+            val playlistMap = mutableMapOf<WrappedScreenType, String?>()
 
             // Intro Part: Random song from top 6-30
             val introSongPool = topSongs.subList(5, topSongs.size)
@@ -172,7 +167,7 @@ class WrappedManager(
             val endSongPool = topSongs.subList(2, 5)
             val endSong = endSongPool.randomOrNull()?.id ?: topSongs[2].id
             playlistMap[WrappedScreenType.Playlist] = endSong
-            playlistMap[WrappedScreenType.Conclusion] = "2-p9DM2Xvsc"
+            playlistMap[WrappedScreenType.Conclusion] = null
 
             Timber.tag("WrappedManager").d("Generated Playlist Map: $playlistMap")
             _state.update { it.copy(trackMap = playlistMap) }
@@ -192,7 +187,6 @@ class WrappedManager(
         }.timeInMillis
 
         withContext(Dispatchers.IO) {
-            val accountInfoDeferred = async { YouTube.accountInfo().getOrNull() }
             val topSongsDeferred = async { databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = 30).first() }
             val topArtistsDeferred = async { databaseDao.mostPlayedArtists(fromTimestamp, toTimeStamp = toTimestamp, limit = 5).first() }
             val topAlbumsDeferred = async { databaseDao.mostPlayedAlbums(fromTimestamp, toTimeStamp = toTimestamp, limit = 5).first() }
@@ -201,34 +195,24 @@ class WrappedManager(
             val uniqueAlbumCountDeferred = async { databaseDao.getUniqueAlbumCountInRange(fromTimestamp, toTimestamp).first() }
             val totalPlayTimeMsDeferred = async { databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L }
 
-            val results = awaitAll(
-                accountInfoDeferred,
-                topSongsDeferred,
-                topArtistsDeferred,
-                topAlbumsDeferred,
-                uniqueSongCountDeferred,
-                uniqueArtistCountDeferred,
-                uniqueAlbumCountDeferred,
-                totalPlayTimeMsDeferred
-            )
+            val topSongsResult = topSongsDeferred.await()
+            val topArtistsResult = topArtistsDeferred.await()
+            val topAlbumsResult = topAlbumsDeferred.await()
+            val uniqueSongCountResult = uniqueSongCountDeferred.await()
+            val uniqueArtistCountResult = uniqueArtistCountDeferred.await()
+            val uniqueAlbumCountResult = uniqueAlbumCountDeferred.await()
+            val totalPlayTimeMsResult = totalPlayTimeMsDeferred.await()
 
-            @Suppress("UNCHECKED_CAST")
-            val topSongsResult = results[1] as List<SongWithStats>
-            @Suppress("UNCHECKED_CAST")
-            val topAlbumsResult = results[3] as List<com.metrolist.music.db.entities.Album>
-            @Suppress("UNCHECKED_CAST")
-            val topArtistsResult = results[2] as List<Artist>
             _state.update {
                 it.copy(
-                    accountInfo = results[0] as AccountInfo?,
                     topSongs = topSongsResult,
                     topArtists = topArtistsResult,
                     top5Albums = topAlbumsResult,
                     topAlbum = topAlbumsResult.firstOrNull(),
-                    uniqueSongCount = results[4] as Int,
-                    uniqueArtistCount = results[5] as Int,
-                    totalAlbums = results[6] as Int,
-                    totalMinutes = (results[7] as Long) / 1000 / 60
+                    uniqueSongCount = uniqueSongCountResult,
+                    uniqueArtistCount = uniqueArtistCountResult,
+                    totalAlbums = uniqueAlbumCountResult,
+                    totalMinutes = totalPlayTimeMsResult / 1000 / 60
                 )
             }
         }

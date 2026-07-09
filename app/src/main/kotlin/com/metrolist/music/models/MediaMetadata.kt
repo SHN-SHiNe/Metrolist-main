@@ -8,7 +8,6 @@ package com.metrolist.music.models
 import androidx.compose.runtime.Immutable
 import com.metrolist.innertube.models.EpisodeItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.SongEntity
@@ -35,9 +34,11 @@ data class MediaMetadata(
     val suggestedBy: String? = null,
     val isEpisode: Boolean = false,
     val uploadEntityId: String? = null,
+    val isLocal: Boolean = false,
+    val playbackUri: String? = null,
 ) : Serializable {
     val isVideoSong: Boolean
-        get() = musicVideoType != null && musicVideoType != MUSIC_VIDEO_TYPE_ATV
+        get() = musicVideoType != null
 
     data class Artist(
         val id: String?,
@@ -65,7 +66,8 @@ data class MediaMetadata(
             libraryRemoveToken = libraryRemoveToken,
             isVideo = isVideoSong,
             isEpisode = isEpisode,
-            uploadEntityId = uploadEntityId
+            uploadEntityId = uploadEntityId,
+            isLocal = isLocal,
         )
 
     fun toYTItem() = SongItem(
@@ -79,7 +81,7 @@ data class MediaMetadata(
         explicit = explicit,
         setVideoId = setVideoId,
         isEpisode = isEpisode,
-        uploadEntityId = uploadEntityId
+        uploadEntityId = uploadEntityId,
     )
 
     fun toSong() =
@@ -125,32 +127,29 @@ fun Song.toMediaMetadata() =
         musicVideoType = if (song.isVideo) "MUSIC_VIDEO_TYPE_OMV" else null,
         suggestedBy = null,
         isEpisode = song.isEpisode,
+        isLocal = song.isLocal,
     )
 
-/**
- * Converts an InnerTube [SongItem] into a [MediaMetadata] instance for use in the UI and player.
- * Thumbnails are resized to 1080x1080 for high-quality display.
- */
 fun SongItem.toMediaMetadata() =
     MediaMetadata(
         id = id,
         title = title,
         artists =
-        artists.map {
-            MediaMetadata.Artist(
-                id = it.id,
-                name = it.name,
-            )
-        },
+            artists.map {
+                MediaMetadata.Artist(
+                    id = it.id,
+                    name = it.name,
+                )
+            },
         duration = duration ?: -1,
         thumbnailUrl = thumbnail.resize(1080, 1080),
         album =
-        album?.let {
-            MediaMetadata.Album(
-                id = it.id,
-                title = it.name,
-            )
-        },
+            album?.let {
+                MediaMetadata.Album(
+                    id = it.id,
+                    title = it.name,
+                )
+            },
         explicit = explicit,
         setVideoId = setVideoId,
         musicVideoType = musicVideoType,
@@ -158,15 +157,11 @@ fun SongItem.toMediaMetadata() =
         libraryRemoveToken = libraryRemoveToken,
         suggestedBy = null,
         isEpisode = isEpisode,
-        uploadEntityId = uploadEntityId
+        uploadEntityId = uploadEntityId,
     )
 
 fun SongItem.toSong() = toMediaMetadata().toSong()
 
-/**
- * Converts an InnerTube [EpisodeItem] into a [MediaMetadata] instance.
- * The episode's podcast is mapped to [MediaMetadata.Album] and [MediaMetadata.isEpisode] is set.
- */
 fun EpisodeItem.toMediaMetadata() =
     MediaMetadata(
         id = id,

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="local_history">本地</string>
+    <string name="local_music">本地</string>
     <string name="remote_history">雲端</string>
     <string name="weeks">週</string>
     <string name="months">月</string>
@@ -10,7 +11,7 @@
     <string name="offline">已下載</string>
     <string name="my_top">我的Top</string>
     <string name="sync_playlist">同步播放清單</string>
-    <string name="allows_for_sync_witch_youtube">注意：這允許與 Youtube Music 同步，之後無法更改</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="copy_link">複製連結</string>
     <string name="select">全選</string>
     <string name="like_all">全部喜歡</string>
@@ -36,7 +37,7 @@
     <string name="advanced_login">透過 token 登入</string>
     <string name="token_hidden">點擊以顯示 token</string>
     <string name="token_shown">再次點擊以複製或編輯</string>
-    <string name="token_adv_login_description">這是作為網頁登錄的替代方案的進階登入模式一。你可以在此直接輸入或更新您的登入權杖。這可以用於加速在多台裝置上的登入流程。請注意，若權杖格式無效導致程式無法解析，權杖將不予採用</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">一般</string>
     <string name="proxy">Proxy</string>
     <string name="default_lib_chips">更改預設媒體庫標籤</string>
@@ -93,7 +94,7 @@
     <string name="auto_download_on_like_desc">當你點擊喜歡某首歌曲時，將自動下載該歌曲</string>
     <string name="clear_song_cache_dialog">確定要清除所有快取歌曲嗎?</string>
     <string name="clear_downloads_dialog">確定要清除所有下載內容嗎?</string>
-    <string name="not_logged_in_youtube">未登入 YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="description">說明</string>
     <string name="views">播放次數</string>
     <string name="likes">喜歡</string>
@@ -102,7 +103,7 @@
     <string name="new_player_design">新播放器設計</string>
     <string name="lyrics_romanize_japanese">羅馬化日文歌詞</string>
     <string name="lyrics_romanize_korean">羅馬化韓文歌詞</string>
-    <string name="yt_sync">自動與帳號同步</string>
+    <string name="account_auto_sync">自動與帳號同步</string>
     <string name="more_content">更多內容</string>
     <string name="swipe_sensitivity">迷你播放器滑動靈敏度</string>
     <string name="sensitivity_percentage">%1$d%%</string>
@@ -121,7 +122,7 @@
     <string name="seek_seconds_addup_description">啟用此選項後，每次快進轉或倒轉時將遞增 5 秒的跳轉長度</string>
     <string name="new_mini_player_design">使用全新迷你播放器設計</string>
     <string name="edit_playlist_cover">更改播放清單圖片</string>
-    <string name="edit_playlist_cover_note">注意：你的帳戶必須連結到電話號碼並在 YouTube Music 上進行驗證才能更改播放清單封面</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">選擇圖片後，請等待片刻，新的封面就會出現在你的播放清單中</string>
     <string name="config_proxy">設定代理伺服器</string>
     <string name="proxy_username">代理伺服器名稱</string>
@@ -182,7 +183,7 @@
     <string name="download_in_progress_desc">下載正在進行</string>
     <string name="share_playlist_desc">與他人分享此播放列表</string>
     <string name="delete_playlist_desc">永久刪除此播放列表</string>
-    <string name="sync_playlist_desc">將此播放列表與YouTube Music同步</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">主色調</string>
     <string name="tertiary_color_style">三級顏色</string>
     <string name="lyrics_glow_effect">啟用歌詞發光效果</string>
@@ -259,7 +260,7 @@
     <string name="density_restart_message">顯示密度變更將在重新啟動應用後生效。您現在要重啟嗎？</string>
     <string name="enable_lrclib_desc">社群驅動的同步歌詞資料庫</string>
     <string name="enable_kugou_desc">歌詞來自中國最大的線上音樂平台</string>
-    <string name="youtube_music_lyrics_note">注意：當其他歌詞無法使用時，會自動顯示來自 YouTube Music 的歌詞，來源歌詞通常不同步</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="prevent_duplicate_tracks_in_queue_desc">將曲目新增至佇列時，如果該曲目已存在於佇列中，則將其從先前的位置移除</string>
     <string name="lyrics_provider_priority">歌詞提供者優先權</string>
     <string name="lyrics_provider_priority_desc">拖曳即可依優先順序重新排列供應商。位置越高，優先權越高</string>
@@ -406,7 +407,7 @@
     <string name="importing_playlist">加入播放列表…</string>
     <string name="importing_csv">導入 CSV 文件…</string>
     <string name="continue_action">繼續</string>
-    <string name="youtube_url_column">YouTube網址（可選）</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="artist_name_column">藝術家姓名列</string>
     <string name="map_csv_columns">映射 CSV 列</string>
     <string name="qs_tile_music_recognizer">辨識音樂</string>
@@ -517,10 +518,10 @@
     <string name="lyrics_offset">歌詞偏移</string>
     <string name="audio_offload_disabled_by_crossfade">因淡入淡出功能已啟用，此功能已停用</string>
     <string name="lyrics_romanize_as_main">將羅馬拼音歌詞顯示為主要內容</string>
-    <string name="hide_youtube_shorts">隱藏 YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="add_to_queue_desc">添加到播放列表底部</string>
     <string name="add_to_playlist_desc">加到播放列表</string>
-    <string name="refetch_desc">從 YouTube Music 刷新元數據</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">分享此歌曲鏈接</string>
     <string name="advanced_desc">調整歌曲的節奏和音調</string>
     <string name="mini_player">迷你播放器</string>
@@ -732,8 +733,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">部分可見</string>
     <string name="android_auto_reorder_hint">點擊某個版塊即可啟用或停用它…\n長按拖曳手把可重新排序。預設會顯示第一部分</string>
-    <string name="android_auto_youtube_playlists">顯示 YouTube 建議的播放清單</string>
-    <string name="android_auto_youtube_playlists_desc">Android Auto 會顯示來自 YouTube Music 的推薦播放清單</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">快速新增</string>
     <string name="android_auto_target_playlist_desc">在 Android Auto 中使用「快速新增」按鈕時，選擇要將歌曲儲存到的播放清單</string>
     <string name="android_auto_target_playlist_auto">未設定</string>

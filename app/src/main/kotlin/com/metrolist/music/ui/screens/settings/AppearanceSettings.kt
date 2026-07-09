@@ -88,7 +88,6 @@ import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.RespectAgentPositioningKey
 import com.metrolist.music.constants.SelectedThemeColorKey
 import com.metrolist.music.constants.ShowCachedPlaylistKey
-import com.metrolist.music.constants.ShowDownloadedPlaylistKey
 import com.metrolist.music.constants.ShowLikedPlaylistKey
 import com.metrolist.music.constants.ShowTopPlaylistKey
 import com.metrolist.music.constants.ShowUploadedPlaylistKey
@@ -320,11 +319,6 @@ fun AppearanceSettings(
     val (showLikedPlaylist, onShowLikedPlaylistChange) =
         rememberPreference(
             ShowLikedPlaylistKey,
-            defaultValue = true,
-        )
-    val (showDownloadedPlaylist, onShowDownloadedPlaylistChange) =
-        rememberPreference(
-            ShowDownloadedPlaylistKey,
             defaultValue = true,
         )
     val (showTopPlaylist, onShowTopPlaylistChange) =
@@ -620,6 +614,7 @@ fun AppearanceSettings(
                     NavigationTab.HOME -> stringResource(R.string.home)
                     NavigationTab.SEARCH -> stringResource(R.string.search)
                     NavigationTab.LIBRARY -> stringResource(R.string.filter_library)
+                    NavigationTab.LOCAL_MUSIC -> stringResource(R.string.local_music)
                 }
             },
         )
@@ -1603,6 +1598,7 @@ fun AppearanceSettings(
                                     NavigationTab.HOME -> stringResource(R.string.home)
                                     NavigationTab.SEARCH -> stringResource(R.string.search)
                                     NavigationTab.LIBRARY -> stringResource(R.string.filter_library)
+                                    NavigationTab.LOCAL_MUSIC -> stringResource(R.string.local_music)
                                 },
                             )
                         },
@@ -1740,27 +1736,6 @@ fun AppearanceSettings(
                         onClick = { onShowLikedPlaylistChange(!showLikedPlaylist) },
                     ),
                     Material3SettingsItem(
-                        icon = painterResource(R.drawable.offline),
-                        title = { Text(stringResource(R.string.show_downloaded_playlist)) },
-                        trailingContent = {
-                            Switch(
-                                checked = showDownloadedPlaylist,
-                                onCheckedChange = onShowDownloadedPlaylistChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter =
-                                            painterResource(
-                                                id = if (showDownloadedPlaylist) R.drawable.check else R.drawable.close,
-                                            ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize),
-                                    )
-                                },
-                            )
-                        },
-                        onClick = { onShowDownloadedPlaylistChange(!showDownloadedPlaylist) },
-                    ),
-                    Material3SettingsItem(
                         icon = painterResource(R.drawable.trending_up),
                         title = { Text(stringResource(R.string.show_top_playlist)) },
                         trailingContent = {
@@ -1874,6 +1849,7 @@ enum class NavigationTab {
     HOME,
     SEARCH,
     LIBRARY,
+    LOCAL_MUSIC,
 }
 
 enum class LyricsPosition {

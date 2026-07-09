@@ -369,7 +369,7 @@ class KuwoSource : MusicSourceProvider {
         LeaderboardItem("kw__180", "beatport电音榜", "180", sourceId),
         LeaderboardItem("kw__13", "英国UK榜", "13", sourceId),
         LeaderboardItem("kw__164", "百大DJ榜", "164", sourceId),
-        LeaderboardItem("kw__246", "YouTube音乐排行榜", "246", sourceId),
+        LeaderboardItem("kw__246", "海外音乐排行榜", "246", sourceId),
         LeaderboardItem("kw__265", "韩国Genie榜", "265", sourceId),
         LeaderboardItem("kw__14", "韩国M-net榜", "14", sourceId),
         LeaderboardItem("kw__8", "香港电台榜", "8", sourceId),

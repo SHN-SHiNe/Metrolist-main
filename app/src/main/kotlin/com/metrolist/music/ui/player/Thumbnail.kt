@@ -14,12 +14,16 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -64,6 +68,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -79,6 +84,7 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
+import com.metrolist.music.constants.LocalSimilarAutoplayKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerHorizontalPadding
@@ -90,6 +96,7 @@ import com.metrolist.music.ui.component.CastButton
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Pre-calculated thumbnail dimensions to avoid repeated calculations during recomposition.
@@ -110,6 +117,12 @@ data class ThumbnailDimensions(
 data class MediaItemsData(
     val items: List<MediaItem>,
     val currentIndex: Int
+)
+
+@Immutable
+data class PlayerNowPlayingAnalysis(
+    val topLabels: List<String> = emptyList(),
+    val emotionLabels: List<String> = emptyList(),
 )
 
 /**
@@ -206,7 +219,13 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    analysis: PlayerNowPlayingAnalysis? = null,
+    coverOverlay: (@Composable () -> Unit)? = null,
+    analysisActionLabel: String? = null,
+    onAnalysisActionClick: (() -> Unit)? = null,
     onTap: (() -> Unit)? = null,
+    onLongPress: (() -> Unit)? = null,
+    onScrollStart: (() -> Unit)? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -219,6 +238,7 @@ fun Thumbnail(
     val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
+    val localSimilarAutoplay by rememberPreference(LocalSimilarAutoplayKey, false)
 
     // Preferences - computed once
     // Disable swipe for Listen Together guests
@@ -230,6 +250,7 @@ fun Thumbnail(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT
     )
+    val localSimilarPlaybackMode = localSimilarAutoplay && mediaMetadata?.isLocal == true
     
     // Pre-calculate text color based on background style
     val textBackgroundColor = getTextColor(playerBackground)
@@ -267,14 +288,22 @@ fun Thumbnail(
     val currentItem by remember { derivedStateOf { thumbnailLazyGridState.firstVisibleItemIndex } }
     val itemScrollOffset by remember { derivedStateOf { thumbnailLazyGridState.firstVisibleItemScrollOffset } }
 
+    LaunchedEffect(thumbnailLazyGridState, onScrollStart) {
+        snapshotFlow { thumbnailLazyGridState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { isScrolling ->
+                if (isScrolling) onScrollStart?.invoke()
+            }
+    }
+
     // Handle swipe to change song
     LaunchedEffect(itemScrollOffset) {
         if (!thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 || currentMediaIndex < 0) return@LaunchedEffect
 
-        if (currentItem > currentMediaIndex && canSkipNext) {
-            playerConnection.player.seekToNext()
-        } else if (currentItem < currentMediaIndex && canSkipPrevious) {
-            playerConnection.player.seekToPreviousMediaItem()
+        if (currentItem > currentMediaIndex && (canSkipNext || localSimilarPlaybackMode)) {
+            playerConnection.seekToNext()
+        } else if (currentItem < currentMediaIndex && (canSkipPrevious || localSimilarPlaybackMode)) {
+            playerConnection.seekToPrevious()
         }
     }
 
@@ -407,7 +436,12 @@ fun Thumbnail(
                                 currentMediaId = mediaMetadata?.id,
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
                                 isPlaying = isPlaying,
+                                analysis = if (item.mediaId == mediaMetadata?.id) analysis else null,
+                                coverOverlay = if (item.mediaId == mediaMetadata?.id) coverOverlay else null,
+                                analysisActionLabel = if (item.mediaId == mediaMetadata?.id) analysisActionLabel else null,
+                                onAnalysisActionClick = if (item.mediaId == mediaMetadata?.id) onAnalysisActionClick else null,
                                 onTap = onTap,
+                                onLongPress = onLongPress,
                             )
                         }
                     }
@@ -490,6 +524,7 @@ private fun ThumbnailHeader(
 /**
  * Individual thumbnail item in the carousel.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThumbnailItem(
     item: MediaItem,
@@ -506,7 +541,12 @@ private fun ThumbnailItem(
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
     isPlaying: Boolean = false,
+    analysis: PlayerNowPlayingAnalysis? = null,
+    coverOverlay: (@Composable () -> Unit)? = null,
+    analysisActionLabel: String? = null,
+    onAnalysisActionClick: (() -> Unit)? = null,
     onTap: (() -> Unit)? = null,
+    onLongPress: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
@@ -532,6 +572,7 @@ private fun ThumbnailItem(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onTap?.invoke() },
+                    onLongPress = { onLongPress?.invoke() },
                     onDoubleTap = { offset ->
                         if (isListenTogetherGuest) return@detectTapGestures
 
@@ -568,39 +609,109 @@ private fun ThumbnailItem(
             animationSpec = tween(durationMillis = 400),
             label = "thumbnailScale"
         )
-        Box(
-            modifier = Modifier
-                .size(dimensions.thumbnailSize)
-                .graphicsLayer {
-                    scaleX = thumbnailScale
-                    scaleY = thumbnailScale
-                }
-                .clip(RoundedCornerShape(dimensions.cornerRadius))
+        Column(
+            horizontalAlignment = Alignment.Start,
+            modifier = Modifier.width(dimensions.thumbnailSize),
         ) {
-            if (hidePlayerThumbnail) {
-                HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
-            } else {
-                val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
-                    currentMediaThumbnail
+            if (analysis?.topLabels?.isNotEmpty() == true || analysisActionLabel != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                ) {
+                    analysis?.topLabels.orEmpty().forEach { label ->
+                        ThumbnailAnalysisChip(
+                            text = label,
+                            textBackgroundColor = textBackgroundColor,
+                            prominent = true,
+                        )
+                    }
+                    analysisActionLabel?.let { label ->
+                        ThumbnailAnalysisChip(
+                            text = label,
+                            textBackgroundColor = textBackgroundColor,
+                            prominent = true,
+                            onClick = onAnalysisActionClick,
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(dimensions.thumbnailSize)
+                    .graphicsLayer {
+                        scaleX = thumbnailScale
+                        scaleY = thumbnailScale
+                    }
+                    .clip(RoundedCornerShape(dimensions.cornerRadius))
+            ) {
+                if (hidePlayerThumbnail) {
+                    HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
                 } else {
-                    item.mediaMetadata.artworkUri?.toString()
+                    val artworkUriToUse = if (item.mediaId == currentMediaId && !currentMediaThumbnail.isNullOrBlank()) {
+                        currentMediaThumbnail
+                    } else {
+                        item.mediaMetadata.artworkUri?.toString()
+                    }
+
+                    ThumbnailImage(
+                        artworkUri = artworkUriToUse,
+                        cropArtwork = cropAlbumArt
+                    )
                 }
 
-                ThumbnailImage(
-                    artworkUri = artworkUriToUse,
-                    cropArtwork = cropAlbumArt
+                coverOverlay?.invoke()
+
+                // Cast button at top-right corner of thumbnail
+                CastButton(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    tintColor = textBackgroundColor
                 )
             }
-            
-            // Cast button at top-right corner of thumbnail
-            CastButton(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp),
-                tintColor = textBackgroundColor
-            )
+
+            analysis?.takeIf { it.emotionLabels.isNotEmpty() }?.let { info ->
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                ) {
+                    info.emotionLabels.forEach { label ->
+                        ThumbnailAnalysisChip(
+                            text = label,
+                            textBackgroundColor = textBackgroundColor,
+                        )
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun ThumbnailAnalysisChip(
+    text: String,
+    textBackgroundColor: Color,
+    prominent: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) {
+    Text(
+        text = text,
+        style = if (prominent) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
+        color = textBackgroundColor.copy(alpha = 0.8f),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(textBackgroundColor.copy(alpha = 0.15f))
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = if (prominent) 7.dp else 6.dp, vertical = if (prominent) 3.dp else 2.dp),
+    )
 }
 
 /**

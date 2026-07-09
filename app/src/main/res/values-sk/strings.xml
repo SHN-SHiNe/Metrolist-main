@@ -19,7 +19,7 @@
     <string name="quick_picks_empty">Počúvajte skladby a vygenerujte si rýchle tipy</string>
     <string name="forgotten_favorites">Zabudnuté obľúbené</string>
     <string name="keep_listening">Počúvať ďalej</string>
-    <string name="your_youtube_playlists">Vaše playlisty na YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Podobné ako</string>
     <string name="new_release_albums">Nové vydania albumov</string>
     <string name="today">Dnes</string>
@@ -30,7 +30,7 @@
     <string name="most_played_artists">Najhranejší interpreti</string>
     <string name="most_played_albums">Najprehrávanejšie albumy</string>
     <string name="search">Hľadať</string>
-    <string name="search_yt_music">Vyhľadávať YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Hľadať v knižnici…</string>
     <string name="filter_library">Knižnica</string>
     <string name="filter_liked">Obľúbené</string>
@@ -273,7 +273,7 @@
     <string name="clear_search_history">Vymazať históriu vyhľadávania</string>
     <string name="clear_search_history_confirm">Naozaj chcete vymazať celú históriu vyhľadávania?</string>
     <string name="use_login_for_browse">Použiť prihlásenie na prehliadanie obsahu</string>
-    <string name="use_login_for_browse_desc">Toto môže ovplyvniť, aký obsah uvidíte, napríklad zobrazí len prémiové albumy, ak ste prihlásený pomocou účtu</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">Zakázať snímky obrazovky</string>
     <string name="disable_screenshot_desc">Keď je táto možnosť zapnutá, snímky obrazovky a zobrazenie aplikácie v nedávnych položkách sú zakázané.</string>
     <string name="enable_lrclib">Povoliť poskytovateľa textov LrcLib</string>

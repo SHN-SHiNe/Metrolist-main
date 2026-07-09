@@ -19,7 +19,7 @@
     <string name="filter_uploaded">Inn upload</string>
     <string name="sync_playlist">Senkroniz playlist</string>
     <string name="sync_disabled">Senkronizasyon dezaktivé</string>
-    <string name="allows_for_sync_witch_youtube">Note: Sa paramet la permet senkronizasyon ek YouTube Music. Ou PA pu resi resanze li apre.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generate zimage</string>
     <string name="please_wait">Patienté silvouple</string>
     <string name="cancel">Cancel</string>
@@ -79,11 +79,11 @@
     <string name="advanced_login">Login ar token</string>
     <string name="token_hidden">Click pu afis token</string>
     <string name="token_shown">Click ankor pu kopié ou edit</string>
-    <string name="token_adv_login_description">Sa method la enn method login AVANCÉ. Antan ki enn alternaif a portail web, ou pu bizin met ou update ou login token direkteman. Par examp, li kapav fer login pli rapid lor plizir aparey. Noté ki app la pa pu aksepté okenn format token ki invalid ek ki li pa resi analizé</string>
-    <string name="yt_sync">Senkroniz ar compte automikman</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Senkroniz ar compte automikman</string>
     <string name="more_content">Plis konteni</string>
     <string name="edit_playlist_cover">Edit cover playlist</string>
-    <string name="edit_playlist_cover_note">Note: Ou compte bizin inn link ek enn limero téléphone et vérifié lor YouTube Music pu resi sanz cover playlist.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Apre ki ou inn swazir n zimaz, patiente enn moment pu nouvo cover la aparet dan ou playlist.</string>
     <string name="choose_from_library">Soizir depi library</string>
     <string name="remove_custom_image">Tir zimaz personalizé</string>
@@ -94,7 +94,7 @@
     <string name="download_in_progress_desc">Pe Download</string>
     <string name="share_playlist_desc">Partaz sa playlist la ek lezot</string>
     <string name="delete_playlist_desc">Retir sa playlist la net</string>
-    <string name="sync_playlist_desc">Senkroniz playlist ek Youtube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Kouler primaire</string>
     <string name="tertiary_color_style">Kouler tertiaire</string>
     <string name="lyrics_glow_effect">Aktiv glowing effect pu bann paroles</string>

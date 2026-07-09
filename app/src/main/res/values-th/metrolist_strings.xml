@@ -19,7 +19,7 @@
     <string name="filter_uploaded">อัปโหลดแล้ว</string>
     <string name="sync_playlist">ซิงค์เพลย์ลิสต์</string>
     <string name="sync_disabled">ปิดการซิงค์แล้ว</string>
-    <string name="allows_for_sync_witch_youtube">หมายเหตุ: การเปิดใช้งานนี้จะทำให้สามารถซิงค์กับ YouTube Music ได้ และไม่สามารถเปลี่ยนแปลงภายหลังได้</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">กำลังสร้างรูปภาพ…</string>
     <string name="please_wait">โปรดรอสักครู่</string>
     <string name="cancel">ยกเลิก</string>
@@ -46,7 +46,7 @@
     <string name="download_in_progress_desc">กำลังดาวน์โหลด</string>
     <string name="share_playlist_desc">แชร์เพลย์ลิสต์นี้ให้ผู้อื่น</string>
     <string name="delete_playlist_desc">ลบเพลย์ลิสต์นี้อย่างถาวร</string>
-    <string name="sync_playlist_desc">ซิงค์เพลย์ลิสต์กับ YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="copy_link">คัดลอกลิงก์</string>
     <string name="select">เลือกทั้งหมด</string>
     <string name="like_all">ถูกใจทั้งหมด</string>
@@ -108,11 +108,11 @@
     <string name="advanced_login">เข้าสู่ระบบด้วยโทเค็น</string>
     <string name="token_hidden">แตะเพื่อแสดงโทเค็น</string>
     <string name="token_shown">แตะอีกครั้งเพื่อคัดลอกหรือแก้ไข</string>
-    <string name="token_adv_login_description">นี่เป็นวิธีเข้าสู่ระบบขั้นสูง คุณสามารถกรอกหรืออัปเดตโทเค็นเข้าสู่ระบบได้โดยตรงแทนการใช้เว็บพอร์ทัล วิธีนี้ช่วยให้เข้าสู่ระบบบนหลายอุปกรณ์ได้รวดเร็วขึ้น โปรดทราบว่าโทเค็นที่มีรูปแบบไม่ถูกต้องจะไม่สามารถใช้งานได้</string>
-    <string name="yt_sync">ซิงค์กับบัญชีโดยอัตโนมัติ</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">ซิงค์กับบัญชีโดยอัตโนมัติ</string>
     <string name="more_content">เนื้อหาเพิ่มเติม</string>
     <string name="edit_playlist_cover">แก้ไขปกเพลย์ลิสต์</string>
-    <string name="edit_playlist_cover_note">หมายเหตุ: บัญชีของคุณต้องเชื่อมโยงกับหมายเลขโทรศัพท์และยืนยันตัวตนบน YouTube Music ก่อนจึงจะสามารถเปลี่ยนปกเพลย์ลิสต์ได้</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">หลังจากเลือกภาพแล้ว โปรดรอสักครู่เพื่อให้ปกใหม่แสดงในเพลย์ลิสต์ของคุณ</string>
     <string name="choose_from_library">เลือกจากคลัง</string>
     <string name="remove_custom_image">ลบภาพที่กำหนดเอง</string>
@@ -146,7 +146,7 @@
     <string name="clear_image_cache_dialog">คุณแน่ใจหรือไม่ว่าต้องการลบแคชรูปภาพทั้งหมด?</string>
     <string name="clear_downloads_dialog">คุณแน่ใจหรือไม่ว่าต้องการลบไฟล์ที่ดาวน์โหลดทั้งหมด?</string>
     <string name="disable">ปิดใช้งาน</string>
-    <string name="not_logged_in_youtube">ยังไม่ได้เข้าสู่ระบบ YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">เปิดลิงก์ที่รองรับ</string>
     <string name="open_app_settings_error">ไม่สามารถเปิดการตั้งค่าแอปได้</string>
     <string name="release_notes">บันทึกการอัปเดต</string>
@@ -227,7 +227,7 @@
     <string name="scrobble_delay_percent">เปอร์เซ็นต์หน่วงเวลาก่อน Scrobble</string>
     <string name="scrobble_delay_minutes">หน่วงเวลาก่อน Scrobble (นาที)</string>
     <string name="hide_video_songs">ซ่อนเพลงที่เป็นวิดีโอ</string>
-    <string name="hide_youtube_shorts">ซ่อน YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="details_desc">ดูข้อมูลเพลง</string>
     <string name="edit_desc">เปลี่ยนชื่อเพลงหรือศิลปิน</string>
     <string name="start_radio_desc">สร้างสถานีจากรายการนี้</string>
@@ -236,7 +236,7 @@
     <string name="add_to_library_desc">บันทึกไปยังคลังของคุณ</string>
     <string name="download_desc">ดาวน์โหลดเพื่อฟังแบบออฟไลน์</string>
     <string name="add_to_playlist_desc">เพิ่มไปยังเพลย์ลิสต์ของคุณ</string>
-    <string name="refetch_desc">ดึงข้อมูลล่าสุดจาก YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">แชร์ลิงก์ของรายการนี้</string>
     <string name="delete_desc">ลบรายการนี้อย่างถาวร</string>
     <string name="advanced_desc">ปรับความเร็วและคีย์เสียงของเพลง</string>
@@ -492,7 +492,7 @@
     <string name="first_row_is_header">แถวแรกเป็นหัวตาราง</string>
     <string name="artist_name_column">คอลัมน์ชื่อศิลปิน</string>
     <string name="song_title_column">คอลัมน์ชื่อเพลง</string>
-    <string name="youtube_url_column">คอลัมน์ YouTube URL (ไม่บังคับ)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">ดำเนินการต่อ</string>
     <string name="importing_csv">กำลังนำเข้าไฟล์ CSV</string>
     <string name="recently_converted">แปลงล่าสุด</string>
@@ -549,7 +549,7 @@
     <string name="density_restart_message">การเปลี่ยนความหนาแน่นของหน้าจอจะมีผลหลังจากรีสตาร์ทแอป คุณต้องการรีสตาร์ทตอนนี้หรือไม่?</string>
     <string name="enable_lrclib_desc">ฐานข้อมูลเนื้อเพลงแบบซิงค์ที่ขับเคลื่อนโดยชุมชนผู้ใช้</string>
     <string name="enable_kugou_desc">ดึงเนื้อเพลงจาก KuGou แพลตฟอร์มเพลงยอดนิยมของจีน</string>
-    <string name="youtube_music_lyrics_note">หมายเหตุ: เนื้อเพลงจาก YouTube Music จะแสดงโดยอัตโนมัติเมื่อไม่พบเนื้อเพลงจากแหล่งอื่น โดยทั่วไปเนื้อเพลงจาก YTM มักจะไม่ซิงค์กับเพลง</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">เปิดใช้งาน LyricsPlus</string>
     <string name="enable_lyricsplus_desc">เนื้อเพลงแบบซิงค์จากหลายแหล่ง</string>
     <string name="lyrics_provider_selection">การเลือกผู้ให้บริการเนื้อเพลง</string>

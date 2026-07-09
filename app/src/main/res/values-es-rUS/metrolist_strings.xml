@@ -47,7 +47,7 @@
     <string name="cached_playlist">Guardado en la caché</string>
     <string name="sync_playlist">Sincronizar lista de reproducción</string>
     <string name="sync_disabled">Sincronización desactivada</string>
-    <string name="allows_for_sync_witch_youtube">Nota: Esto permite sincronizarse con YouTube Music. NO se puede cambiar después</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generando imagen…</string>
     <string name="please_wait">Por favor espera</string>
     <string name="cancel">Cancelar</string>
@@ -88,7 +88,7 @@
     <string name="auto_download_on_like_desc">Automáticamente se descargarán las canciones cuando le des me gusta</string>
     <string name="clear_song_cache_dialog">¿Estás seguro de eliminar todas las canciones de la caché?</string>
     <string name="clear_downloads_dialog">¿Estás seguro de eliminar todas las canciones descargadas?</string>
-    <string name="not_logged_in_youtube">No haz iniciado sesión en YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Abrir links soportados</string>
     <string name="dislikes">No me gusta</string>
     <plurals name="seconds">
@@ -98,7 +98,7 @@
     </plurals>
     <string name="trending">Tendencia</string>
     <string name="link_copied">Link copiado al portapapeles</string>
-    <string name="token_adv_login_description">Este es un método de inicio de sesión AVANZADO. En lugar de usar el portal web, puedes ingresar o actualizar tu token de inicio de sesión directamente. Esto puede ser útil para iniciar sesión rápidamente en varios dispositivos. Los tokens en un formato no reconocido serán rechazados</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="months">Meses</string>
     <string name="past_year">Año pasado</string>
     <string name="slim">Delgado</string>
@@ -115,7 +115,7 @@
     <string name="new_mini_player_design">Nuevo diseño del minirreproductor</string>
     <string name="lyrics_romanize_japanese">Romanizar letras japonesas</string>
     <string name="lyrics_romanize_korean">Romanizar letras coreanas</string>
-    <string name="yt_sync">Sincronización automática con la cuenta</string>
+    <string name="account_auto_sync">Sincronización automática con la cuenta</string>
     <string name="more_content">Más contenido</string>
     <string name="swipe_sensitivity">Sensibilidad del deslizamiento del mini-reproductor</string>
     <string name="clear_image_cache_dialog">¿Estás seguro de querer limpiar todas las imágenes en caché?</string>
@@ -132,7 +132,7 @@
     <string name="settings_section_storage">Almacenamiento y datos</string>
     <string name="settings_section_system">Sistema e información</string>
     <string name="edit_playlist_cover">Editar carátula de la lista de reproducción</string>
-    <string name="edit_playlist_cover_note">NOTA: Tu cuenta debe estar vinculada a un número de teléfono y verificada en YouTube Music para cambiar la portada de la lista de reproducción</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Después de seleccionar una imagen, espera un momento para que la nueva portada aparezca en tu lista de reproducción</string>
     <string name="config_proxy">Configurar proxy</string>
     <string name="proxy_username">Nombre de usuario del proxy</string>
@@ -164,7 +164,7 @@
     <string name="download_in_progress_desc">Una descarga está en progreso</string>
     <string name="share_playlist_desc">Compartir esta lista de reproducción con otros</string>
     <string name="delete_playlist_desc">Eliminar esta lista de reproducción de forma permanente</string>
-    <string name="sync_playlist_desc">Sincronizar esta lista de reproducción con YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Color primario</string>
     <string name="tertiary_color_style">Color terciario</string>
     <string name="lyrics_glow_effect">Habilitar efecto de brillo de la letra</string>
@@ -227,7 +227,7 @@
     <string name="persistent_shuffle_title">Aleatorio persistente</string>
     <string name="persistent_shuffle_desc">Mantener el modo aleatorio activado al iniciar nuevas canciones o listas de reproducción</string>
     <string name="add_to_playlist_desc">Añadir a una de tus listas de reproducción</string>
-    <string name="refetch_desc">Obtener los metadatos más recientes de YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Compartir un enlace a este elemento</string>
     <string name="delete_desc">Remover este elemento permanentemente</string>
     <string name="advanced_desc">Cambiar la velocidad y el tono de la canción</string>
@@ -403,7 +403,7 @@
     <string name="lyrics_romanize_punjabi">Romanizar letras Punjabi</string>
     <string name="audio_offload_disabled_by_crossfade">Deshabilitado porque el desvanecido esta activo</string>
     <string name="lyrics_romanize_as_main">Mostrar letras romanizadas como principales</string>
-    <string name="hide_youtube_shorts">Ocultar Youtube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="not_playing">No se está reproduciendo ninguna canción</string>
     <string name="tap_to_play">Toca para abrir Metrolist</string>
     <string name="widget_music_player">Reproductor de Música</string>
@@ -521,7 +521,7 @@
     <string name="first_row_is_header">La primera fila es el encabezado</string>
     <string name="artist_name_column">Columna del nombre del artista</string>
     <string name="song_title_column">Columna del título de la canción</string>
-    <string name="youtube_url_column">Columna URL de YouTube (opcional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">Continuar</string>
     <string name="importing_csv">Importando CSV</string>
     <string name="recently_converted">Convertidos Recientemente</string>
@@ -568,7 +568,7 @@
     <string name="daily_discover_sounds_like">Sonidos como %1$s</string>
     <string name="deleting">Borrando…</string>
     <string name="enable_lrclib_desc">Base de datos de letras sincronizada impulsada por la comunidad</string>
-    <string name="youtube_music_lyrics_note">NOTA: Las letras de YouTube Music se mostrarán automáticamente cuando no haya otra fuente disponible. Por lo general, no están sincronizadas</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="weekly_most_playlist_name">Lo más escuchado de la semana</string>
     <string name="monthly_most_playlist_name">Lo más escuchado del mes</string>
     <string name="lyrics_from_provider">Letras de %s</string>
@@ -817,8 +817,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Secciones visibles</string>
     <string name="android_auto_reorder_hint">Toca una sección para activarla o desactivarla.\nMantén presionado para reordenar. La primera sección se mostrará por defecto</string>
-    <string name="android_auto_youtube_playlists">Mostrar listas de reproducción sugeridas por YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Muestra listas de reproducción sugeridas por YouTube Music en la sección de Playlists mientras navegas con Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Agregado rápido de destino</string>
     <string name="android_auto_target_playlist_desc">Elige la lista de reproducción donde se guardarán las canciones al usar el botón de agregado rápido en Android Auto</string>
     <string name="android_auto_target_playlist_auto">Sin configurar</string>

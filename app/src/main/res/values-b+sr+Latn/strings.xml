@@ -18,7 +18,7 @@
     <string name="quick_picks_empty">Odslušaj pesme kako bi generisao tvoje brze izbore</string>
     <string name="forgotten_favorites">Zaboravljeni favoriti</string>
     <string name="keep_listening">Nastavi slušanje</string>
-    <string name="your_youtube_playlists">Tvoje YouTube plejliste</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Slično ko</string>
     <string name="new_release_albums">Novi albumi</string>
     <string name="today">Danas</string>
@@ -29,7 +29,7 @@
     <string name="most_played_artists">Najslušaniji izvođači</string>
     <string name="most_played_albums">Najslušaniji albumi</string>
     <string name="search">Pretraži</string>
-    <string name="search_yt_music">Pretraži YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="filter_downloaded">Preuzeto</string>
     <string name="filter_all">Sve</string>
     <string name="filter_songs">Pesme</string>
@@ -286,6 +286,6 @@
     <string name="preview">Pregled</string>
     <string name="action_logout">Izloguj se</string>
     <string name="use_login_for_browse">Koristite prijavu za pregledanje sadržaja</string>
-    <string name="use_login_for_browse_desc">Ovo može uticati na sadržaj koji vidite i, na primer, prikazivati albume koji su dostupni samo za Premium korisnike ako ste prijavljeni sa Premium nalogom</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Uloguj se</string>
 </resources>

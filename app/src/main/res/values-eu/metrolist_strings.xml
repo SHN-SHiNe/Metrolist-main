@@ -15,7 +15,7 @@
     <string name="cached_playlist">Cachean gordeta</string>
     <string name="sync_playlist">Zerrenda sinkronizatu</string>
     <string name="sync_disabled">Sinkronizazioa itzalita</string>
-    <string name="allows_for_sync_witch_youtube">OHARRA: Aukera honek YouTube Music-ekin sinkronizatzea ahalbidetzen du eta beranduago EZINGO DA aldatu</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Irudia sortzen…</string>
     <string name="please_wait">Itxaron, mesedez</string>
     <string name="cancel">Utzi</string>
@@ -75,11 +75,11 @@
     <string name="advanced_login">Token-arekin saioa hasi</string>
     <string name="token_hidden">Sakatu \"token\"-a ikusteko</string>
     <string name="token_shown">Sakatu berriro kopiatu edo editatzeko</string>
-    <string name="token_adv_login_description">Hau saioa hasteko modu AURRERATUA da. Web-portalaerabili ordez, hemen zuzenean sartu edo eguneratu dezakezu zure sarrera-tokena. Adibidez, honek hainbat gailutan sartzea azkartzen lagun dezake. Formatu ezezaguneko token-ak errefusatuko dira</string>
-    <string name="yt_sync">Kontuarekin sinkronizazio automatikoa</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Kontuarekin sinkronizazio automatikoa</string>
     <string name="more_content">Eduki gehiago</string>
     <string name="edit_playlist_cover">Editatu erreprodukzio-zerrendaren azala</string>
-    <string name="edit_playlist_cover_note">OHARRA: Zure kontua telefono-zenbaki batekin lotuta egon behar da eta YouTube Music-en egiaztatuta egon behar du erreprodukzio-zerrendaren azala aldatzeko</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Irudi bat hautatu ondoren, mesedez itxaron une batez zure erreprodukzio-zerrendan azala agertu dadin</string>
     <string name="choose_from_library">Liburutegitik hautatu</string>
     <string name="remove_custom_image">Irudi pertzonalizatua kendu</string>
@@ -107,7 +107,7 @@
     <string name="clear_image_cache_dialog">Ziur zaude \"cache\"-an dauden irudi guztiak ezabatzeaz?</string>
     <string name="clear_downloads_dialog">Ziur zaude deskarga guztiak ezabatu nahi dituzula?</string>
     <string name="disable">Desgaitu</string>
-    <string name="not_logged_in_youtube">YouTube-n saioa ez hasita</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Ireki onartutako estekak</string>
     <string name="open_app_settings_error">Aplikazioaren ezarpenak ezin dira ireki</string>
     <string name="release_notes">Bertsio oharrak</string>
@@ -162,11 +162,11 @@
     <string name="show_artist_description">Artistaren deskribapena ikusi</string>
     <string name="show_artist_subscriber_count">Harpidedun kopurua ikusi</string>
     <string name="download_playlist_desc">Abesti guztiak deskargatu lineaz-kanpo entzuteko</string>
-    <string name="youtube_music_lyrics_note">OHARRA: YouTube Music-eko hitzak erakutsiko dira automatikoki bestelako iturriko egon ezean. Ez daude sinkronizatuta normalean</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="remove_download_playlist_desc">Deskargatutako abesti guztiak kendu zerrenda honetatik</string>
     <string name="share_playlist_desc">Zerrenda partekatu</string>
     <string name="delete_playlist_desc">Zerrenda betirako ezabatu</string>
-    <string name="sync_playlist_desc">Zerrenda YouTube Music-ekin sinkronizatu</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="show_artist_monthly_listeners">Hilabeteko entzuleak ikusi</string>
     <string name="download_in_progress_desc">Deskarga bat martxan dago</string>
     <string name="crop_album_art">Album azala moztu</string>
@@ -205,7 +205,7 @@
     <string name="deleting">Ezabatzen…</string>
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Atal ikusgaiak</string>
-    <string name="android_auto_youtube_playlists">YouTubek gomendatutako zerrendak erakutsi</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
     <string name="android_auto_target_playlist">Helmuga azkar gehitu</string>
     <string name="android_auto_target_playlist_auto">Ezarri gabe</string>
     <string name="added_to_playlist">Zerrendara gehituta</string>
@@ -384,7 +384,7 @@
     <string name="scrobble_delay_percent">Scrobble atzerapena (ehunekoa)</string>
     <string name="scrobble_delay_minutes">Scrobble atzerapena (minutuak)</string>
     <string name="hide_video_songs">Bideo-abestiak ezkutatu</string>
-    <string name="hide_youtube_shorts">YouTube Shorts-ak ezkutatu</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="details_desc">Ikusi abestiaren xehetasunak</string>
     <string name="edit_desc">Izenburua edo egilea aldatu</string>
     <string name="start_radio_desc">Elementu honetan oinarritutako irrati bat abiarazi</string>
@@ -393,7 +393,7 @@
     <string name="add_to_library_desc">Zure liburutegian gorde</string>
     <string name="download_desc">Deskargatu sarez-kanpo erreprodukziorako</string>
     <string name="add_to_playlist_desc">Erreprodukzio-zerrenda batera gehitu</string>
-    <string name="refetch_desc">Metadata YouTube Music-etik eguneratu</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Elementu honetara esteka bat partekatu</string>
     <string name="delete_desc">Betirako kendu elementu hau</string>
     <string name="advanced_desc">Abestiaren tenpoa eta tonua aldatu</string>

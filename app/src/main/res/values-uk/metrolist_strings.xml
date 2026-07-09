@@ -10,7 +10,7 @@
     <string name="offline">Завантажене</string>
     <string name="my_top">Мій Топ</string>
     <string name="sync_playlist">Синхронізувати список відтворення</string>
-    <string name="allows_for_sync_witch_youtube">Зауважте: Це дозволяє синхронізацію з YouTube Music. Це НЕ можна буде змінити пізніше.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="select">Обрати все</string>
     <string name="like_all">Вподобати все</string>
     <string name="dislike_all">Позначити все як не вподобане</string>
@@ -34,7 +34,7 @@
     <string name="advanced_login">Вхід через токен</string>
     <string name="token_hidden">Натисніть для показу токену</string>
     <string name="token_shown">Повторно натисніть, щоб скопіювати або редагувати</string>
-    <string name="token_adv_login_description">Це ПРОСУНУТИЙ метод входу в систему. Альтернативно до веб-порталу, ви можете безпосередньо ввести або оновити свій токен для входу тут. Наприклад, це може прискорити вхід на декількох пристроях. Зверніть увагу, що будь-які недійсні формати токенів, які додаток не зможе розпізнати, не будуть прийняті</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">Загальне</string>
     <string name="default_lib_chips">Змінити головну сторінку бібліотеки</string>
     <string name="set_quick_picks">Налаштувати швидкі добірки</string>
@@ -95,7 +95,7 @@
     <string name="auto_download_on_like_desc">Автоматично завантажувати пісні, які ви вподобали</string>
     <string name="clear_song_cache_dialog">Ви впевнені, що хочете очистити всі кешовані пісні?</string>
     <string name="clear_downloads_dialog">Ви впевнені, що хочете очистити всі завантаження?</string>
-    <string name="not_logged_in_youtube">Ви не ввійшли в YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="information">Інформація</string>
     <string name="description">Опис</string>
     <string name="views">Перегляди</string>
@@ -108,7 +108,7 @@
     <string name="new_player_design">Новий дизайн програвача</string>
     <string name="lyrics_romanize_japanese">Романізувати Японські тексти</string>
     <string name="lyrics_romanize_korean">Романізувати Корейські тексти</string>
-    <string name="yt_sync">Автосинхронізація з акаунтом</string>
+    <string name="account_auto_sync">Автосинхронізація з акаунтом</string>
     <string name="more_content">Більше контенту</string>
     <string name="swipe_sensitivity">Чутливість проведення по мініпрогравачу</string>
     <string name="sensitivity_percentage">%1$d%%</string>
@@ -152,7 +152,7 @@
     <string name="line_by_line_dialog_desc">Це експериментальна функція, яка може працювати як з успіхом, так і з невдачею. \n\nЗа замовчуванням мова визначається на основі всієї пісні, але якщо ввімкнути цю опцію, вона буде визначатися по рядках. Це дозволить працювати з багатомовними піснями, АЛЕ мова може бути не завжди правильною (наприклад, якщо в українському тексті немає літер, характерних для української мови, він може бути транслітерований як російський). \n\nЯкщо у вас немає проблем, рекомендується залишити цю опцію вимкненою.</string>
     <string name="romanize_current_track">Романізувати поточний трек</string>
     <string name="edit_playlist_cover">Редагувати обкладинку списку відтворення</string>
-    <string name="edit_playlist_cover_note">Примітка: Щоб змінити обкладинку списку відтворення, ваш обліковий запис має бути пов’язаний з номером телефону та підтверджений у YouTube Music.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Після вибору зображення зачекайте трохи, поки нова обкладинка з’явиться у вашому списку відтворення.</string>
     <string name="audio_offload">Увімкнути розвантаження</string>
     <string name="audio_offload_description">Використовуйте шлях розвантаження аудіо для відтворення аудіо. Вимкнення цієї функції може збільшити споживання енергії, але може бути корисним, якщо у вас виникнуть проблеми з відтворенням аудіо або постобробкою</string>
@@ -197,7 +197,7 @@
     <string name="add_to_library_desc">Зберегти у своїй бібліотеці</string>
     <string name="download_desc">Зробити доступним для відтворення офлайн</string>
     <string name="add_to_playlist_desc">Додати до одного зі своїх плейлистів</string>
-    <string name="refetch_desc">Отримати найновіші метадані з YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Поділитися посиланням на цей елемент</string>
     <string name="delete_desc">Вилучити цей елемент назавжди</string>
     <string name="advanced_desc">Змінити темп і висоту тону пісні</string>
@@ -215,7 +215,7 @@
     <string name="download_in_progress_desc">Триває завантаження</string>
     <string name="share_playlist_desc">Поділіться цим плейлистом з іншими</string>
     <string name="delete_playlist_desc">Видалити цей плейлист назавжди</string>
-    <string name="sync_playlist_desc">Синхронізуйте плейлист з YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="enable_better_lyrics">Увімкнути кращі тексти пісень</string>
     <string name="enable_better_lyrics_desc">Використовуйте постачальника Better Lyrics для синхронізованих текстів пісень слово за словом</string>
     <string name="lyrics_animation_style">Стиль анімації слово за словом</string>

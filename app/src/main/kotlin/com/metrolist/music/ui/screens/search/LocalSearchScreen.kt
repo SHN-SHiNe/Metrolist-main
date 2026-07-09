@@ -119,17 +119,19 @@ fun LocalSearchScreen(
                     }
                 },
     ) {
-        ChipsRow(
-            chips =
-                listOf(
-                    LocalFilter.ALL to stringResource(R.string.filter_all),
-                    LocalFilter.SONG to stringResource(R.string.filter_songs),
-                    LocalFilter.ARTIST to stringResource(R.string.filter_artists),
-                    LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists),
-                ),
-            currentValue = searchFilter,
-            onValueUpdate = { viewModel.filter.value = it },
-        )
+        SearchControlPanel(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            ChipsRow(
+                chips =
+                    listOf(
+                        LocalFilter.ALL to stringResource(R.string.filter_all),
+                        LocalFilter.SONG to stringResource(R.string.filter_songs),
+                        LocalFilter.ARTIST to stringResource(R.string.filter_artists),
+                        LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists),
+                    ),
+                currentValue = searchFilter,
+                onValueUpdate = { viewModel.filter.value = it },
+            )
+        }
 
         LazyColumn(
             state = lazyListState,

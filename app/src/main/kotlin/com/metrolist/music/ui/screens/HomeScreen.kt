@@ -768,6 +768,71 @@ fun HomeScreen(
 
     var randomSeed by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
 
+    suspend fun activeLocalContentUri(songId: String) =
+        withContext(Dispatchers.IO) {
+            database
+                .localMusic(songId)
+                .first()
+                ?.takeIf { it.missingSince == null }
+                ?.contentUri
+        }
+
+    suspend fun localAwareMediaItem(song: Song) =
+        activeLocalContentUri(song.id)
+            ?.let { song.toMediaItem(it) }
+            ?: song.toMediaItem()
+
+    suspend fun localAwareMediaItems(songs: List<Song>) =
+        songs.map { localAwareMediaItem(it) }
+
+    suspend fun playHomeSong(song: Song) {
+        val localContentUri = activeLocalContentUri(song.id)
+        when (homeSongPlaybackRoute(localContentUri)) {
+            HomeSongPlaybackRoute.LOCAL_SINGLE_SONG ->
+                playerConnection.playQueue(
+                    ListQueue(
+                        title = song.title,
+                        items = listOf(song.toMediaItem(localContentUri!!)),
+                    ),
+                )
+
+            HomeSongPlaybackRoute.ONLINE_RADIO ->
+                playerConnection.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
+        }
+    }
+
+    suspend fun playHomeSongItem(item: SongItem) {
+        val localContentUri = activeLocalContentUri(item.id)
+        when (homeSongPlaybackRoute(localContentUri)) {
+            HomeSongPlaybackRoute.LOCAL_SINGLE_SONG -> {
+                val localSong =
+                    withContext(Dispatchers.IO) {
+                        database.song(item.id).first()
+                    }
+                val mediaItem =
+                    localSong?.toMediaItem(localContentUri!!)
+                        ?: item
+                            .toMediaMetadata()
+                            .copy(isLocal = true, playbackUri = localContentUri)
+                            .toMediaItem()
+                playerConnection.playQueue(
+                    ListQueue(
+                        title = item.title,
+                        items = listOf(mediaItem),
+                    ),
+                )
+            }
+
+            HomeSongPlaybackRoute.ONLINE_RADIO ->
+                playerConnection.playQueue(
+                    YouTubeQueue(
+                        item.endpoint ?: WatchEndpoint(videoId = item.id),
+                        item.toMediaMetadata(),
+                    ),
+                )
+        }
+    }
+
     LaunchedEffect(isRefreshing) {
         if (isRefreshing) {
             randomSeed = System.currentTimeMillis()
@@ -826,9 +891,9 @@ fun HomeScreen(
                                         if (it.id == mediaMetadata?.id) {
                                             playerConnection.togglePlayPause()
                                         } else {
-                                            playerConnection.playQueue(
-                                                YouTubeQueue.radio(it.toMediaMetadata()),
-                                            )
+                                            scope.launch {
+                                                playHomeSong(it)
+                                            }
                                         }
                                     }
                                 },
@@ -844,9 +909,12 @@ fun HomeScreen(
                                         )
                                     }
                                 },
-                            ),
+                    ),
                     isActive = it.id == mediaMetadata?.id,
                     isPlaying = isPlaying,
+                    showCoverPlayButton = false,
+                    showPlaybackStateOverlay = true,
+                    showPausedPlaybackIcon = false,
                 )
             }
 
@@ -855,6 +923,9 @@ fun HomeScreen(
                     album = it,
                     isActive = it.id == mediaMetadata?.album?.id,
                     isPlaying = isPlaying,
+                    showAlbumPlayButton = false,
+                    showPlaybackStateOverlay = true,
+                    showPausedPlaybackIcon = false,
                     coroutineScope = scope,
                     modifier =
                         Modifier
@@ -912,6 +983,10 @@ fun HomeScreen(
             item = item,
             isActive = item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
             isPlaying = isPlaying,
+            showCoverPlayButton = false,
+            showAlbumPlayButton = false,
+            showPlaybackStateOverlay = true,
+            showPausedPlaybackIcon = false,
             coroutineScope = scope,
             thumbnailRatio = 1f,
             modifier =
@@ -921,14 +996,9 @@ fun HomeScreen(
                             when (item) {
                                 is SongItem -> {
                                     if (!isListenTogetherGuest) {
-                                        playerConnection.playQueue(
-                                            YouTubeQueue(
-                                                item.endpoint ?: WatchEndpoint(
-                                                    videoId = item.id,
-                                                ),
-                                                item.toMediaMetadata(),
-                                            ),
-                                        )
+                                        scope.launch {
+                                            playHomeSongItem(item)
+                                        }
                                     }
                                 }
 
@@ -1448,15 +1518,7 @@ fun HomeScreen(
                                                                                         if (randomItem != null) {
                                                                                             when (randomItem) {
                                                                                                 is SongItem -> {
-                                                                                                    playerConnection.playQueue(
-                                                                                                        YouTubeQueue(
-                                                                                                            randomItem.endpoint
-                                                                                                                ?: WatchEndpoint(
-                                                                                                                    videoId = randomItem.id,
-                                                                                                                ),
-                                                                                                            randomItem.toMediaMetadata(),
-                                                                                                        ),
-                                                                                                    )
+                                                                                                    playHomeSongItem(randomItem)
                                                                                                 }
 
                                                                                                 is AlbumItem -> {
@@ -1523,6 +1585,8 @@ fun HomeScreen(
                                                                         isActive =
                                                                             item.id in listOf(mediaMetadata?.album?.id, mediaMetadata?.id),
                                                                         isPlaying = isPlaying,
+                                                                        showPlaybackStateOverlay = true,
+                                                                        showPausedPlaybackIcon = false,
                                                                         modifier =
                                                                             Modifier
                                                                                 .fillMaxSize()
@@ -1531,15 +1595,9 @@ fun HomeScreen(
                                                                                         when (item) {
                                                                                             is SongItem -> {
                                                                                                 if (!isListenTogetherGuest) {
-                                                                                                    playerConnection.playQueue(
-                                                                                                        YouTubeQueue(
-                                                                                                            item.endpoint
-                                                                                                                ?: WatchEndpoint(
-                                                                                                                    videoId = item.id,
-                                                                                                                ),
-                                                                                                            item.toMediaMetadata(),
-                                                                                                        ),
-                                                                                                    )
+                                                                                                    scope.launch {
+                                                                                                        playHomeSongItem(item)
+                                                                                                    }
                                                                                                 }
                                                                                             }
 
@@ -1701,12 +1759,14 @@ fun HomeScreen(
                                         onPlayAllClick =
                                             if (!isListenTogetherGuest) {
                                                 {
-                                                    playerConnection.playQueue(
-                                                        ListQueue(
-                                                            title = quickPicksTitle,
-                                                            items = quickPicks.distinctBy { it.id }.map { it.toMediaItem() },
-                                                        ),
-                                                    )
+                                                    scope.launch {
+                                                        playerConnection.playQueue(
+                                                            ListQueue(
+                                                                title = quickPicksTitle,
+                                                                items = localAwareMediaItems(quickPicks.distinctBy { it.id }),
+                                                            ),
+                                                        )
+                                                    }
                                                 }
                                             } else {
                                                 null
@@ -1771,11 +1831,9 @@ fun HomeScreen(
                                                                     if (song!!.id == mediaMetadata?.id) {
                                                                         playerConnection.togglePlayPause()
                                                                     } else {
-                                                                        playerConnection.playQueue(
-                                                                            YouTubeQueue.radio(
-                                                                                song!!.toMediaMetadata(),
-                                                                            ),
-                                                                        )
+                                                                        scope.launch {
+                                                                            playHomeSong(song!!)
+                                                                        }
                                                                     }
                                                                 }
                                                             },
@@ -1820,12 +1878,9 @@ fun HomeScreen(
                                                 },
                                                 onSongClick = { song ->
                                                     if (!isListenTogetherGuest) {
-                                                        playerConnection.playQueue(
-                                                            YouTubeQueue(
-                                                                song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                                song.toMediaMetadata(),
-                                                            ),
-                                                        )
+                                                        scope.launch {
+                                                            playHomeSongItem(song)
+                                                        }
                                                     }
                                                 },
                                             )
@@ -1884,14 +1939,10 @@ fun HomeScreen(
                                                 onClick = {
                                                     if (!isListenTogetherGuest) {
                                                         val song = item.recommendation as? SongItem
-                                                        val mediaMetadata = song?.toMediaMetadata()
-                                                        if (mediaMetadata != null) {
-                                                            playerConnection.playQueue(
-                                                                YouTubeQueue(
-                                                                    song.endpoint ?: WatchEndpoint(videoId = song.id),
-                                                                    mediaMetadata,
-                                                                ),
-                                                            )
+                                                        if (song != null) {
+                                                            scope.launch {
+                                                                playHomeSongItem(song)
+                                                            }
                                                         }
                                                     }
                                                 },
@@ -2015,12 +2066,14 @@ fun HomeScreen(
                                         onPlayAllClick =
                                             if (!isListenTogetherGuest) {
                                                 {
-                                                    playerConnection.playQueue(
-                                                        ListQueue(
-                                                            title = forgottenFavoritesTitle,
-                                                            items = forgottenFavorites.distinctBy { it.id }.map { it.toMediaItem() },
-                                                        ),
-                                                    )
+                                                    scope.launch {
+                                                        playerConnection.playQueue(
+                                                            ListQueue(
+                                                                title = forgottenFavoritesTitle,
+                                                                items = localAwareMediaItems(forgottenFavorites.distinctBy { it.id }),
+                                                            ),
+                                                        )
+                                                    }
                                                 }
                                             } else {
                                                 null
@@ -2090,11 +2143,9 @@ fun HomeScreen(
                                                                     if (song!!.id == mediaMetadata?.id) {
                                                                         playerConnection.togglePlayPause()
                                                                     } else {
-                                                                        playerConnection.playQueue(
-                                                                            YouTubeQueue.radio(
-                                                                                song!!.toMediaMetadata(),
-                                                                            ),
-                                                                        )
+                                                                        scope.launch {
+                                                                            playHomeSong(song!!)
+                                                                        }
                                                                     }
                                                                 }
                                                             },
@@ -2498,7 +2549,7 @@ fun HomeScreen(
                             if (local) {
                                 when (val luckyItem = allLocalItems.random()) {
                                     is Song -> {
-                                        playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                        playHomeSong(luckyItem)
                                     }
 
                                     is Album -> {
@@ -2518,7 +2569,7 @@ fun HomeScreen(
                             } else {
                                 when (val luckyItem = allYtItems.random()) {
                                     is SongItem -> {
-                                        playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
+                                        playHomeSongItem(luckyItem)
                                     }
 
                                     is AlbumItem -> {

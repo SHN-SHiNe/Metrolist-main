@@ -17,7 +17,7 @@
     <string name="quick_picks_empty">Høyr på songar for å generera snarvala dine</string>
     <string name="forgotten_favorites">Gløymde yndlingar</string>
     <string name="keep_listening">Hald fram med å lyda</string>
-    <string name="your_youtube_playlists">YouTube-spelelistene dine</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Liknar på</string>
     <string name="new_release_albums">Nyleg slopne album</string>
     <string name="today">I dag</string>
@@ -28,7 +28,7 @@
     <string name="most_played_artists">Mest spela artistar</string>
     <string name="most_played_albums">Mest spela album</string>
     <string name="search">Søk</string>
-    <string name="search_yt_music">Søk i gjenom YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Søk i gjenom biblioteket…</string>
     <string name="filter_library">Bibliotek</string>
     <string name="filter_liked">Lika</string>
@@ -255,7 +255,7 @@
     <string name="clear_search_history">Tak bort søkjesoga</string>
     <string name="clear_search_history_confirm">Er du viss på at du vil taka bort heile søkjesoga?</string>
     <string name="use_login_for_browse">Nøyt innlogging for å oppdaga innhald</string>
-    <string name="use_login_for_browse_desc">Dette kan påverka kva innhald du ser og syner til dømes album berre synlege for Premium-nøytarar dersom du er innlogga med ein Premium-konto</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">Slå av skjermbilete</string>
     <string name="disable_screenshot_desc">Når dette er aktivert, er skjermbilete og visningen for appen i Nylege appar avslegne.</string>
     <string name="enable_lrclib">Slå på LrcLib-songteksttilbydar</string>

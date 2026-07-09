@@ -47,7 +47,6 @@ import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
 import com.metrolist.music.constants.AndroidAutoSectionsOrderKey
 import com.metrolist.music.constants.AndroidAutoTargetPlaylistKey
-import com.metrolist.music.constants.AndroidAutoYouTubePlaylistsKey
 import com.metrolist.music.constants.MediaSessionConstants
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
@@ -102,11 +101,6 @@ fun AndroidAutoSettings(
     val userPlaylists by remember {
         database.playlistsByCreateDateAsc().map { list -> list.map { it.playlist } }
     }.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    val (youtubePlaylistsEnabled, onYoutubePlaylistsChange) = rememberPreference(
-        key = AndroidAutoYouTubePlaylistsKey,
-        defaultValue = false
-    )
 
     val (sectionsRaw, onSectionsChange) = rememberPreference(
         key = AndroidAutoSectionsOrderKey,
@@ -293,35 +287,6 @@ fun AndroidAutoSettings(
 
         Spacer(Modifier.height(27.dp))
 
-        // YouTube playlists
-        Material3SettingsGroup(
-            title = stringResource(R.string.mixes),
-            items = listOf(
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.queue_music),
-                    title = { Text(stringResource(R.string.android_auto_youtube_playlists)) },
-                    description = { Text(stringResource(R.string.android_auto_youtube_playlists_desc)) },
-                    trailingContent = {
-                        Switch(
-                            checked = youtubePlaylistsEnabled,
-                            onCheckedChange = onYoutubePlaylistsChange,
-                            thumbContent = {
-                                Icon(
-                                    painter = painterResource(
-                                        if (youtubePlaylistsEnabled) R.drawable.check else R.drawable.close
-                                    ),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(SwitchDefaults.IconSize),
-                                )
-                            }
-                        )
-                    },
-                    onClick = { onYoutubePlaylistsChange(!youtubePlaylistsEnabled) }
-                )
-            )
-        )
-
-        Spacer(Modifier.height(27.dp))
     }
 
     TopAppBar(

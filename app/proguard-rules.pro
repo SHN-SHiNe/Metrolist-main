@@ -115,17 +115,6 @@
 -dontwarn org.openjsse.net.ssl.OpenJSSE
 -dontwarn org.slf4j.impl.StaticLoggerBinder
 
-## Rules for NewPipeExtractor
--keep class org.schabi.newpipe.extractor.services.youtube.protos.** { *; }
--keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
--keep class org.mozilla.javascript.** { *; }
--keep class org.mozilla.javascript.engine.** { *; }
--dontwarn org.mozilla.javascript.JavaToJSONConverters
--dontwarn org.mozilla.javascript.tools.**
--keep class javax.script.** { *; }
--dontwarn javax.script.**
--keep class jdk.dynalink.** { *; }
--dontwarn jdk.dynalink.**
 
 ## Logging (does not affect Timber)
 -assumenosideeffects class android.util.Log {
@@ -180,6 +169,17 @@
 -keepclassmembers class com.metrolist.music.recognition.VibraSignature {
     native <methods>;
 }
+
+## ONNX Runtime
+# The native ONNX Runtime library constructs Java value/tensor metadata objects
+# through JNI. R8 can remove constructors and members that are only referenced
+# from native code, which crashes release analysis with "JNI DETECTED ERROR:
+# mid == null" inside OrtSession.run().
+-keep class ai.onnxruntime.** { *; }
+-keepclassmembers class ai.onnxruntime.** {
+    *;
+}
+-dontwarn ai.onnxruntime.**
 
 ## Kotlin Reflection Fix
 -keep class kotlin.Metadata { *; }

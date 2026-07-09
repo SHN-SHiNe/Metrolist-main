@@ -85,7 +85,7 @@
     <string name="undo">Vrati</string>
     <string name="artists">Umjetnici</string>
     <string name="playlists">Spisci za reprodukciju</string>
-    <string name="search_yt_music">Pretraži YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="from_your_library">Iz vaše biblioteke</string>
     <string name="stats">Statistike</string>
     <string name="mood_and_genres">Raspoloženje i Žanrovi</string>
@@ -93,7 +93,7 @@
     <string name="account">Račun</string>
     <string name="quick_picks_empty">Odslušaj pjesme kako bi generisali vaše brze odabire</string>
     <string name="keep_listening">Nastavite da slušate</string>
-    <string name="your_youtube_playlists">Vaši YouTube spisci za reprodukciju</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="most_played_albums">Najslušaniji albumi</string>
     <string name="filter_albums">Albumi</string>
     <string name="new_release_albums">Novi albumi</string>
@@ -285,7 +285,7 @@
     <string name="clear_translation_models">Rasčisti modele prevođenja</string>
     <string name="new_version_available">Dostupna je nova verzija</string>
     <string name="translation_models">Modeli prevođenja</string>
-    <string name="use_login_for_browse_desc">Ovo može utjecati na sadržaj koji vidite i, na primjer, prikazivati albume koji su dostupni samo za Premium korisnike ako ste prijavljeni sa Premium računom ili nalogom</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="use_login_for_browse">Koristite prijavu za pregledavanje sadržaja</string>
     <string name="action_login">Prijavite se</string>
 </resources>

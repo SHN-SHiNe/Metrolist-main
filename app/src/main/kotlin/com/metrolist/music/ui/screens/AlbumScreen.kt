@@ -24,8 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,13 +86,10 @@ import com.metrolist.music.db.entities.Album
 import com.metrolist.music.playback.queues.LocalAlbumRadio
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.LocalMenuState
-import com.metrolist.music.ui.component.NavigationTitle
 import com.metrolist.music.ui.component.SongListItem
-import com.metrolist.music.ui.component.YouTubeGridItem
 import com.metrolist.music.ui.menu.AlbumMenu
 import com.metrolist.music.ui.menu.SelectionSongMenu
 import com.metrolist.music.ui.menu.SongMenu
-import com.metrolist.music.ui.menu.YouTubeAlbumMenu
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.resize
 import com.metrolist.music.utils.makeTimeString
@@ -116,14 +111,10 @@ fun AlbumScreen(
     val listenTogetherManager = LocalListenTogetherManager.current
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
 
-    val scope = rememberCoroutineScope()
-
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
 
-    val playlistId by viewModel.playlistId.collectAsStateWithLifecycle()
     val albumWithSongs by viewModel.albumWithSongs.collectAsStateWithLifecycle()
-    val otherVersions by viewModel.otherVersions.collectAsStateWithLifecycle()
     val hideExplicit by rememberPreference(key = HideExplicitKey, defaultValue = false)
     val hideVideoSongs by rememberPreference(key = HideVideoSongsKey, defaultValue = false)
 
@@ -356,7 +347,6 @@ fun AlbumScreen(
                         Surface(
                             onClick = {
                                 if (!isListenTogetherGuest) {
-                                    playerConnection.service.getAutomix(playlistId)
                                     playerConnection.playQueue(
                                         LocalAlbumRadio(albumWithSongs),
                                     )
@@ -469,7 +459,6 @@ fun AlbumScreen(
                                             if (song.id == mediaMetadata?.id) {
                                                 playerConnection.togglePlayPause()
                                             } else {
-                                                playerConnection.service.getAutomix(playlistId)
                                                 playerConnection.playQueue(
                                                     LocalAlbumRadio(albumWithSongs, startIndex = index),
                                                 )
@@ -485,47 +474,6 @@ fun AlbumScreen(
                                     },
                                 ),
                     )
-                }
-            }
-
-            if (otherVersions.isNotEmpty()) {
-                item(key = "other_versions_title") {
-                    NavigationTitle(
-                        title = stringResource(R.string.other_versions),
-                        modifier = Modifier.animateItem(),
-                    )
-                }
-                item(key = "other_versions_list") {
-                    LazyRow(
-                        contentPadding = WindowInsets.systemBars.only(WindowInsetsSides.Horizontal).asPaddingValues(),
-                    ) {
-                        items(
-                            items = otherVersions.distinctBy { it.id },
-                            key = { "album_other_${it.id}" },
-                        ) { item ->
-                            YouTubeGridItem(
-                                item = item,
-                                isActive = mediaMetadata?.album?.id == item.id,
-                                isPlaying = isPlaying,
-                                coroutineScope = scope,
-                                modifier =
-                                    Modifier
-                                        .combinedClickable(
-                                            onClick = { navController.navigate("album/${item.id}") },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    YouTubeAlbumMenu(
-                                                        albumItem = item,
-                                                        navController = navController,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
-                                            },
-                                        ).animateItem(),
-                            )
-                        }
-                    }
                 }
             }
         } else {

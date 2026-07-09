@@ -18,7 +18,7 @@
     <string name="quick_picks_empty">האזינו לשירים כדי ליצור את הבחירות המהירות שלכם</string>
     <string name="forgotten_favorites">מועדפים שנשכחו</string>
     <string name="keep_listening">המשך האזנה</string>
-    <string name="your_youtube_playlists">פלייליסטים ביוטיוב שלך</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">דומה ל</string>
     <string name="new_release_albums">אלבומים חדשים</string>
     <string name="today">היום</string>
@@ -29,7 +29,7 @@
     <string name="most_played_artists">האמנים הכי מושמעים</string>
     <string name="most_played_albums">אלבומים הכי מושמעים</string>
     <string name="search">חיפוש</string>
-    <string name="search_yt_music">חפש ביוטיוב מוזיקה…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">חפש בספרייה…</string>
     <string name="filter_library">ספרייה</string>
     <string name="filter_liked">אהבתי</string>
@@ -264,7 +264,7 @@
     <string name="clear_search_history">…נקה את היסטוריית החיפוש</string>
     <string name="clear_search_history_confirm">האם אתה בטוח שברצונך למחוק את כל היסטוריית החיפוש?</string>
     <string name="use_login_for_browse">השתמש בכניסה כדי לגלוש בתוכן</string>
-    <string name="use_login_for_browse_desc">זה יכול להשפיע על התוכן שתראו, לדוגמה, יציג אלבומים למשתמשי פרימיום בלבד אם אתם מחוברים לחשבון פרימיום</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">השבתת צילום מסך</string>
     <string name="disable_screenshot_desc">כאשר אפשרות זו מופעלת, צילומי מסך ותצוגת האפליקציה תחת \'אחרונים\' מושבתות.</string>
     <string name="enable_lrclib">הפעל את ספק המילים של LrcLib</string>

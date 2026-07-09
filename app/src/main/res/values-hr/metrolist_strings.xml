@@ -15,7 +15,7 @@
     <string name="cached_playlist">Predmemorirano</string>
     <string name="sync_playlist">Sinkroniziraj popis za reprodukciju</string>
     <string name="sync_disabled">Sync onemogućen</string>
-    <string name="allows_for_sync_witch_youtube">Napomena: Ovo omogućuje sinkronizaciju s YouTube Music. Ovo NIJE moguće kasnije promijeniti.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generiram sliku</string>
     <string name="please_wait">Molim pričekajte</string>
     <string name="cancel">Odustani</string>
@@ -69,8 +69,8 @@
     <string name="advanced_login">Prijavite se sa žetonom</string>
     <string name="token_hidden">Ako pritisnite, prikazat će se žeton</string>
     <string name="token_shown">Pritisni opet da kopiras ili uredi</string>
-    <string name="token_adv_login_description">Ovo je napredan način PRISTUPA LOGINu. Umjesto web portala, možete direktno unijeti ili ažurirati svoj token prijave ovdje. Na primjer, to može ubrzati prijavu na više uređaja. Molimo primijetite da će se bilo koji nevažeći formati tokena koje aplikacija ne može analizirati odbijati</string>
-    <string name="yt_sync">Sinkronizacija automatski sa nalogom</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Sinkronizacija automatski sa nalogom</string>
     <string name="more_content">Više sadržaja</string>
     <string name="general">Općenito</string>
     <string name="proxy">Proxy</string>
@@ -92,7 +92,7 @@
     <string name="clear_image_cache_dialog">Sigurno želite obrisati sve pohranjene slike u cache?</string>
     <string name="clear_downloads_dialog">Sigurno želite obrisati sve preuzete datoteke?</string>
     <string name="disable">Onemogući</string>
-    <string name="not_logged_in_youtube">Nije se prijavljen na YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Otavanje podržanih poveznica</string>
     <string name="open_app_settings_error">Nemogu otvoriti postavke aplikacije</string>
     <string name="release_notes">Obavijest o izdanjima [Croatian</string>

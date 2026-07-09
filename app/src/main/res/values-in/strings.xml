@@ -23,7 +23,7 @@
     <string name="most_played_artists">Artis paling sering diputar</string>
     <string name="most_played_albums">Album paling sering diputar</string>
     <string name="search">Cari</string>
-    <string name="search_yt_music">Cari di YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Cari di pustaka…</string>
     <string name="filter_library">Pustaka</string>
     <string name="filter_liked">Disukai</string>
@@ -213,7 +213,7 @@
     <string name="clear_translation_models">Hapus model penerjemahan</string>
     <string name="forgotten_favorites">Favorit yang terlupakan</string>
     <string name="keep_listening">Lanjut dengarkan</string>
-    <string name="your_youtube_playlists">Playlist Youtube Anda</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Serupa dengan</string>
     <string name="other_versions">Versi lainnya</string>
     <string name="add_all_to_library">Tambah semua ke pustaka</string>
@@ -268,6 +268,6 @@
     <string name="preview">Pratinjau</string>
     <string name="enable_discord_rpc">Aktifkan Rich Presence</string>
     <string name="use_login_for_browse">Login untuk menjelajahi konten</string>
-    <string name="use_login_for_browse_desc">Ini dapat memengaruhi konten yang Anda lihat dan misalnya menampilkan album khusus premium jika Anda login dengan akun Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Masuk</string>
 </resources>

@@ -7,7 +7,7 @@
     <string name="account">حساب</string>
     <string name="quick_picks">إختيارات سريعة</string>
     <string name="forgotten_favorites">مفضلات مهملة</string>
-    <string name="your_youtube_playlists">قوائم أغانيك على YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">تشبه</string>
     <string name="new_release_albums">ألبومات أصدرت حديثًا</string>
     <string name="today">اليوم</string>
@@ -15,7 +15,7 @@
     <string name="last_week">الأسبوع الماضي</string>
     <string name="most_played_artists">الفنانون الأكثر استماعًا</string>
     <string name="most_played_albums">الألبومات الأكثر استماعًا</string>
-    <string name="search_yt_music">ابحث في YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">ابحث في المكتبة…</string>
     <string name="filter_liked">أعجبك</string>
     <string name="filter_downloaded">تم تنزيلها</string>
@@ -313,6 +313,6 @@
     <string name="clear_translation_models">مسح نماذج الترجمة</string>
     <string name="disable_screenshot_desc">عند تفعيل هذا الخيار، يتم تعطيل اخذ لقطات للشاشة وعدم اظهار محتوى التطبيق في التطبيقات الأخيرة.</string>
     <string name="use_login_for_browse">استخدم تسجيل الدخول لتصفح المحتوى</string>
-    <string name="use_login_for_browse_desc">يمكن أن يؤثر ذلك على المحتوى الذي تراه، فعلى سبيل المثال، يعرض الألبومات المخصصة للمشتركين المميزين فقط إذا كنت مسجلاً الدخول باستخدام حساب مميز</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">تسجيل دخول</string>
 </resources>

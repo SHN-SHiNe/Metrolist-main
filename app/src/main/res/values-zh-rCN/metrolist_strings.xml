@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="local_history">本地</string>
+    <string name="local_music">本地</string>
     <string name="remote_history">远程</string>
     <string name="charts">排行榜</string>
     <string name="back_button_desc">返回</string>
@@ -11,7 +12,7 @@
     <string name="months">月</string>
     <string name="years">年</string>
     <string name="liked">已点赞</string>
-    <string name="offline">已下载</string>
+    <string name="offline">已缓存</string>
     <string name="my_top">我的最爱</string>
     <string name="cached_playlist">已缓存</string>
     <string name="sync_playlist">同步播放列表</string>
@@ -37,6 +38,7 @@
         <item quantity="other">%d 次</item>
     </plurals>
     <string name="similar_content">相似内容</string>
+    <string name="local_similar_autoplay">相似播放</string>
     <string name="player_background_style">播放器背景样式</string>
     <string name="follow_theme">遵循主题</string>
     <string name="gradient">渐变</string>
@@ -51,7 +53,7 @@
     <string name="advanced_login">使用令牌登录</string>
     <string name="token_hidden">点击显示令牌</string>
     <string name="token_shown">再次点击以复制或编辑</string>
-    <string name="token_adv_login_description">这是高级登录方法。您可以直接输入或更新您的登录令牌，无需使用网页门户。这对于跨多个设备快速登录非常有用。格式无法识别的令牌将被拒绝</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">常规</string>
     <string name="proxy">代理</string>
     <string name="set_quick_picks">设置猜你喜欢</string>
@@ -60,11 +62,11 @@
     <string name="similar_content_desc">在待播列表快结束时，自动添加更多相似歌曲</string>
     <string name="percentage_format">%d%%</string>
     <string name="app_language">应用语言</string>
-    <string name="auto_download_on_like">点赞后自动下载</string>
-    <string name="auto_download_on_like_desc">当您点赞某首歌曲时，将自动下载这首歌</string>
+    <string name="auto_download_on_like">点赞后自动缓存</string>
+    <string name="auto_download_on_like_desc">当您点赞某首歌曲时，将自动缓存这首歌</string>
     <string name="clear_song_cache_dialog">确定要清除所有已缓存的歌曲吗？</string>
-    <string name="clear_downloads_dialog">确定要清除所有下载内容吗？</string>
-    <string name="not_logged_in_youtube">未登录 YouTube</string>
+    <string name="clear_downloads_dialog">确定要清除所有离线缓存吗？</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">打开支持的链接</string>
     <string name="release_notes">发行说明</string>
     <string name="all_time">所有时间</string>
@@ -77,11 +79,11 @@
         <item quantity="other">%d 秒</item>
     </plurals>
     <string name="continuous">连续</string>
-    <string name="allows_for_sync_witch_youtube">注意：此选项会启用与 YouTube Music 的同步功能，且之后无法更改</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="sync_disabled">同步已禁用</string>
     <string name="share_lyrics">分享歌词</string>
     <string name="views">浏览量</string>
-    <string name="show_downloaded_playlist">显示已下载播放列表</string>
+    <string name="show_downloaded_playlist">显示已缓存播放列表</string>
     <string name="past_24_hours">过去 24 小时</string>
     <string name="show_top_playlist">显示我的最爱播放列表</string>
     <string name="open_app_settings_error">无法打开应用设置</string>
@@ -101,7 +103,7 @@
     <string name="lyrics_auto_scroll">自动滚动歌词</string>
     <string name="lyrics_romanize_japanese">使用日文（罗马音）</string>
     <string name="lyrics_romanize_korean">使用韩文（罗马音）</string>
-    <string name="yt_sync">与账号自动同步</string>
+    <string name="account_auto_sync">与账号自动同步</string>
     <string name="more_content">更多内容</string>
     <string name="import_online">导入 M3U 格式的播放列表</string>
     <string name="import_csv">导入 CSV 格式的播放列表</string>
@@ -146,7 +148,7 @@
     <string name="line_by_line_dialog_desc">这是一项效果不稳定的实验性功能。\n\n默认情况下，从整首歌曲中检测语言。启用此选项后，将改为逐行检测。这样可以支持多语言混唱歌曲，但检测到的语言可能并不总是正确的。例如，一段不含任何乌克兰语特有字符的乌克兰语歌词，可能会以俄语进行罗马化。\n\n如果您没有遇到任何问题，建议保持此选项关闭</string>
     <string name="romanize_current_track">罗马化当前曲目</string>
     <string name="edit_playlist_cover">编辑播放列表封面</string>
-    <string name="edit_playlist_cover_note">注意：您的 YouTube Music 账号必须绑定电话号码并通过验证才能更改播放列表封面</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">选择图片后，请稍等片刻，新封面将出现在您的播放列表中</string>
     <string name="choose_from_library">从库中选择</string>
     <string name="remove_custom_image">删除自定义图片</string>
@@ -175,12 +177,12 @@
     <string name="scrobble_delay_minutes">记录听歌时长延迟（分钟）</string>
     <string name="scrobble_delay_percent">记录听歌时长延迟（百分比）</string>
     <string name="swipe_song_to_remove">滑动即可从播放列表中移除歌曲</string>
-    <string name="download_playlist_desc">下载所有歌曲以离线播放</string>
-    <string name="remove_download_playlist_desc">从此播放列表中删除所有已下载的歌曲</string>
-    <string name="download_in_progress_desc">下载正在进行中</string>
+    <string name="download_playlist_desc">缓存所有歌曲以离线播放</string>
+    <string name="remove_download_playlist_desc">从此播放列表中删除所有已缓存的歌曲</string>
+    <string name="download_in_progress_desc">缓存正在进行中</string>
     <string name="share_playlist_desc">分享此播放列表</string>
     <string name="delete_playlist_desc">永久删除此播放列表</string>
-    <string name="sync_playlist_desc">将此播放列表与 YouTube Music 同步</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">主色</string>
     <string name="tertiary_color_style">第三色</string>
     <string name="lyrics_glow_effect">启用歌词发光效果</string>
@@ -204,9 +206,9 @@
     <string name="play_next_desc">待播列表中下一首播放</string>
     <string name="add_to_queue_desc">添加到待播列表末尾</string>
     <string name="add_to_library_desc">保存到您的媒体库</string>
-    <string name="download_desc">下载以供离线播放</string>
+    <string name="download_desc">缓存以供离线播放</string>
     <string name="add_to_playlist_desc">添加到播放列表</string>
-    <string name="refetch_desc">从 YouTube Music 刷新最新元数据</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">展示此歌曲的链接</string>
     <string name="delete_desc">完全移除此歌曲</string>
     <string name="advanced_desc">调整歌曲的节奏和音调</string>
@@ -462,7 +464,7 @@
     <string name="together">一起听</string>
     <string name="ai_translation_transcribed">转录</string>
     <string name="recognize_music">识别音乐</string>
-    <string name="youtube_url_column">YouTube 网址列（可选）</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="re_listen">重听</string>
     <string name="clear_recognition_history_confirm">确定要清除所有识别历史吗？</string>
     <string name="no_match_found">未找到匹配</string>
@@ -494,7 +496,7 @@
     <string name="crossfade_beta_title">测试功能！</string>
     <string name="crossfade_beta_message">淡入淡出是一项新功能，可能存在错误。如果您遇到任何问题，请及时反馈。\n\n注意：由于技术限制，此功能会禁用省电播放功能</string>
     <string name="audio_offload_disabled_by_crossfade">因淡入淡出功能已启用而被禁用</string>
-    <string name="hide_youtube_shorts">隐藏 YouTube Shorts 短视频</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">在顶部栏显示一起听</string>
     <string name="listen_together_in_top_bar_desc">在顶部应用栏显示一起听，而非在导航栏中显示</string>
     <string name="prevent_duplicate_tracks_in_queue">防止待播列表中出现重复曲目</string>
@@ -549,7 +551,7 @@
     <string name="density_restart_message">显示密度更改将在重启应用后生效。现在重启？</string>
     <string name="enable_lrclib_desc">社区驱动的同步歌词数据库</string>
     <string name="enable_kugou_desc">从中国热门音乐平台酷狗获取歌词</string>
-    <string name="youtube_music_lyrics_note">注意：当没有其他可用来源时，YouTube Music 的歌词将自动显示，这些歌词通常不同步</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">启用 LyricsPlus 提供歌词</string>
     <string name="enable_lyricsplus_desc">多源同步歌词支持</string>
     <string name="lyrics_provider_selection">提供商选择</string>
@@ -598,7 +600,7 @@
     <string name="app_version_info">%1$s • %2$s</string>
     <string name="credits_view_repo">查看仓库</string>
     <string name="logout_dialog_title">保留媒体库数据？</string>
-    <string name="logout_dialog_message">要保留您的播放列表和媒体库数据吗？已下载的歌曲将始终保留</string>
+    <string name="logout_dialog_message">要保留您的播放列表和媒体库数据吗？本地下载文件将始终保留</string>
     <string name="logout_keep">保留</string>
     <string name="logout_clear">清除</string>
     <string name="credits_lead_developer">首席开发者</string>
@@ -762,8 +764,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">可见板块</string>
     <string name="android_auto_reorder_hint">点击某个板块即可启用或禁用。\n长按拖动手柄可重新排序。默认情况下将显示第一个板块</string>
-    <string name="android_auto_youtube_playlists">显示 YouTube 推荐播放列表</string>
-    <string name="android_auto_youtube_playlists_desc">使用 Android Auto 浏览时，在播放列表板块显示 YouTube Music 推荐的播放列表</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">快速添加目标</string>
     <string name="android_auto_target_playlist_desc">使用 Android Auto 中的快速添加按钮时，选择保存歌曲的播放列表</string>
     <string name="android_auto_target_playlist_auto">未设置</string>

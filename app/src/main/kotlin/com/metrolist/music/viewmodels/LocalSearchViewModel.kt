@@ -15,6 +15,7 @@ import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.LocalItem
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.localmusic.normalizeCompositeLocalArtists
 import com.metrolist.music.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -23,7 +24,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -51,7 +54,8 @@ constructor(
             if (query.isEmpty()) {
                 flowOf(LocalSearchResult("", filter, emptyMap()))
             } else {
-                when (filter) {
+                val searchFlow =
+                    when (filter) {
                     LocalFilter.ALL ->
                         combine(
                             database.searchSongs(query, PREVIEW_SIZE),
@@ -68,7 +72,17 @@ constructor(
                     LocalFilter.ALBUM -> database.searchArtists(query)
                     LocalFilter.ARTIST -> database.searchArtists(query)
                     LocalFilter.PLAYLIST -> database.searchPlaylists(query)
-                }.map { list ->
+                }
+                val normalizedSearchFlow =
+                    if (filter.includesArtistResults()) {
+                        flow {
+                            database.normalizeCompositeLocalArtists()
+                            emitAll(searchFlow)
+                        }
+                    } else {
+                        searchFlow
+                    }
+                normalizedSearchFlow.map { list ->
                     LocalSearchResult(
                         query = query,
                         filter = filter,
@@ -102,6 +116,9 @@ enum class LocalFilter {
     ARTIST,
     PLAYLIST,
 }
+
+private fun LocalFilter.includesArtistResults(): Boolean =
+    this == LocalFilter.ALL || this == LocalFilter.ARTIST || this == LocalFilter.ALBUM
 
 data class LocalSearchResult(
     val query: String,

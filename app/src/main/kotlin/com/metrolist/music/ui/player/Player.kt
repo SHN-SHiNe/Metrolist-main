@@ -11,6 +11,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.content.FileProvider
@@ -34,6 +35,23 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.metrolist.music.db.entities.LocalMusicEntity
+import com.metrolist.music.db.entities.LocalSong
+import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.utils.joinByBullet
+import kotlin.math.min
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -46,6 +64,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -64,12 +83,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.ProvideTextStyle
@@ -96,11 +120,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -120,6 +148,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -150,6 +182,7 @@ import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.constants.HideStatusBarOnFullscreenKey
 import com.metrolist.music.constants.KeepScreenOn
+import com.metrolist.music.constants.LocalSimilarAutoplayKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.PlayerBackgroundStyleKey
 import com.metrolist.music.constants.PlayerButtonsStyle
@@ -165,9 +198,17 @@ import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.ThumbnailCornerRadius
 import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.di.LocalMusicAnalysisEntryPoint
+import com.metrolist.music.download.FileMusicDownloader
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.togglePlayPause
 import com.metrolist.music.extensions.toggleRepeatMode
+import com.metrolist.music.localmusic.LocalSimilarSongSelector
+import com.metrolist.music.localmusic.advancedKeyDisplayName
+import com.metrolist.music.localmusic.analysis.LocalMusicAnalysisState
+import com.metrolist.music.localmusic.analysis.LocalMusicAnalysisStatus
+import com.metrolist.music.localmusic.analysis.hasCompleteAnalysis
+import com.metrolist.music.localmusic.toLocalSimilarSongAnalysis
 import com.metrolist.music.listentogether.RoomRole
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.ui.component.BottomSheet
@@ -180,7 +221,9 @@ import com.metrolist.music.ui.component.ResizableIconButton
 import com.metrolist.music.ui.component.SquigglySlider
 import com.metrolist.music.ui.component.WavySlider
 import com.metrolist.music.ui.component.rememberBottomSheetState
+import com.metrolist.music.ui.menu.LocalFileDownloadMode
 import com.metrolist.music.ui.menu.PlayerMenu
+import com.metrolist.music.ui.menu.runLocalFileDownloadAction
 import com.metrolist.music.ui.screens.settings.DarkMode
 import com.metrolist.music.ui.theme.PlayerColorExtractor
 import com.metrolist.music.ui.theme.PlayerSliderColors
@@ -194,11 +237,18 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.random.Random
+import java.util.Locale
 import com.metrolist.music.ui.component.Icon as MIcon
 import com.metrolist.music.constants.SleepTimerDefaultKey
 import com.metrolist.music.utils.dataStore
@@ -238,6 +288,12 @@ fun BottomSheetPlayer(
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
 
     var showInlineLyrics by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var showCoverEmotionRadar by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var coverEmotionRadarVisible by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -331,11 +387,116 @@ fun BottomSheetPlayer(
 
     val playbackState by playerConnection.playbackState.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val database = LocalDatabase.current
+    val currentLocalMusic by database.localMusic(mediaMetadata?.id ?: "").collectAsStateWithLifecycle(initialValue = null)
+    val currentShareLocalMusic = currentLocalMusic?.takeIf { it.missingSince == null }
+    val localMusicAnalysisManager =
+        remember(context) {
+            EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                LocalMusicAnalysisEntryPoint::class.java,
+            ).localMusicAnalysisManager()
+        }
+    val localMusicAnalysisStates by localMusicAnalysisManager.states.collectAsStateWithLifecycle()
+    val coverAnalysisState = currentShareLocalMusic?.songId?.let(localMusicAnalysisStates::get)
+    val currentLocalRecommendationSource =
+        isCurrentLocalRecommendationSource(
+            isLocalMetadata = mediaMetadata?.isLocal == true,
+            currentLocalMusic = currentLocalMusic,
+        )
+    val shouldLoadAnalyzedLocalSongs =
+        currentLocalRecommendationSource &&
+            currentLocalMusic?.hasCompleteEmotionVector() == true &&
+            currentLocalMusic?.bpm?.let { it > 0f } == true
+    val analyzedLocalSongsFlow =
+        remember(database, mediaMetadata?.id, shouldLoadAnalyzedLocalSongs) {
+            if (shouldLoadAnalyzedLocalSongs) {
+                database.analyzedLocalSongs().map<List<LocalSong>, List<LocalSong>?> { it }
+            } else {
+                flowOf(emptyList<LocalSong>())
+            }
+        }
+    val analyzedLocalSongs by analyzedLocalSongsFlow.collectAsStateWithLifecycle(initialValue = null)
+    val localSimilarSongs = remember(mediaMetadata?.id, currentLocalRecommendationSource, currentLocalMusic, analyzedLocalSongs) {
+        when {
+            !currentLocalRecommendationSource -> emptyList()
+            currentLocalMusic == null || analyzedLocalSongs == null -> null
+            else ->
+                recommendedLocalSongs(
+                    currentSongId = mediaMetadata?.id,
+                    current = currentLocalMusic,
+                    songs = analyzedLocalSongs.orEmpty(),
+                )
+        }
+    }
+    val localSimilarEmptyText = remember(mediaMetadata?.id, currentLocalRecommendationSource, currentLocalMusic, analyzedLocalSongs) {
+        localRecommendationEmptyText(
+            currentSongId = mediaMetadata?.id,
+            isCurrentLocal = currentLocalRecommendationSource,
+            current = currentLocalMusic,
+            candidates = analyzedLocalSongs,
+        )
+    }
+    val nowPlayingAnalysis = remember(currentLocalMusic) {
+        currentLocalMusic?.toNowPlayingAnalysis()
+    }
+    val coverRadarLocalMusic =
+        currentLocalMusic?.takeIf {
+            it.hasCompleteEmotionVector()
+        }
+    var coverDownloadAnalyzeInProgress by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var coverExternalAnalysisInProgress by rememberSaveable {
+        mutableStateOf(false)
+    }
+    val coverAnalysisRunning =
+        coverAnalysisState?.status == LocalMusicAnalysisStatus.Queued ||
+            coverAnalysisState?.status == LocalMusicAnalysisStatus.Running
+    val coverAnalysisBusy =
+        coverDownloadAnalyzeInProgress ||
+            coverExternalAnalysisInProgress ||
+            coverAnalysisRunning
+    LaunchedEffect(mediaMetadata?.id) {
+        coverExternalAnalysisInProgress = false
+    }
+    LaunchedEffect(coverAnalysisState?.status) {
+        if (coverAnalysisState?.status == LocalMusicAnalysisStatus.Queued ||
+            coverAnalysisState?.status == LocalMusicAnalysisStatus.Running ||
+            coverAnalysisState?.status == LocalMusicAnalysisStatus.Complete ||
+            coverAnalysisState?.status == LocalMusicAnalysisStatus.Failed
+        ) {
+            coverExternalAnalysisInProgress = false
+        }
+    }
+    LaunchedEffect(coverExternalAnalysisInProgress) {
+        if (coverExternalAnalysisInProgress) {
+            delay(1500)
+            if (!coverAnalysisRunning && !coverDownloadAnalyzeInProgress) {
+                coverExternalAnalysisInProgress = false
+            }
+        }
+    }
+    LaunchedEffect(mediaMetadata?.id, showCoverEmotionRadar, coverRadarLocalMusic?.songId, coverAnalysisBusy) {
+        coverEmotionRadarVisible = false
+        if (showCoverEmotionRadar && mediaMetadata != null) {
+            delay(90)
+            coverEmotionRadarVisible = true
+        }
+    }
     val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val automix by playerConnection.service.automixItems.collectAsStateWithLifecycle()
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val localSimilarAutoplay by rememberPreference(LocalSimilarAutoplayKey, false)
+    val primaryControls =
+        remember(useNewPlayerDesign) {
+            playerPrimaryControls(
+                useNewPlayerDesign = useNewPlayerDesign,
+            )
+        }
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
+    val localSimilarNextState by playerConnection.service.localSimilarNextState.collectAsStateWithLifecycle()
     val isMuted by playerConnection.isMuted.collectAsStateWithLifecycle()
 
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.WAVY)
@@ -359,6 +520,16 @@ fun BottomSheetPlayer(
     val castPosition by castHandler?.castPosition?.collectAsStateWithLifecycle() ?: remember { mutableLongStateOf(0L) }
     val castDuration by castHandler?.castDuration?.collectAsStateWithLifecycle() ?: remember { mutableLongStateOf(0L) }
     val castIsPlaying by castHandler?.castIsPlaying?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
+    val localSimilarPlaybackMode = localSimilarAutoplay && mediaMetadata?.isLocal == true && !isCasting
+    val nextButtonState =
+        remember(canSkipNext, localSimilarPlaybackMode, localSimilarNextState) {
+            playerNextButtonState(
+                canSkipNext = canSkipNext,
+                localSimilarPlaybackMode = localSimilarPlaybackMode,
+                localSimilarNextState = localSimilarNextState,
+            )
+        }
+    val nextButtonEnabled = nextButtonState != PlayerNextButtonState.DISABLED && !isListenTogetherGuest
 
     val focusRequester = remember { FocusRequester() }
 
@@ -618,6 +789,56 @@ fun BottomSheetPlayer(
     }
 
     val scope = rememberCoroutineScope()
+    val showCoverAnalysisAnimation: () -> Unit = {
+        if (mediaMetadata != null) {
+            showCoverEmotionRadar = true
+            coverEmotionRadarVisible = false
+            coverExternalAnalysisInProgress = true
+            scope.launch {
+                delay(90)
+                coverEmotionRadarVisible = true
+            }
+        }
+    }
+    val startCoverDownloadAnalyze: () -> Unit = {
+        val metadata = mediaMetadata
+        if (metadata != null && !coverAnalysisBusy) {
+            showCoverAnalysisAnimation()
+            coverDownloadAnalyzeInProgress = true
+            scope.launch {
+                val result =
+                    runLocalFileDownloadAction(
+                        context = context,
+                        database = database,
+                        mediaMetadata = metadata,
+                        quality = FileMusicDownloader.Quality.HIGH,
+                        mode = LocalFileDownloadMode.DownloadAndAnalyze,
+                        analysisManager = localMusicAnalysisManager,
+                    )
+                coverDownloadAnalyzeInProgress = false
+                Toast
+                    .makeText(
+                        context,
+                        result.fold(
+                            onSuccess = { actionResult ->
+                                when {
+                                    actionResult.reusedExisting && actionResult.analysisStarted ->
+                                        "已在本地，开始分析：${actionResult.displayPath}"
+                                    actionResult.analysisStarted ->
+                                        "已下载到 ${actionResult.displayPath}，开始分析"
+                                    actionResult.reusedExisting ->
+                                        "已在本地：${actionResult.displayPath}"
+                                    else ->
+                                        "已下载到 ${actionResult.displayPath}"
+                                }
+                            },
+                            onFailure = { "下载失败：${it.message ?: "未知错误"}" },
+                        ),
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
+        }
+    }
     var showSleepTimerDialog by remember {
         mutableStateOf(false)
     }
@@ -760,6 +981,11 @@ fun BottomSheetPlayer(
             }
         }
     }
+    val startCoverAnalysisFromRadar: () -> Unit = {
+        if (showCoverEmotionRadar) {
+            startCoverDownloadAnalyze()
+        }
+    }
 
     // Also update position when playback state changes (e.g., song change, seek)
     LaunchedEffect(playbackState, mediaMetadata?.id) {
@@ -876,7 +1102,7 @@ fun BottomSheetPlayer(
                                     modifier =
                                         Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.3f)),
+                                            .background(Color.Black.copy(alpha = 0.45f)),
                                 )
                             }
                         }
@@ -1185,7 +1411,7 @@ fun BottomSheetPlayer(
                                 FilledIconButton(
                                     onClick = {
                                         scope.launch {
-                                            shareChinaSongMp3(context, mediaMetadata)
+                                            shareAudioFile(context, mediaMetadata, currentShareLocalMusic)
                                         }
                                     },
                                     shape = shareShape,
@@ -1305,7 +1531,7 @@ fun BottomSheetPlayer(
                                                     type = "text/plain"
                                                     putExtra(
                                                         Intent.EXTRA_TEXT,
-                                                        "https://music.youtube.com/watch?v=${mediaMetadata.id}",
+                                                        "${mediaMetadata.title} - ${mediaMetadata.artists.joinToString { it.name }}",
                                                     )
                                                 }
                                             context.startActivity(Intent.createChooser(intent, null))
@@ -1370,6 +1596,7 @@ fun BottomSheetPlayer(
                                 state = state,
                                 textButtonColor = textButtonColor,
                                 iconButtonColor = iconButtonColor,
+                                onAnalysisStarted = showCoverAnalysisAnimation,
                             )
                         }
                     }
@@ -1542,12 +1769,14 @@ fun BottomSheetPlayer(
                         }
                     }
 
-                    val sourceShort = remember(songId) {
-                        if (songId.startsWith("china_")) {
-                            val parts = songId.removePrefix("china_").split("_", limit = 2)
-                            com.metrolist.chinamusic.model.MusicSource.fromId(parts.getOrElse(0) { "" })?.id?.uppercase() ?: "CN"
-                        } else {
-                            "YT"
+                    val sourceShort = remember(songId, mediaMetadata?.isLocal) {
+                        when {
+                            mediaMetadata?.isLocal == true || songId.startsWith("local_") -> "LOC"
+                            songId.startsWith("china_") -> {
+                                val parts = songId.removePrefix("china_").split("_", limit = 2)
+                                com.metrolist.chinamusic.model.MusicSource.fromId(parts.getOrElse(0) { "" })?.id?.uppercase() ?: "CN"
+                            }
+                            else -> "YT"
                         }
                     }
 
@@ -1684,7 +1913,7 @@ fun BottomSheetPlayer(
 
                             FilledIconButton(
                                 onClick = playerConnection::seekToPrevious,
-                                enabled = canSkipPrevious && !isListenTogetherGuest,
+                                enabled = (canSkipPrevious || localSimilarPlaybackMode) && !isListenTogetherGuest,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = backInteractionSource,
                                 colors =
@@ -1776,7 +2005,7 @@ fun BottomSheetPlayer(
 
                             FilledIconButton(
                                 onClick = playerConnection::seekToNext,
-                                enabled = canSkipNext && !isListenTogetherGuest,
+                                enabled = nextButtonEnabled,
                                 shape = RoundedCornerShape(50),
                                 interactionSource = nextInteractionSource,
                                 colors =
@@ -1789,9 +2018,13 @@ fun BottomSheetPlayer(
                                         .height(68.dp)
                                         .weight(nextButtonWeight),
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.skip_next),
-                                    contentDescription = null,
+                                PlayerNextButtonIcon(
+                                    state =
+                                        if (nextButtonEnabled) {
+                                            nextButtonState
+                                        } else {
+                                            PlayerNextButtonState.DISABLED
+                                        },
                                     modifier = Modifier.size(32.dp),
                                 )
                             }
@@ -1829,7 +2062,7 @@ fun BottomSheetPlayer(
                             Box(modifier = Modifier.weight(1f)) {
                                 ResizableIconButton(
                                     icon = R.drawable.skip_previous,
-                                    enabled = canSkipPrevious && !isListenTogetherGuest,
+                                    enabled = (canSkipPrevious || localSimilarPlaybackMode) && !isListenTogetherGuest,
                                     color = TextBackgroundColor,
                                     modifier =
                                         Modifier
@@ -1895,9 +2128,14 @@ fun BottomSheetPlayer(
                             Spacer(Modifier.width(8.dp))
 
                             Box(modifier = Modifier.weight(1f)) {
-                                ResizableIconButton(
-                                    icon = R.drawable.skip_next,
-                                    enabled = canSkipNext && !isListenTogetherGuest,
+                                PlayerNextSmallButton(
+                                    state =
+                                        if (nextButtonEnabled) {
+                                            nextButtonState
+                                        } else {
+                                            PlayerNextButtonState.DISABLED
+                                        },
+                                    enabled = nextButtonEnabled,
                                     color = TextBackgroundColor,
                                     modifier =
                                         Modifier
@@ -1976,9 +2214,34 @@ fun BottomSheetPlayer(
                                     sliderPositionProvider = sliderPositionProvider,
                                     modifier = Modifier.animateContentSize(),
                                     isPlayerExpanded = isExpandedProvider,
-                                    onTap = { showInlineLyrics = true },
+                                    onTap = {
+                                        if (mediaMetadata != null) {
+                                            showCoverEmotionRadar = !showCoverEmotionRadar
+                                            coverEmotionRadarVisible = false
+                                        }
+                                    },
+                                    onLongPress = startCoverAnalysisFromRadar,
+                                    onScrollStart = { coverEmotionRadarVisible = false },
                                     isLandscape = true,
                                     isListenTogetherGuest = isListenTogetherGuest,
+                                    analysis = nowPlayingAnalysis,
+                                    coverOverlay =
+                                        mediaMetadata?.let {
+                                            {
+                                                androidx.compose.animation.AnimatedVisibility(
+                                                    visible = coverEmotionRadarVisible,
+                                                    enter = fadeIn(animationSpec = tween(220)),
+                                                    exit = fadeOut(animationSpec = tween(180)),
+                                                ) {
+                                                        PlayerCoverAnalysisOverlay(
+                                                            localMusic = coverRadarLocalMusic,
+                                                            analysisState = coverAnalysisState,
+                                                            downloadAnalyzeInProgress = coverAnalysisBusy,
+                                                            modifier = Modifier.fillMaxSize(),
+                                                        )
+                                                }
+                                            }
+                                        },
                                 )
                             }
                         }
@@ -2008,50 +2271,194 @@ fun BottomSheetPlayer(
                     targetValue = if (isFullScreen) 0.dp else queueSheetState.collapsedBound,
                     label = "bottomPadding",
                 )
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                val playerPagerState = rememberPagerState(pageCount = { 2 })
+                val localSimilarListState = rememberLazyListState()
+                val playerPageCollapseConnection =
+                    remember(state, playerPagerState) {
+                        object : NestedScrollConnection {
+                            private var collapsingPlayer = false
+
+                            override fun onPostScroll(
+                                consumed: Offset,
+                                available: Offset,
+                                source: NestedScrollSource,
+                            ): Offset {
+                                val shouldCollapse =
+                                    shouldCollapsePlayerFromPagerDownDrag(
+                                        currentPage = playerPagerState.currentPage,
+                                        currentPageOffsetFraction = playerPagerState.currentPageOffsetFraction,
+                                        availableY = available.y,
+                                        isUserInput = source == NestedScrollSource.UserInput,
+                                    ) && consumed.y == 0f
+
+                                return if (shouldCollapse) {
+                                    collapsingPlayer = true
+                                    state.dispatchRawDelta(available.y)
+                                    available.copy(x = 0f)
+                                } else {
+                                    Offset.Zero
+                                }
+                            }
+
+                            override suspend fun onPreFling(available: Velocity): Velocity {
+                                return if (collapsingPlayer) {
+                                    state.performFling(-available.y, null)
+                                    available.copy(x = 0f)
+                                } else {
+                                    Velocity.Zero
+                                }
+                            }
+
+                            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                                collapsingPlayer = false
+                                return Velocity.Zero
+                            }
+                        }
+                    }
+                VerticalPager(
+                    state = playerPagerState,
+                    flingBehavior =
+                        PagerDefaults.flingBehavior(
+                            state = playerPagerState,
+                            snapPositionalThreshold = 0.12f,
+                        ),
                     modifier =
                         Modifier
+                            .nestedScroll(playerPageCollapseConnection)
                             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                             .padding(bottom = bottomPadding)
+                            .bottomContentFade(32.dp)
                             .animateContentSize(),
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        // Remember lambdas to prevent unnecessary recomposition
-                        val currentSliderPosition by rememberUpdatedState(sliderPosition)
-                        val sliderPositionProvider = remember { { currentSliderPosition } }
-                        val isExpandedProvider = remember(state) { { state.isExpanded } }
-                        AnimatedContent(
-                            targetState = showInlineLyrics,
-                            label = "Lyrics",
-                            transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        ) { showLyrics ->
-                            if (showLyrics) {
-                                InlineLyricsView(
-                                    mediaMetadata = mediaMetadata,
-                                    showLyrics = showLyrics,
-                                    positionProvider = { effectivePosition },
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    // Remember lambdas to prevent unnecessary recomposition
+                                    val currentSliderPosition by rememberUpdatedState(sliderPosition)
+                                    val sliderPositionProvider = remember { { currentSliderPosition } }
+                                    val isExpandedProvider = remember(state) { { state.isExpanded } }
+                                    AnimatedContent(
+                                        targetState = showInlineLyrics,
+                                        label = "Lyrics",
+                                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                    ) { showLyrics ->
+                                        if (showLyrics) {
+                                            InlineLyricsView(
+                                                mediaMetadata = mediaMetadata,
+                                                showLyrics = showLyrics,
+                                                positionProvider = { effectivePosition },
+                                            )
+                                        } else {
+                                            Thumbnail(
+                                                sliderPositionProvider = sliderPositionProvider,
+                                                modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                                isPlayerExpanded = isExpandedProvider,
+                                                onTap = {
+                                                    if (mediaMetadata != null) {
+                                                        showCoverEmotionRadar = !showCoverEmotionRadar
+                                                        coverEmotionRadarVisible = false
+                                                    }
+                                                },
+                                                onLongPress = startCoverAnalysisFromRadar,
+                                                onScrollStart = { coverEmotionRadarVisible = false },
+                                                isListenTogetherGuest = isListenTogetherGuest,
+                                                analysis = nowPlayingAnalysis,
+                                                coverOverlay =
+                                                    mediaMetadata?.let {
+                                                        {
+                                                            androidx.compose.animation.AnimatedVisibility(
+                                                                visible = coverEmotionRadarVisible,
+                                                                enter = fadeIn(animationSpec = tween(220)),
+                                                                exit = fadeOut(animationSpec = tween(180)),
+                                                            ) {
+                                                                PlayerCoverAnalysisOverlay(
+                                                                    localMusic = coverRadarLocalMusic,
+                                                                    analysisState = coverAnalysisState,
+                                                                    downloadAnalyzeInProgress = coverAnalysisBusy,
+                                                                    modifier = Modifier.fillMaxSize(),
+                                                                )
+                                                            }
+                                                        }
+                                                    },
+                                            )
+                                        }
+                                    }
+                                }
+
+                                mediaMetadata?.let {
+                                    controlsContent(it)
+                                }
+
+                                Spacer(Modifier.height(30.dp))
+                            }
+                        }
+
+                        else -> {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
+                                Spacer(
+                                    Modifier.height(
+                                        WindowInsets.systemBars.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding(),
+                                    ),
                                 )
-                            } else {
-                                Thumbnail(
-                                    sliderPositionProvider = sliderPositionProvider,
-                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
-                                    isPlayerExpanded = isExpandedProvider,
-                                    onTap = { showInlineLyrics = true },
-                                    isListenTogetherGuest = isListenTogetherGuest,
+                                MiniPlayer(
+                                    positionState = positionState,
+                                    durationState = durationState,
+                                    navController = navController,
+                                    forceTransparentBackground = true,
+                                    onClick = {
+                                        scope.launch {
+                                            playerPagerState.animateScrollToPage(0)
+                                        }
+                                    },
+                                )
+                                PlayerLocalSimilarScreen(
+                                    currentSongId = mediaMetadata?.id,
+                                    currentLocalMusic = currentLocalMusic,
+                                    similarSongs = localSimilarSongs,
+                                    emptyText = localSimilarEmptyText,
+                                    showNetworkAnalysisAction = !currentLocalRecommendationSource && mediaMetadata != null,
+                                    listState = localSimilarListState,
+                                    isPlaying = effectiveIsPlaying,
+                                    chipColor = TextBackgroundColor,
+                                    onRequestCoverAnalysis = {
+                                        showCoverEmotionRadar = true
+                                        coverEmotionRadarVisible = false
+                                        scope.launch {
+                                            playerPagerState.animateScrollToPage(0)
+                                            delay(90)
+                                            coverEmotionRadarVisible = true
+                                        }
+                                    },
+                                    onSongClick = { index ->
+                                        val recommendations = localSimilarSongs.orEmpty()
+                                        if (index in recommendations.indices) {
+                                            scope.launch {
+                                                localSimilarListState.scrollToItem(0)
+                                                playerPagerState.animateScrollToPage(0)
+                                                playerConnection.playQueue(
+                                                    ListQueue(
+                                                        title = "相似本地音乐",
+                                                        items = recommendations.map { it.song.song.toMediaItem(it.song.localMusic.contentUri) },
+                                                        startIndex = index,
+                                                    ),
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f).topContentFade(32.dp),
                                 )
                             }
                         }
                     }
-
-                    mediaMetadata?.let {
-                        controlsContent(it)
-                    }
-
-                    Spacer(Modifier.height(30.dp))
                 }
             }
         }
@@ -2086,6 +2493,983 @@ fun BottomSheetPlayer(
     }
 }
 
+private fun Modifier.bottomContentFade(fadeHeight: Dp): Modifier =
+    graphicsLayer {
+        compositingStrategy = CompositingStrategy.Offscreen
+    }.drawWithContent {
+        drawContent()
+        val fadePx = fadeHeight.toPx().coerceAtMost(size.height)
+        drawRect(
+            brush =
+                Brush.verticalGradient(
+                    colors = listOf(Color.Black, Color.Transparent),
+                    startY = size.height - fadePx,
+                    endY = size.height,
+                ),
+            blendMode = BlendMode.DstIn,
+        )
+    }
+
+private fun Modifier.topContentFade(fadeHeight: Dp): Modifier =
+    graphicsLayer {
+        compositingStrategy = CompositingStrategy.Offscreen
+    }.drawWithContent {
+        drawContent()
+        val fadePx = fadeHeight.toPx().coerceAtMost(size.height)
+        drawRect(
+            brush =
+                Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, Color.Black),
+                    startY = 0f,
+                    endY = fadePx,
+                ),
+            blendMode = BlendMode.DstIn,
+        )
+    }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlayerLocalSimilarScreen(
+    currentSongId: String?,
+    currentLocalMusic: LocalMusicEntity?,
+    similarSongs: List<PlayerLocalRecommendation>?,
+    emptyText: String,
+    showNetworkAnalysisAction: Boolean,
+    listState: LazyListState,
+    isPlaying: Boolean,
+    chipColor: Color,
+    onRequestCoverAnalysis: () -> Unit,
+    onSongClick: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val recommendations = similarSongs.orEmpty()
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding =
+            PaddingValues(
+                top = 0.dp,
+                bottom = 112.dp,
+            ),
+    ) {
+        item(key = "similar_title") {
+            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                Text(
+                    text = "相似本地音乐",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "按 BPM、调性和 7 维情绪向量匹配",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+
+        if (similarSongs == null) {
+            item(key = "similar_loading") {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 56.dp),
+                ) {
+                    ContainedLoadingIndicator()
+                    Text(
+                        text = emptyText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
+            }
+        } else if (recommendations.isEmpty()) {
+            item(key = "similar_empty") {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 64.dp),
+                ) {
+                    if (showNetworkAnalysisAction) {
+                        PlayerLocalSimilarNetworkAnalysisPrompt(
+                            text = emptyText,
+                            onRequestCoverAnalysis = onRequestCoverAnalysis,
+                        )
+                    } else {
+                        Text(
+                            text = emptyText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+        }
+
+        itemsIndexed(
+            items = recommendations,
+            key = { _, item -> "player_similar_${item.song.localMusic.songId}" },
+        ) { index, recommendation ->
+            PlayerLocalMusicCard(
+                recommendation = recommendation,
+                currentLocalMusic = currentLocalMusic,
+                isActive = recommendation.song.localMusic.songId == currentSongId,
+                isPlaying = isPlaying && recommendation.song.localMusic.songId == currentSongId,
+                chipColor = chipColor,
+                onClick = { onSongClick(index) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        item(key = "similar_bottom_space") { Spacer(Modifier.height(28.dp)) }
+    }
+}
+
+@Composable
+private fun PlayerLocalSimilarNetworkAnalysisPrompt(
+    text: String,
+    onRequestCoverAnalysis: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Button(
+            onClick = onRequestCoverAnalysis,
+            shape = RoundedCornerShape(20.dp),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+            modifier = Modifier.padding(top = 18.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.advanced_search),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(text = "去下载并分析", maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun PlayerLocalMusicCard(
+    recommendation: PlayerLocalRecommendation,
+    currentLocalMusic: LocalMusicEntity?,
+    isActive: Boolean,
+    isPlaying: Boolean,
+    chipColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val localSong = recommendation.song
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier =
+            modifier
+                .height(84.dp)
+                .padding(horizontal = 8.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            AsyncImage(model = localSong.song.song.thumbnailUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (isPlaying) {
+                Icon(painter = painterResource(R.drawable.play), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            }
+        }
+        Column(verticalArrangement = Arrangement.Center, modifier = Modifier.weight(1f)) {
+            Text(text = localSong.song.song.title, style = MaterialTheme.typography.bodyMedium, color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = localSong.playerArtistLine(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 3.dp)) {
+                PlayerLocalMusicChip("${recommendation.similarityPercent}%", chipColor)
+                localSong.localMusic.bpm?.let { PlayerLocalMusicChip(it.bpmChipLabel(currentLocalMusic?.bpm), chipColor) }
+                localSong.localMusic.keyName?.academicKeyLabel()?.let { PlayerLocalMusicChip(it, chipColor) }
+                localSong.localMusic.keyName?.camelotChipLabel(currentLocalMusic?.keyName)?.let { PlayerLocalMusicChip(it, chipColor) }
+            }
+        }
+        PlayerEmotionRadar(current = currentLocalMusic, recommended = localSong.localMusic, modifier = Modifier.size(64.dp))
+    }
+}
+
+@Composable
+private fun PlayerCoverEmotionRadar(localMusic: LocalMusicEntity, modifier: Modifier = Modifier) {
+    val metrics = localMusic.emotionVector().normalizedEmotionMetrics()
+    var revealStarted by remember(localMusic.songId) { mutableStateOf(false) }
+    LaunchedEffect(localMusic.songId) {
+        revealStarted = true
+    }
+    val revealProgress by animateFloatAsState(
+        targetValue = if (revealStarted) 1f else 0f,
+        animationSpec = tween(durationMillis = 560),
+        label = "coverEmotionRadarReveal",
+    )
+    val animatedMetrics = metrics.map { it * revealProgress }
+    val gridColor = Color.White.copy(alpha = 0.24f)
+    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.34f)
+    val strokeColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+    val labelColor = Color.White.copy(alpha = 0.92f)
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            modifier
+                .background(Color.Black.copy(alpha = 0.42f)),
+    ) {
+        Canvas(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+        ) {
+            val sides = 7
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = min(size.width, size.height) * 0.38f
+            val labelPaint =
+                android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    color = labelColor.toArgb()
+                    textSize = 10.5.sp.toPx()
+                    typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+                }
+
+            fun point(index: Int, value: Float): Offset {
+                val angle = (-PI / 2.0 + index * 2.0 * PI / sides).toFloat()
+                return Offset(
+                    x = center.x + cos(angle) * radius * value,
+                    y = center.y + sin(angle) * radius * value,
+                )
+            }
+
+            fun labelAnchor(index: Int, animatedValue: Float): Offset {
+                val awayFromCenter = (animatedValue + 0.18f).coerceIn(0.22f, 1.08f)
+                return point(index, awayFromCenter)
+            }
+
+            fun pathFor(values: List<Float>): Path {
+                val path = Path()
+                repeat(sides) { index ->
+                    val p = point(index, values.getOrElse(index) { 0f })
+                    if (index == 0) {
+                        path.moveTo(p.x, p.y)
+                    } else {
+                        path.lineTo(p.x, p.y)
+                    }
+                }
+                path.close()
+                return path
+            }
+
+            for (ring in 1..5) {
+                val path = Path()
+                repeat(sides) { index ->
+                    val p = point(index, ring / 5f)
+                    if (index == 0) {
+                        path.moveTo(p.x, p.y)
+                    } else {
+                        path.lineTo(p.x, p.y)
+                    }
+                }
+                path.close()
+                drawPath(path, color = gridColor, style = Stroke(width = 0.8.dp.toPx()))
+            }
+
+            repeat(sides) { index ->
+                drawLine(
+                    color = gridColor,
+                    start = center,
+                    end = point(index, 1f),
+                    strokeWidth = 0.8.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            val radarPath = pathFor(animatedMetrics)
+            drawPath(radarPath, color = fillColor)
+            drawPath(radarPath, color = strokeColor, style = Stroke(width = 2.dp.toPx()))
+            animatedMetrics.forEachIndexed { index, value ->
+                val point = point(index, value)
+                drawCircle(
+                    color = strokeColor,
+                    radius = 3.2.dp.toPx(),
+                    center = point,
+                )
+                val rawValue = metrics.getOrElse(index) { 0f }
+                val label = coverEmotionMetricLabels.getOrElse(index) { "" }
+                val textPoint = labelAnchor(index, value)
+                labelPaint.textAlign =
+                    when {
+                        textPoint.x < center.x - 6.dp.toPx() -> android.graphics.Paint.Align.RIGHT
+                        textPoint.x > center.x + 6.dp.toPx() -> android.graphics.Paint.Align.LEFT
+                        else -> android.graphics.Paint.Align.CENTER
+                    }
+                drawContext.canvas.nativeCanvas.drawText(
+                    "$label ${rawValue.normalizedMetricText()}",
+                    textPoint.x,
+                    textPoint.y + 3.5.dp.toPx(),
+                    labelPaint,
+                )
+            }
+        }
+    }
+}
+
+private val coverEmotionMetricLabels = listOf("Val", "Eng", "Dan", "Aco", "Ins", "Live", "Sp")
+private val pendingCoverMetricLabels = coverEmotionMetricLabels
+
+@Composable
+private fun PlayerEmotionRadar(current: LocalMusicEntity?, recommended: LocalMusicEntity, modifier: Modifier = Modifier) {
+    val currentRawMetrics = current?.emotionVector().orEmpty()
+    val recommendedRawMetrics = recommended.emotionVector()
+    val hasCurrentMetrics = currentRawMetrics.any { it != null }
+    val hasRecommendedMetrics = recommendedRawMetrics.any { it != null }
+    val currentMetrics = currentRawMetrics.normalizedEmotionMetrics()
+    val recommendedMetrics = recommendedRawMetrics.normalizedEmotionMetrics()
+    val sides = maxOf(currentMetrics.size, recommendedMetrics.size, 7)
+    val lineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
+    val recommendedColor = MaterialTheme.colorScheme.primary
+    val currentFillColor = MaterialTheme.colorScheme.tertiary
+    val mutedColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(contentAlignment = Alignment.Center, modifier = modifier) {
+        if (hasRecommendedMetrics) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val radius = min(size.width, size.height) * 0.39f
+                fun point(index: Int, value: Float): Offset {
+                    val angle = (-PI / 2.0 + index * 2.0 * PI / sides).toFloat()
+                    return Offset(center.x + cos(angle) * radius * value, center.y + sin(angle) * radius * value)
+                }
+                fun pathFor(values: List<Float>): Path {
+                    val path = Path()
+                    repeat(sides) { index ->
+                        val p = point(index, values.getOrElse(index) { 0f })
+                        if (index == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+                    }
+                    path.close()
+                    return path
+                }
+                for (ring in 1..5) {
+                    val path = Path()
+                    repeat(sides) { index ->
+                        val p = point(index, ring / 5f)
+                        if (index == 0) path.moveTo(p.x, p.y) else path.lineTo(p.x, p.y)
+                    }
+                    path.close()
+                    drawPath(path, color = lineColor, style = Stroke(width = 0.55.dp.toPx()))
+                }
+                repeat(sides) { index -> drawLine(color = lineColor, start = center, end = point(index, 1f), strokeWidth = 0.55.dp.toPx(), cap = StrokeCap.Round) }
+                if (hasCurrentMetrics && currentMetrics.isNotEmpty()) {
+                    drawPath(pathFor(currentMetrics), color = currentFillColor.copy(alpha = 0.42f))
+                }
+                if (recommendedMetrics.isNotEmpty()) {
+                    drawPath(pathFor(recommendedMetrics), color = recommendedColor, style = Stroke(width = 1.15.dp.toPx()))
+                    recommendedMetrics.forEachIndexed { index, value -> drawCircle(color = recommendedColor, radius = 1.45.dp.toPx(), center = point(index, value)) }
+                }
+            }
+        } else {
+            Text(text = "待分析", style = MaterialTheme.typography.labelSmall, color = mutedColor)
+        }
+    }
+}
+
+@Composable
+private fun PlayerNextSmallButton(
+    state: PlayerNextButtonState,
+    enabled: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier =
+            modifier
+                .clickable(
+                    enabled = enabled,
+                    onClick = onClick,
+                )
+                .alpha(if (enabled) 1f else 0.5f),
+    ) {
+        PlayerNextButtonIcon(
+            state = state,
+            color = color,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+@Composable
+private fun PlayerNextButtonIcon(
+    state: PlayerNextButtonState,
+    modifier: Modifier = Modifier,
+    color: Color = LocalContentColor.current,
+) {
+    AnimatedContent(
+        targetState = state,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(120)) togetherWith fadeOut(animationSpec = tween(90))
+        },
+        label = "nextButtonState",
+        modifier = modifier,
+    ) { targetState ->
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (targetState == PlayerNextButtonState.LOADING) {
+                CircularProgressIndicator(
+                    color = color,
+                    strokeWidth = 2.dp,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(5.dp),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.skip_next),
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerLocalMusicChip(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 9.sp,
+            lineHeight = 10.sp,
+        ),
+        color = color.copy(alpha = 0.8f),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(color.copy(alpha = 0.15f))
+                .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
+}
+
+@Composable
+private fun PlayerCoverAnalysisOverlay(
+    localMusic: LocalMusicEntity?,
+    analysisState: LocalMusicAnalysisState?,
+    downloadAnalyzeInProgress: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val shouldShowPendingAnalysis = downloadAnalyzeInProgress || localMusic == null
+    if (shouldShowPendingAnalysis) {
+        PlayerCoverPendingAnalysisOverlay(
+            analysisState = analysisState,
+            downloadAnalyzeInProgress = downloadAnalyzeInProgress,
+            modifier = modifier,
+        )
+    } else {
+        PlayerCoverEmotionRadar(localMusic = localMusic, modifier = modifier)
+    }
+}
+
+@Composable
+private fun PlayerCoverPendingAnalysisOverlay(
+    analysisState: LocalMusicAnalysisState?,
+    downloadAnalyzeInProgress: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val isAnalyzing =
+        downloadAnalyzeInProgress ||
+            analysisState?.status == LocalMusicAnalysisStatus.Queued ||
+            analysisState?.status == LocalMusicAnalysisStatus.Running
+    val progress = analysisState?.progress?.coerceIn(0f, 1f) ?: if (downloadAnalyzeInProgress) 0.08f else null
+    var targetSnapshot by remember { mutableStateOf(PendingCoverAnalysisSnapshot.placeholder()) }
+
+    LaunchedEffect(isAnalyzing) {
+        if (isAnalyzing) {
+            while (isActive) {
+                targetSnapshot = PendingCoverAnalysisSnapshot.random()
+                delay(760)
+            }
+        } else {
+            targetSnapshot = PendingCoverAnalysisSnapshot.placeholder()
+        }
+    }
+
+    val animatedMetrics = pendingCoverMetricLabels.mapIndexed { index, _ ->
+        val animatedMetric by animateFloatAsState(
+            targetValue = targetSnapshot.metrics.getOrElse(index) { 0f },
+            animationSpec = tween(durationMillis = 620),
+            label = "pendingCoverMetric$index",
+        )
+        animatedMetric
+    }
+    val animatedBpm by animateFloatAsState(
+        targetValue = targetSnapshot.bpm.toFloat(),
+        animationSpec = tween(durationMillis = 620),
+        label = "pendingCoverBpm",
+    )
+    val animatedSnapshot = targetSnapshot.copy(metrics = animatedMetrics, bpm = animatedBpm.roundToInt())
+    val gridColor = Color.White.copy(alpha = 0.22f)
+    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isAnalyzing) 0.28f else 0.14f)
+    val strokeColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isAnalyzing) 0.76f else 0.42f)
+    val labelColor = Color.White.copy(alpha = 0.92f)
+    val statusText =
+        when {
+            isAnalyzing -> analysisState?.message ?: "准备分析"
+            analysisState?.status == LocalMusicAnalysisStatus.Failed -> "分析失败"
+            else -> "待分析"
+        }
+    val hintText = if (isAnalyzing) "正在生成情绪值" else "长按下载并分析"
+    val emotionLabels =
+        if (isAnalyzing) {
+            animatedSnapshot.emotionLabels
+        } else {
+            coverEmotionMetricLabels.map { "$it --" }
+        }
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier.background(Color.Black.copy(alpha = 0.42f)),
+    ) {
+        Canvas(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(26.dp),
+        ) {
+            val sides = 7
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = min(size.width, size.height) * 0.36f
+
+            fun point(index: Int, value: Float): Offset {
+                val angle = (-PI / 2.0 + index * 2.0 * PI / sides).toFloat()
+                return Offset(
+                    x = center.x + cos(angle) * radius * value,
+                    y = center.y + sin(angle) * radius * value,
+                )
+            }
+
+            fun pathFor(values: List<Float>): Path {
+                val path = Path()
+                repeat(sides) { index ->
+                    val p = point(index, values.getOrElse(index) { 0f })
+                    if (index == 0) {
+                        path.moveTo(p.x, p.y)
+                    } else {
+                        path.lineTo(p.x, p.y)
+                    }
+                }
+                path.close()
+                return path
+            }
+
+            for (ring in 1..5) {
+                drawPath(
+                    path = pathFor(List(sides) { ring / 5f }),
+                    color = gridColor,
+                    style = Stroke(width = 0.8.dp.toPx()),
+                )
+            }
+            repeat(sides) { index ->
+                drawLine(
+                    color = gridColor,
+                    start = center,
+                    end = point(index, 1f),
+                    strokeWidth = 0.8.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            val radarPath = pathFor(animatedSnapshot.metrics)
+            drawPath(radarPath, color = fillColor)
+            drawPath(radarPath, color = strokeColor, style = Stroke(width = 1.8.dp.toPx()))
+            animatedSnapshot.metrics.forEachIndexed { index, value ->
+                drawCircle(
+                    color = strokeColor,
+                    radius = 2.8.dp.toPx(),
+                    center = point(index, value),
+                )
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start),
+            modifier =
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp),
+        ) {
+            PlayerCoverAnalysisChip(if (isAnalyzing) "${animatedSnapshot.bpm} BPM" else "BPM --", labelColor)
+            PlayerCoverAnalysisChip(if (isAnalyzing) targetSnapshot.key else "Key --", labelColor)
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(24.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.advanced_search),
+                contentDescription = null,
+                tint = labelColor,
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.titleMedium,
+                color = labelColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = hintText,
+                style = MaterialTheme.typography.labelMedium,
+                color = labelColor.copy(alpha = 0.76f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            progress?.let {
+                Spacer(Modifier.height(10.dp))
+                LinearProgressIndicator(
+                    progress = { it.coerceIn(0f, 1f) },
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.86f),
+                    trackColor = Color.White.copy(alpha = 0.18f),
+                    modifier = Modifier.fillMaxWidth(0.58f),
+                )
+            }
+        }
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp),
+        ) {
+            emotionLabels.chunked(4).forEach { rowLabels ->
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    rowLabels.forEach { label ->
+                        PlayerCoverAnalysisChip(label, labelColor)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerCoverAnalysisChip(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontSize = 9.sp,
+            lineHeight = 10.sp,
+        ),
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.White.copy(alpha = 0.13f))
+                .padding(horizontal = 5.dp, vertical = 2.dp),
+    )
+}
+
+private data class PendingCoverAnalysisSnapshot(
+    val metrics: List<Float>,
+    val bpm: Int,
+    val key: String,
+) {
+    val emotionLabels: List<String>
+        get() =
+            coverEmotionMetricLabels.mapIndexed { index, label ->
+                "$label ${metrics.getOrElse(index) { 0f }.normalizedMetricText()}"
+            }
+
+    companion object {
+        fun placeholder(): PendingCoverAnalysisSnapshot =
+            PendingCoverAnalysisSnapshot(
+                metrics = List(7) { 0.16f },
+                bpm = 0,
+                key = "Key --",
+            )
+
+        fun random(): PendingCoverAnalysisSnapshot =
+            PendingCoverAnalysisSnapshot(
+                metrics = List(7) { Random.nextFloat().coerceIn(0f, 1f) },
+                bpm = Random.nextInt(68, 178),
+                key = pendingCoverKeys.random(),
+            )
+    }
+}
+
+private val pendingCoverKeys =
+    listOf("1A", "2A", "3A", "4A", "5A", "6A", "7A", "8A", "9A", "10A", "11A", "12A", "1B", "2B", "3B", "4B", "5B", "6B", "7B", "8B", "9B", "10B", "11B", "12B")
+
+private data class PlayerLocalRecommendation(val song: LocalSong, val similarityPercent: Int)
+
+internal fun isCurrentLocalRecommendationSource(
+    isLocalMetadata: Boolean,
+    currentLocalMusic: LocalMusicEntity?,
+): Boolean =
+    isLocalMetadata || (currentLocalMusic != null && currentLocalMusic.missingSince == null)
+
+private fun localRecommendationEmptyText(
+    currentSongId: String?,
+    isCurrentLocal: Boolean,
+    current: LocalMusicEntity?,
+    candidates: List<LocalSong>?,
+): String =
+    when {
+        currentSongId == null -> "正在读取当前播放信息"
+        !isCurrentLocal -> "当前为网络音乐，需要下载并分析后才能进行向量匹配"
+        current == null -> "正在读取当前本地音乐信息"
+        candidates == null -> "正在加载本地音乐分析数据"
+        !current.hasCompleteEmotionVector() -> "当前歌曲缺少完整情绪值，无法计算相似音乐"
+        current.bpm?.takeIf { it > 0f } == null -> "当前歌曲缺少 BPM，无法计算相似音乐"
+        candidates.none { it.localMusic.songId != currentSongId } -> "本地库中还没有其他已分析歌曲"
+        else -> "暂无匹配的本地推荐音乐"
+    }
+
+private fun recommendedLocalSongs(currentSongId: String?, current: LocalMusicEntity?, songs: List<LocalSong>): List<PlayerLocalRecommendation> {
+    if (currentSongId == null || current == null) return emptyList()
+    val songsById = songs.associateBy { it.localMusic.songId }
+    return LocalSimilarSongSelector.recommendations(
+        current = current.toLocalSimilarSongAnalysis(),
+        candidates = songs.map { it.localMusic.toLocalSimilarSongAnalysis() },
+    ).mapNotNull { recommendation ->
+        songsById[recommendation.song.songId]?.let { song ->
+            PlayerLocalRecommendation(
+                song = song,
+                similarityPercent = recommendation.similarityPercent,
+            )
+        }
+    }
+}
+
+private fun LocalMusicEntity.emotionVector(): List<Float?> = listOf(valence, energy, danceability, acousticness, instrumentalness, liveness, speechiness)
+private fun LocalMusicEntity.hasCompleteEmotionVector(): Boolean = emotionVector().all { it != null }
+private fun List<Float?>.normalizedEmotionMetrics(): List<Float> = map { value -> value?.let(::normalizeMetric) ?: 0f }
+private fun normalizeMetric(value: Float): Float = if (value > 1f) (value / 100f).coerceIn(0f, 1f) else value.coerceIn(0f, 1f)
+private fun LocalSong.playerArtistLine(): String = joinByBullet(song.orderedArtists.joinToString { it.name }, song.album?.title).ifBlank { "-" }
+private fun String.cleanDisplayText(): String? = replace("\uFFFD", "").replace(Regex("[\\p{Cntrl}&&[^\\r\\n\\t]]"), "").trim().takeIf { it.isNotEmpty() && it.any(Char::isLetterOrDigit) }
+private fun LocalMusicEntity.toNowPlayingAnalysis(): PlayerNowPlayingAnalysis? {
+    val topLabels =
+        buildList {
+            bpm?.let { add("${it.roundToInt()} BPM") }
+            keyName?.academicKeyLabel()?.let { add(it) }
+            keyName?.camelotChipLabel(null)?.let { add(it) }
+        }
+    val emotionLabels =
+        listOf(
+            "Val" to valence,
+            "Eng" to energy,
+            "Dan" to danceability,
+            "Aco" to acousticness,
+            "Ins" to instrumentalness,
+            "Live" to liveness,
+            "Sp" to speechiness,
+        ).mapNotNull { (label, value) ->
+            value?.let { "$label ${it.normalizedMetricText()}" }
+        }
+    return PlayerNowPlayingAnalysis(
+        topLabels = topLabels,
+        emotionLabels = emotionLabels,
+    ).takeIf { it.topLabels.isNotEmpty() || it.emotionLabels.isNotEmpty() }
+}
+
+private fun Float.normalizedMetricText(): String =
+    String.format(Locale.US, "%.3f", normalizeMetric(this))
+
+private fun Float.bpmChipLabel(currentBpm: Float?): String {
+    val roundedBpm = roundToInt()
+    val delta = currentBpm?.let { (this - it).roundToInt() }
+    return if (delta != null) "$roundedBpm BPM ${delta.signedDeltaText()}" else "$roundedBpm BPM"
+}
+
+private fun String.academicKeyLabel(): String? {
+    val key = cleanDisplayText() ?: return null
+    val canonical = key.canonicalMusicKey() ?: return key
+    return advancedKeyDisplayName(canonical) ?: canonical.toAcademicKeyName()
+}
+
+private fun String.camelotChipLabel(currentKey: String?): String? {
+    val currentCode = currentKey?.canonicalMusicKey()?.camelotDisplayCode()
+    val recommendedCode = canonicalMusicKey()?.camelotDisplayCode() ?: return null
+    val delta = currentCode?.let { recommendedCode.number.circularDeltaFrom(it.number) }
+    return if (delta != null) "${recommendedCode.label} ${delta.signedDeltaText()}" else recommendedCode.label
+}
+
+private fun String.canonicalMusicKey(): String? {
+    val cleaned = cleanDisplayText() ?: return null
+    val normalized = cleaned
+        .replace("♯", "#")
+        .replace("＃", "#")
+        .replace("♭", "b")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+    val lower = normalized.lowercase()
+    val camelotMatch = Regex("^([ab])(\\d{1,2})$", RegexOption.IGNORE_CASE).matchEntire(normalized)
+        ?: Regex("^(\\d{1,2})([ab])$", RegexOption.IGNORE_CASE).matchEntire(normalized)
+    if (camelotMatch != null) {
+        val first = camelotMatch.groupValues[1]
+        val second = camelotMatch.groupValues[2]
+        val number = first.toIntOrNull() ?: second.toIntOrNull() ?: return normalized
+        val mode = if (first.toIntOrNull() == null) first.uppercase() else second.uppercase()
+        return camelotToKey(number, mode)
+    }
+    val note = normalized.substringBefore(" ").replaceFirstChar { it.uppercase() }
+    return when {
+        lower.endsWith(" minor") -> normalizeMusicKey("${note}m")
+        lower.endsWith(" major") -> normalizeMusicKey(note)
+        lower.endsWith(" min") -> normalizeMusicKey("${note}m")
+        lower.endsWith(" maj") -> normalizeMusicKey(note)
+        lower.endsWith("m") && normalized.length > 1 -> normalizeMusicKey(normalized.replaceFirstChar { it.uppercase() })
+        else -> normalizeMusicKey(normalized.replaceFirstChar { it.uppercase() })
+    }
+}
+
+private fun normalizeMusicKey(key: String): String? =
+    when (key) {
+        "C", "C#" -> key
+        "Db" -> "C#"
+        "D", "D#" -> key
+        "Eb" -> "D#"
+        "E", "Fb" -> "E"
+        "F", "F#" -> key
+        "Gb" -> "F#"
+        "G", "G#" -> key
+        "Ab" -> "G#"
+        "A", "A#" -> key
+        "Bb" -> "A#"
+        "B", "Cb" -> "B"
+        "Cm", "C#m" -> key
+        "Dbm" -> "C#m"
+        "Dm", "D#m" -> key
+        "Ebm" -> "D#m"
+        "Em", "Fbm" -> "Em"
+        "Fm", "F#m" -> key
+        "Gbm" -> "F#m"
+        "Gm", "G#m" -> key
+        "Abm" -> "G#m"
+        "Am", "A#m" -> key
+        "Bbm" -> "A#m"
+        "Bm", "Cbm" -> "Bm"
+        else -> null
+    }
+
+private fun String.toAcademicKeyName(): String =
+    this
+
+private data class CamelotDisplayCode(val label: String, val number: Int)
+
+private fun String.camelotDisplayCode(): CamelotDisplayCode? {
+    val camelot = keyToCamelot(this) ?: return null
+    return CamelotDisplayCode(label = "${camelot.first}${camelot.second}", number = camelot.first)
+}
+
+private fun Int.signedDeltaText(): String =
+    when {
+        this > 0 -> "+$this"
+        this < 0 -> toString()
+        else -> "±0"
+    }
+
+private fun Int.circularDeltaFrom(reference: Int): Int {
+    var delta = this - reference
+    if (delta > 6) delta -= 12
+    if (delta < -6) delta += 12
+    return delta
+}
+
+private fun String.compatibleCamelotKeys(): Set<String> {
+    val canonical = canonicalMusicKey() ?: return emptySet()
+    val camelot = keyToCamelot(canonical) ?: return emptySet()
+    val num = camelot.first
+    val mode = camelot.second
+    return setOf(
+        camelotToKey(num, mode),
+        camelotToKey(num, if (mode == "A") "B" else "A"),
+        camelotToKey((num % 12) + 1, mode),
+        camelotToKey(((num - 2) % 12) + 1, mode),
+    ).filterNotNull().toSet()
+}
+
+private fun keyToCamelot(key: String): Pair<Int, String>? =
+    when (key) {
+        "G#m" -> 1 to "A"
+        "B" -> 1 to "B"
+        "D#m" -> 2 to "A"
+        "F#" -> 2 to "B"
+        "A#m" -> 3 to "A"
+        "C#" -> 3 to "B"
+        "Fm" -> 4 to "A"
+        "G#" -> 4 to "B"
+        "Cm" -> 5 to "A"
+        "D#" -> 5 to "B"
+        "Gm" -> 6 to "A"
+        "A#" -> 6 to "B"
+        "Dm" -> 7 to "A"
+        "F" -> 7 to "B"
+        "Am" -> 8 to "A"
+        "C" -> 8 to "B"
+        "Em" -> 9 to "A"
+        "G" -> 9 to "B"
+        "Bm" -> 10 to "A"
+        "D" -> 10 to "B"
+        "F#m" -> 11 to "A"
+        "A" -> 11 to "B"
+        "C#m" -> 12 to "A"
+        "E" -> 12 to "B"
+        else -> null
+    }
+
+private fun camelotToKey(number: Int, mode: String): String? =
+    when (number to mode.uppercase()) {
+        1 to "A" -> "G#m"
+        1 to "B" -> "B"
+        2 to "A" -> "D#m"
+        2 to "B" -> "F#"
+        3 to "A" -> "A#m"
+        3 to "B" -> "C#"
+        4 to "A" -> "Fm"
+        4 to "B" -> "G#"
+        5 to "A" -> "Cm"
+        5 to "B" -> "D#"
+        6 to "A" -> "Gm"
+        6 to "B" -> "A#"
+        7 to "A" -> "Dm"
+        7 to "B" -> "F"
+        8 to "A" -> "Am"
+        8 to "B" -> "C"
+        9 to "A" -> "Em"
+        9 to "B" -> "G"
+        10 to "A" -> "Bm"
+        10 to "B" -> "D"
+        11 to "A" -> "F#m"
+        11 to "B" -> "A"
+        12 to "A" -> "C#m"
+        12 to "B" -> "E"
+        else -> null
+    }
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InlineLyricsView(
@@ -2236,6 +3620,7 @@ fun MoreActionsButton(
     state: BottomSheetState,
     textButtonColor: Color,
     iconButtonColor: Color,
+    onAnalysisStarted: () -> Unit = {},
 ) {
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
@@ -2264,11 +3649,13 @@ fun MoreActionsButton(
                                                     ShowMediaInfo(mediaMetadata.id)
                                                 }
                                             },
+                                            onAnalysisStarted = onAnalysisStarted,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
                                 }
                             },
+                            onAnalysisStarted = onAnalysisStarted,
                             onDismiss = menuState::dismiss,
                         )
                     }
@@ -2289,6 +3676,7 @@ private fun PlayerMoreMenuButton(
     state: BottomSheetState,
     textButtonColor: Color,
     iconButtonColor: Color,
+    onAnalysisStarted: () -> Unit = {},
 ) {
     val menuState = LocalMenuState.current
     val bottomSheetPageState = LocalBottomSheetPageState.current
@@ -2318,11 +3706,13 @@ private fun PlayerMoreMenuButton(
                                                     ShowMediaInfo(mediaMetadata.id)
                                                 }
                                             },
+                                            onAnalysisStarted = onAnalysisStarted,
                                             onDismiss = menuState::dismiss,
                                         )
                                     }
                                 }
                             },
+                            onAnalysisStarted = onAnalysisStarted,
                             onDismiss = menuState::dismiss,
                         )
                     }
@@ -2334,6 +3724,41 @@ private fun PlayerMoreMenuButton(
             colorFilter = ColorFilter.tint(iconButtonColor),
         )
     }
+}
+
+private suspend fun shareAudioFile(
+    context: Context,
+    mediaMetadata: MediaMetadata,
+    localMusic: LocalMusicEntity?,
+) {
+    if (localMusic != null) {
+        shareExistingAudioFile(context, mediaMetadata, localMusic)
+        return
+    }
+
+    shareChinaSongMp3(context, mediaMetadata)
+}
+
+private fun shareExistingAudioFile(
+    context: Context,
+    mediaMetadata: MediaMetadata,
+    localMusic: LocalMusicEntity,
+) {
+    val uri = Uri.parse(localMusic.contentUri)
+    val fileName = localMusic.displayName.ifBlank { mediaMetadata.title }
+    val mimeType =
+        localMusic.mimeType
+            ?.takeIf { it.startsWith("audio/") }
+            ?: if (fileName.endsWith(".mp3", ignoreCase = true)) "audio/mpeg" else "audio/*"
+
+    val intent =
+        Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newUri(context.contentResolver, fileName, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    context.startActivity(Intent.createChooser(intent, null))
 }
 
 private suspend fun shareChinaSongMp3(

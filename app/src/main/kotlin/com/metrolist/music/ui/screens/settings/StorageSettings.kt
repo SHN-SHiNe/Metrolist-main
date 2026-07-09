@@ -10,13 +10,16 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +34,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton as MaterialIconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,13 +42,18 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
@@ -56,30 +65,42 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.EnableSongCacheKey
 import com.metrolist.music.constants.FileDownloadDirectoryUriKey
-import com.metrolist.music.constants.FileDownloadTotalBytesKey
 import com.metrolist.music.constants.MaxImageCacheSizeKey
 import com.metrolist.music.constants.MaxSongCacheSizeKey
+import com.metrolist.music.download.FileDownloadLocation
 import com.metrolist.music.extensions.tryOrNull
+import com.metrolist.music.localmusic.LocalMusicFileSize
+import com.metrolist.music.localmusic.LocalMusicScanSource
+import com.metrolist.music.localmusic.LocalMusicScanSourceKind
+import com.metrolist.music.localmusic.LocalMusicScanner
 import com.metrolist.music.ui.component.ActionPromptDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
+import com.metrolist.music.ui.screens.localmusic.LocalMusicScanState
+import com.metrolist.music.ui.screens.localmusic.LocalMusicViewModel
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.ui.utils.formatFileSize
 import com.metrolist.music.utils.rememberPreference
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okio.ByteString.Companion.encodeUtf8
+import timber.log.Timber
 import java.io.File
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalCoilApi::class, ExperimentalMaterial3Api::class, DelicateCoilApi::class)
 @Composable
 fun StorageSettings(
-    navController: NavController
+    navController: NavController,
+    localMusicViewModel: LocalMusicViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
@@ -88,6 +109,13 @@ fun StorageSettings(
     val downloadCache = LocalPlayerConnection.current?.service?.downloadCache ?: return
 
     val coroutineScope = rememberCoroutineScope()
+    val localMusicScanner =
+        remember(context) {
+            EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                StorageSettingsEntryPoint::class.java,
+            ).localMusicScanner()
+        }
     val songCacheString = stringResource(R.string.song_cache).lowercase()
     val imageCacheString = stringResource(R.string.image_cache).lowercase()
     val (maxImageCacheSize, onMaxImageCacheSizeChange) = rememberPreference(
@@ -106,20 +134,37 @@ fun StorageSettings(
         key = FileDownloadDirectoryUriKey,
         defaultValue = ""
     )
-    val (fileDownloadTotalBytes) = rememberPreference(
-        key = FileDownloadTotalBytesKey,
-        defaultValue = 0L
-    )
+    val scanSources by localMusicViewModel.scanSources.collectAsStateWithLifecycle()
+    val scanState by localMusicViewModel.scanState.collectAsStateWithLifecycle()
+    val localMusicMinDurationSeconds by localMusicViewModel.minDurationSeconds.collectAsStateWithLifecycle()
+    val localMusicFiles by database.localMusicFiles().collectAsStateWithLifecycle(emptyList())
+    val localMusicTotalBytes = remember(localMusicFiles) {
+        LocalMusicFileSize.totalBytes(localMusicFiles)
+    }
     val directoryPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri: Uri? ->
         if (uri != null) {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-            )
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }.onFailure {
+                Timber.tag("StorageSettings").w(it, "Could not persist download directory read/write permission")
+            }
             onFileDownloadDirectoryUriChange(uri.toString())
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatching {
+                    localMusicScanner.scan(uri, localMusicMinDurationSeconds)
+                }
+            }
         }
+    }
+    val localMusicFolderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri: Uri? ->
+        uri?.let(localMusicViewModel::selectFolder)
     }
 
     var clearDownloads by remember { mutableStateOf(false) }
@@ -240,7 +285,7 @@ fun StorageSettings(
                     val urlsToPreserve = mutableSetOf<String>()
                     val downloadedSongs =
                         try {
-                            database.downloadedSongsByNameAsc().first()
+                            database.offlineCachedSongsByNameAsc().first()
                         } catch (e: Exception) {
                             emptyList()
                         }
@@ -329,7 +374,14 @@ fun StorageSettings(
                         icon = painterResource(R.drawable.storage),
                         title = { Text(stringResource(R.string.downloaded_songs)) },
                         description = {
-                            Text(text = formatFileSize(downloadCacheSize + fileDownloadTotalBytes))
+                            Text(text = formatFileSize(downloadCacheSize))
+                        },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.music_note),
+                        title = { Text(stringResource(R.string.file_downloaded_music)) },
+                        description = {
+                            Text(text = formatFileSize(localMusicTotalBytes))
                         },
                     ),
                     Material3SettingsItem(
@@ -339,23 +391,19 @@ fun StorageSettings(
                             clearDownloads = true
                         },
                     ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.download),
-                        title = { Text("真实下载保存位置") },
-                        description = {
-                            Text(
-                                if (fileDownloadDirectoryUri.isBlank()) {
-                                    "默认：Music/SHiNe MUSIC"
-                                } else {
-                                    "已选择自定义文件夹"
-                                }
-                            )
-                        },
-                        onClick = {
-                            directoryPickerLauncher.launch(null)
-                        },
-                    ),
                 ),
+        )
+
+        LocalMusicStorageSettingsGroup(
+            scanSources = scanSources,
+            scanState = scanState,
+            fileDownloadDirectoryUri = fileDownloadDirectoryUri,
+            minDurationSeconds = localMusicMinDurationSeconds,
+            onChooseDownloadDirectory = { directoryPickerLauncher.launch(null) },
+            onChooseFolder = { localMusicFolderPickerLauncher.launch(null) },
+            onRescan = localMusicViewModel::rescan,
+            onRemoveFolder = localMusicViewModel::removeFolder,
+            onMinDurationChange = localMusicViewModel::updateMinDurationSeconds,
         )
 
         Material3SettingsGroup(
@@ -530,4 +578,245 @@ fun StorageSettings(
             }
         },
     )
+}
+
+@Composable
+private fun LocalMusicStorageSettingsGroup(
+    scanSources: List<LocalMusicScanSource>,
+    scanState: LocalMusicScanState,
+    fileDownloadDirectoryUri: String,
+    minDurationSeconds: Int,
+    onChooseDownloadDirectory: () -> Unit,
+    onChooseFolder: () -> Unit,
+    onRescan: () -> Unit,
+    onRemoveFolder: (String) -> Unit,
+    onMinDurationChange: (Int) -> Unit,
+) {
+    val hasSources = scanSources.isNotEmpty()
+    val userSources = scanSources.filter { it.kind == LocalMusicScanSourceKind.USER }
+    val isScanning = scanState.isScanning
+    var sourcesExpanded by rememberSaveable { mutableStateOf(false) }
+    val visibleSources =
+        if (sourcesExpanded) {
+            userSources
+        } else {
+            userSources.take(2)
+        }
+    val items =
+        buildList {
+            add(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.download),
+                    title = { Text("下载保存位置") },
+                    description = {
+                        Text(
+                            text = FileDownloadLocation.fromDirectoryUri(fileDownloadDirectoryUri).displayPath,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    onClick = onChooseDownloadDirectory,
+                ),
+            )
+            add(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.storage),
+                    title = { Text("添加扫描文件夹") },
+                    description = {
+                        Column {
+                            Text("添加本机文件夹作为本地音乐来源")
+                            Text(
+                                text = "目前已添加的文件夹",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                            if (userSources.isEmpty()) {
+                                Text(
+                                    text = "暂无额外扫描文件夹。下载保存位置会自动参与本地扫描。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            } else {
+                                visibleSources.forEach { source ->
+                                    LocalMusicScanSourceRow(
+                                        source = source,
+                                        isScanning = isScanning,
+                                        onRemoveFolder = onRemoveFolder,
+                                        modifier = Modifier.padding(top = 6.dp),
+                                    )
+                                }
+                                if (userSources.size > 2) {
+                                    TextButton(
+                                        onClick = { sourcesExpanded = !sourcesExpanded },
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    ) {
+                                        Text(if (sourcesExpanded) "收起" else "展开全部 ${userSources.size} 条")
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isScanning,
+                    onClick = onChooseFolder,
+                ),
+            )
+            add(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.refresh),
+                    title = { Text("重新扫描全部来源") },
+                    description = {
+                        Column {
+                            Text(
+                                text =
+                                    when {
+                                        isScanning -> stringResource(R.string.scanning_music, scanState.scannedFiles)
+                                        scanState.error != null -> stringResource(R.string.local_music_scan_error, scanState.error)
+                                        hasSources -> "重新扫描下载保存位置和已添加文件夹"
+                                        else -> "添加扫描文件夹或设置下载保存位置后即可扫描"
+                                    },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (isScanning) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                )
+                                scanState.currentFile?.let {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    enabled = hasSources && !isScanning,
+                    onClick = onRescan,
+                ),
+            )
+            add(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.tune),
+                    title = { Text("扫描规则") },
+                    description = {
+                        Text(
+                            text = "过滤 ${minDurationSeconds} 秒以下的短音频",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    trailingContent = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            MaterialIconButton(
+                                onClick = { onMinDurationChange((minDurationSeconds - 5).coerceAtLeast(0)) },
+                                enabled = !isScanning && minDurationSeconds > 0,
+                                modifier = Modifier.size(36.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.remove),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Text(
+                                text = "${minDurationSeconds}s",
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                modifier = Modifier.widthIn(min = 42.dp),
+                            )
+                            MaterialIconButton(
+                                onClick = { onMinDurationChange((minDurationSeconds + 5).coerceAtMost(180)) },
+                                enabled = !isScanning && minDurationSeconds < 180,
+                                modifier = Modifier.size(36.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.add),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    },
+                ),
+            )
+        }
+
+    Material3SettingsGroup(
+        title = stringResource(R.string.local_music),
+        items = items,
+    )
+}
+
+@Composable
+private fun LocalMusicScanSourceRow(
+    source: LocalMusicScanSource,
+    isScanning: Boolean,
+    onRemoveFolder: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = source.titleLabel(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = source.displayLabel(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (source.kind == LocalMusicScanSourceKind.USER) {
+            MaterialIconButton(
+                onClick = { onRemoveFolder(source.uri) },
+                enabled = !isScanning,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.close),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+private fun LocalMusicScanSource.titleLabel(): String =
+    if (kind == LocalMusicScanSourceKind.DOWNLOAD) {
+        "下载目录来源"
+    } else {
+        "扫描文件夹"
+    }
+
+private fun LocalMusicScanSource.displayLabel(): String {
+    val label = FileDownloadLocation.fromDirectoryUri(uri).displayPath
+    return if (kind == LocalMusicScanSourceKind.DOWNLOAD) {
+        "下载目录：$label"
+    } else {
+        label
+    }
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+private interface StorageSettingsEntryPoint {
+    fun localMusicScanner(): LocalMusicScanner
 }

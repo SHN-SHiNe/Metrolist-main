@@ -19,7 +19,7 @@
     <string name="quick_picks_empty">Послухайте кілька пісень, щоб створити ваш швидкий вибір</string>
     <string name="forgotten_favorites">Забуті улюблені</string>
     <string name="keep_listening">Продовжуйте слухати</string>
-    <string name="your_youtube_playlists">Ваші плейлисти YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Схожі на</string>
     <string name="new_release_albums">Нові релізи альбомів</string>
     <string name="today">Сьогодні</string>
@@ -30,7 +30,7 @@
     <string name="most_played_artists">Найпопулярніші виконавці</string>
     <string name="most_played_albums">Найпопулярніші альбоми</string>
     <string name="search">Пошук</string>
-    <string name="search_yt_music">Пошук в YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Пошук в бібліотеці…</string>
     <string name="filter_library">Бібліотека</string>
     <string name="filter_liked">Вподобані</string>
@@ -294,7 +294,7 @@
     <string name="new_version_available">Доступна нова версія</string>
     <string name="translation_models">Моделі перекладу</string>
     <string name="clear_translation_models">Очистити моделі перекладу</string>
-    <string name="use_login_for_browse_desc">Це може вплинути на те, який вміст ви бачите, і, наприклад, показує лише платні альбоми, якщо ви ввійшли в обліковий запис Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="use_login_for_browse">Використовуйте логін для перегляду вмісту</string>
     <string name="action_login">Увійти</string>
 </resources>

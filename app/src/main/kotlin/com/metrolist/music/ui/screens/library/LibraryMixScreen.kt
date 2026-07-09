@@ -71,11 +71,9 @@ import com.metrolist.music.constants.MixSortDescendingKey
 import com.metrolist.music.constants.MixSortType
 import com.metrolist.music.constants.MixSortTypeKey
 import com.metrolist.music.constants.ShowCachedPlaylistKey
-import com.metrolist.music.constants.ShowDownloadedPlaylistKey
 import com.metrolist.music.constants.ShowLikedPlaylistKey
 import com.metrolist.music.constants.ShowTopPlaylistKey
 import com.metrolist.music.constants.ShowUploadedPlaylistKey
-import com.metrolist.music.constants.YtmSyncKey
 import com.metrolist.music.db.entities.Album
 import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.Playlist
@@ -106,8 +104,6 @@ import com.metrolist.music.ui.menu.SongMenu
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.LibraryMixViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.text.Collator
 import java.time.LocalDateTime
 import java.util.UUID
@@ -135,8 +131,6 @@ fun LibraryMixScreen(
         )
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
     val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
-
-    val (ytmSync) = rememberPreference(YtmSyncKey, true)
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -177,17 +171,6 @@ fun LibraryMixScreen(
             songThumbnails = likedThumbnails,
         )
 
-    val downloadPlaylist =
-        Playlist(
-            playlist =
-                PlaylistEntity(
-                    id = UUID.randomUUID().toString(),
-                    name = stringResource(R.string.offline),
-                ),
-            songCount = 0,
-            songThumbnails = downloadedThumbnails,
-        )
-
     val topPlaylist =
         Playlist(
             playlist =
@@ -207,17 +190,14 @@ fun LibraryMixScreen(
                     name = stringResource(R.string.cached_playlist),
                 ),
             songCount = 0,
-            songThumbnails = emptyList(),
+            songThumbnails = downloadedThumbnails,
         )
 
     val (showLiked) = rememberPreference(ShowLikedPlaylistKey, true)
-    val (showDownloaded) = rememberPreference(ShowDownloadedPlaylistKey, true)
     val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
     
     val showLikedPlaylist = showLiked && matchesNormalizedQuery(normalizedQuery, likedPlaylist.playlist.name)
-    val showDownloadedPlaylist =
-        showDownloaded && matchesNormalizedQuery(normalizedQuery, downloadPlaylist.playlist.name)
     val showTopPlaylists = showTop && matchesNormalizedQuery(normalizedQuery, topPlaylist.playlist.name)
     val showCachedPlaylists = showCached && matchesNormalizedQuery(normalizedQuery, cachedPlaylist.playlist.name)
 
@@ -360,14 +340,6 @@ fun LibraryMixScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (ytmSync) {
-            withContext(Dispatchers.IO) {
-                viewModel.syncAllLibrary()
-            }
-        }
-    }
-
     val headerContent = @Composable {
         LibrarySearchHeader(
             isSearchActive = isSearchActive,
@@ -478,25 +450,6 @@ fun LibraryMixScreen(
                                         .clickable {
                                             navController.navigate("auto_playlist/liked")
                                         }.animateItem(),
-                            )
-                        }
-                    }
-
-                    if (showDownloadedPlaylist) {
-                        item(
-                            key = "downloadedPlaylist",
-                            contentType = { CONTENT_TYPE_PLAYLIST },
-                        ) {
-                            PlaylistListItem(
-                                playlist = downloadPlaylist,
-                                autoPlaylist = true,
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            navController.navigate("auto_playlist/downloaded")
-                                        }
-                                        .animateItem(),
                             )
                         }
                     }
@@ -742,7 +695,6 @@ fun LibraryMixScreen(
                     if (
                         filteredItems.isEmpty() &&
                         !showLikedPlaylist &&
-                        !showDownloadedPlaylist &&
                         !showCachedPlaylists &&
                         !showTopPlaylists &&
                         searchQuery.isNotBlank()
@@ -796,28 +748,6 @@ fun LibraryMixScreen(
                                                 navController.navigate("auto_playlist/liked")
                                             },
                                         ).animateItem(),
-                            )
-                        }
-                    }
-
-                    if (showDownloadedPlaylist) {
-                        item(
-                            key = "downloadedPlaylist",
-                            contentType = { CONTENT_TYPE_PLAYLIST },
-                        ) {
-                            PlaylistGridItem(
-                                playlist = downloadPlaylist,
-                                fillMaxWidth = true,
-                                autoPlaylist = true,
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                navController.navigate("auto_playlist/downloaded")
-                                            },
-                                        )
-                                        .animateItem(),
                             )
                         }
                     }
@@ -1002,7 +932,6 @@ fun LibraryMixScreen(
                     if (
                         filteredItems.isEmpty() &&
                         !showLikedPlaylist &&
-                        !showDownloadedPlaylist &&
                         !showCachedPlaylists &&
                         !showTopPlaylists &&
                         searchQuery.isNotBlank()

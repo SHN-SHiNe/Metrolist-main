@@ -1,4 +1,4 @@
-Un client Material 3 de YouTube Music pentru Android 
+Un client Material 3 de SHiNe MUSIC pentru Android
 
 Caracteristici:
 
@@ -9,7 +9,7 @@ Caracteristici:
 - Descarcă și pune în cache melodii pentru redare offline
 - Caută melodii, albume, artiști, videoclipuri și playlisturi
 - Versuri live 
-- Suport pentru autentificarea la contul de YouTube Music
+- Suport pentru autentificarea la contul de SHiNe MUSIC
 - Sincronizarea melodiilor, artiștilor, albumelor și playlisturilor de pe contul tău și pe contul tău
 - Omite momentele de liniște 
 - Importă playlisturi 

@@ -17,7 +17,7 @@
     <string name="cached_playlist">Vo vyrovnávacej pamäti</string>
     <string name="sync_playlist">Synchronizácia playlistu</string>
     <string name="sync_disabled">Synchronizácia zakázaná</string>
-    <string name="allows_for_sync_witch_youtube">Poznámka: Toto umožňuje synchronizáciu s YouTube Music. Toto sa neskôr NEDÁ zmeniť.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generovanie obrázka</string>
     <string name="please_wait">Prosím, počkajte</string>
     <string name="cancel">Zrušiť</string>
@@ -79,8 +79,8 @@
     <string name="advanced_login">Prihlásenie pomocou tokenu</string>
     <string name="token_hidden">Klepnutím zobrazíte token</string>
     <string name="token_shown">Klepnite znova pre kopírovanie alebo úpravu</string>
-    <string name="token_adv_login_description">Toto je POKROČILÁ metóda prihlásenia. Ako alternatívu k webovému portálu môžete priamo zadať alebo aktualizovať svoj prihlasovací token tu. Môže to napríklad zrýchliť prihlásenie na viacerých zariadeniach. Prosím, nepoužívajte</string>
-    <string name="yt_sync">Automatická synchronizácia s účtom</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Automatická synchronizácia s účtom</string>
     <string name="more_content">Viac obsahu</string>
     <string name="general">Všeobecné</string>
     <string name="proxy">Proxy</string>
@@ -102,7 +102,7 @@
     <string name="clear_image_cache_dialog">Naozaj chcete vymazať všetky obrázky z vyrovnávacej pamäte?</string>
     <string name="clear_downloads_dialog">Naozaj chcete vymazať všetky stiahnuté súbory?</string>
     <string name="disable">Zakázať</string>
-    <string name="not_logged_in_youtube">Nie ste prihlásený/á na YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Otvoriť podporované odkazy</string>
     <string name="open_app_settings_error">Nastavenia aplikácie sa nepodarilo otvoriť</string>
     <string name="release_notes">Poznámky k vydaniu</string>
@@ -155,7 +155,7 @@
     <string name="uploaded_playlist">Nahrané</string>
     <string name="filter_uploaded">Nahrané</string>
     <string name="edit_playlist_cover">Upraviť obal playlistu</string>
-    <string name="edit_playlist_cover_note">Poznámka: Na zmenu obalu playlistu musí byť váš účet prepojený s telefónnym číslom a overený v službe YouTube Music.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Po výbere obrázka chvíľu počkajte, kým sa nový obal zobrazí vo vašom zozname skladieb.</string>
     <string name="choose_from_library">Vyberte si z knižnice</string>
     <string name="remove_custom_image">Odstrániť vlastný obrázok</string>
@@ -188,7 +188,7 @@
     <string name="download_in_progress_desc">Prebieha sťahovanie</string>
     <string name="share_playlist_desc">Zdieľ\'ať tento playlist s ostatnými</string>
     <string name="delete_playlist_desc">Natrvalo odstrániť tento playlist</string>
-    <string name="sync_playlist_desc">Synchronizácia playlistu s YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Primárna farba</string>
     <string name="tertiary_color_style">Terciárna farba</string>
     <string name="lyrics_glow_effect">Povoliť efekt žiariaceho textu lyriky</string>
@@ -211,7 +211,7 @@
     <string name="add_to_library_desc">Uložiť do knižnice</string>
     <string name="download_desc">Sprístupniť na prehrávanie offline</string>
     <string name="add_to_playlist_desc">Pridať do jedného zo svojich zoznamov skladieb</string>
-    <string name="refetch_desc">Načítajte najnovšie metadáta z YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Zdieľať odkaz na túto položku</string>
     <string name="delete_desc">Natrvalo odstrániť túto položku</string>
     <string name="advanced_desc">Zmeňte tempo a výšku tónu skladby</string>
@@ -297,7 +297,7 @@
     <string name="lyrics_offset">Text skladby Offset</string>
     <string name="audio_offload_disabled_by_crossfade">Zakázané, pretože je aktívne prelínanie</string>
     <string name="lyrics_romanize_as_main">Zobraziť romanizované lyriky ako hlavné</string>
-    <string name="hide_youtube_shorts">Skryť YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="wrapped_thank_you">Ďakujeme za vypočutie</string>
     <string name="wrapped_special_thanks">Špeciálne poďakovanie MO Agamy za vytvorenie Metrolistu</string>
     <string name="wrapped_close">Zatvoriť wrapped</string>

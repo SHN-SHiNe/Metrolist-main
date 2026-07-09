@@ -1,4 +1,4 @@
-Material 3 Android üçün YouTube Musiqi müştərisi
+Material 3 Android üçün SHiNe Musiqi müştərisi
 
 Xüsusiyyətlər:
 
@@ -9,7 +9,7 @@ Xüsusiyyətlər:
 - Oflayn oxutmaq üçün mahnıları yükləyin və yaddaşda saxlamaq imkanı
 - Mahnıları, albomları, sənətçiləri, videoları və çalğı siyahılarını axtarışı
 - Canlı mahnı sözləri
-- YouTube Music hesabına giriş dəstəyi
+- SHiNe MUSIC hesabına giriş dəstəyi
 - Hesabınızdan mahnıların, sənətçilərin, albomların və çalğı siyahılarının sinxronizasiyası
 - Səssiz hissələri ötürmək imkanı
 - Pleylistləri idxal edin

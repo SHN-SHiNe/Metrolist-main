@@ -1,4 +1,4 @@
-Material 3 odjemalec YouTube Music za Android
+Material 3 odjemalec SHiNe MUSIC za Android
 
 Lastnosti:
 
@@ -9,7 +9,7 @@ Lastnosti:
 - Prenos in predpomnjenje skladb za predvajanje brez povezave
 - Iskanje skladb, albumov, izvajalcev, videoposnetkov in seznamov predvajanja
 - Besedila v živo
-- Podpora za prijavo v račun YouTube Music
+- Podpora za prijavo v račun SHiNe MUSIC
 - Sinhronizacija skladb, izvajalcev, albumov in seznamov predvajanja iz računa in v račun
 - Preskakanje tišine
 - Uvoz seznamov predvajanja

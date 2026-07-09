@@ -122,9 +122,8 @@ fun LocalPlaylistMenu(
             }
         }
 
-    val isYouTubePlaylist = playlist.playlist.browseId != null
     val isChinaPlaylist = playlist.playlist.browseId?.startsWith("china_") == true
-    val isSyncable = isYouTubePlaylist || isChinaPlaylist
+    val isSyncable = isChinaPlaylist
 
     val menuItems =
         buildList {
@@ -147,12 +146,12 @@ fun LocalPlaylistMenu(
                 )
             }
 
-            // Show sync/refresh button for online playlists (YouTube or China)
+            // Show sync/refresh button for China playlists
             if (isSyncable) {
                 add(
                     Material3MenuItemData(
-                        title = { Text(if (isChinaPlaylist) "刷新" else stringResource(R.string.action_sync)) },
-                        description = { Text(if (isChinaPlaylist) "获取网络歌单最新数据" else stringResource(R.string.sync_playlist_desc)) },
+                        title = { Text("刷新") },
+                        description = { Text("获取网络歌单最新数据") },
                         icon = {
                             Icon(
                                 painter = painterResource(R.drawable.sync),
@@ -204,8 +203,6 @@ fun LocalPlaylistMenu(
                                 com.metrolist.chinamusic.PlaylistUrlParser.getPlaylistUrlFromBrowseId(
                                     playlist.playlist.browseId ?: ""
                                 ) ?: songs.joinToString("\n") { it.song.song.title }
-                            } else if (isYouTubePlaylist) {
-                                "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}"
                             } else {
                                 songs.joinToString("\n") { it.song.song.title }
                             }

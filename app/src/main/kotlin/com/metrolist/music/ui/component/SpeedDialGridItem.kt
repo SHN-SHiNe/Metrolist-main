@@ -37,6 +37,8 @@ fun SpeedDialGridItem(
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
+    showPlaybackStateOverlay: Boolean = true,
+    showPausedPlaybackIcon: Boolean = true,
 ) {
     Box(
         modifier = modifier
@@ -50,7 +52,9 @@ fun SpeedDialGridItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            showPlaybackStateOverlay = showPlaybackStateOverlay,
+            showPausedPlaybackIcon = showPausedPlaybackIcon,
         )
 
         // Gradient Overlay for Text Readability and Icon Contrast

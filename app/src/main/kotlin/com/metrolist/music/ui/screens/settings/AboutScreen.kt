@@ -36,10 +36,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -47,9 +43,7 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,19 +63,13 @@ import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.LocalPlayerAwareWindowInsets
-import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
-import com.metrolist.music.playback.PlayerConnection
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.utils.backToMain
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 private data class Contributor(
@@ -91,7 +79,6 @@ private data class Contributor(
     val avatarUrl: String = "https://github.com/$githubHandle.png",
     val githubUrl: String = "https://github.com/$githubHandle",
     val polygon: RoundedPolygon? = null,
-    val favoriteSongVideoId: String? = null
 )
 
 private data class CommunityLink(
@@ -106,13 +93,12 @@ private val leadDeveloper = Contributor(
     roleRes = R.string.credits_lead_developer,
     githubHandle = "mostafaalagamy",
     polygon = MaterialShapes.Cookie9Sided,
-    favoriteSongVideoId = "Mh2JWGWvy_Y"
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val collaborators = listOf(
-    Contributor(name = "Adriel O'Connel", roleRes = R.string.credits_collaborator, githubHandle = "adrielGGmotion", polygon = MaterialShapes.Cookie4Sided, favoriteSongVideoId = "m2zUrruKjDQ"),
-    Contributor(name = "Nyx", roleRes = R.string.credits_collaborator, githubHandle = "nyxiereal", polygon = MaterialShapes.Cookie12Sided, favoriteSongVideoId = "zselaN6zPXw"),
+    Contributor(name = "Adriel O'Connel", roleRes = R.string.credits_collaborator, githubHandle = "adrielGGmotion", polygon = MaterialShapes.Cookie4Sided),
+    Contributor(name = "Nyx", roleRes = R.string.credits_collaborator, githubHandle = "nyxiereal", polygon = MaterialShapes.Cookie12Sided),
 )
 
 private val communityLinks = listOf(
@@ -121,35 +107,6 @@ private val communityLinks = listOf(
     CommunityLink(R.string.credits_view_repo, R.drawable.github, "https://github.com/MetrolistGroup/Metrolist"),
     CommunityLink(R.string.credits_license_name, R.drawable.info, "https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE")
 )
-
-private fun handleEasterEggClick(
-    clickCount: Int,
-    favoriteSongVideoId: String?,
-    coroutineScope: CoroutineScope,
-    snackbarHostState: SnackbarHostState,
-    playerConnection: PlayerConnection?,
-    wannaPlayStr: String,
-    yeahStr: String,
-    onCountUpdate: (Int) -> Unit
-) {
-    if (favoriteSongVideoId != null) {
-        val newCount = clickCount + 1
-        onCountUpdate(newCount)
-        if (newCount >= 3) {
-            onCountUpdate(0)
-            coroutineScope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = wannaPlayStr,
-                    actionLabel = yeahStr,
-                    duration = SnackbarDuration.Short
-                )
-                if (result == SnackbarResult.ActionPerformed) {
-                    playerConnection?.playQueue(YouTubeQueue(WatchEndpoint(videoId = favoriteSongVideoId)))
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun ContributorAvatar(
@@ -220,12 +177,7 @@ fun AboutScreen(
     navController: NavController,
 ) {
     val uriHandler = LocalUriHandler.current
-    val playerConnection = LocalPlayerConnection.current
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val wannaPlayStr = stringResource(R.string.wanna_play_favorite_song)
-    val yeahStr = stringResource(R.string.yeah)
-    
+
     val windowInsets = LocalPlayerAwareWindowInsets.current
 
     Column(
@@ -380,24 +332,11 @@ fun AboutScreen(
             items = listOf(
                 Material3SettingsItem(
                     leadingContent = {
-                        var leadClickCount by remember(leadDeveloper.name) { mutableIntStateOf(0) }
                         ContributorAvatar(
                             avatarUrl = leadDeveloper.avatarUrl,
                             sizeDp = 48,
                             shape = leadDeveloper.polygon?.toShape() ?: CircleShape,
                             contentDescription = leadDeveloper.name,
-                            onClick = {
-                                handleEasterEggClick(
-                                    clickCount = leadClickCount,
-                                    favoriteSongVideoId = leadDeveloper.favoriteSongVideoId,
-                                    coroutineScope = coroutineScope,
-                                    snackbarHostState = snackbarHostState,
-                                    playerConnection = playerConnection,
-                                    wannaPlayStr = wannaPlayStr,
-                                    yeahStr = yeahStr,
-                                    onCountUpdate = { leadClickCount = it }
-                                )
-                            }
                         )
                     },
                     title = { Text(text = leadDeveloper.name, fontWeight = FontWeight.SemiBold) },
@@ -422,24 +361,11 @@ fun AboutScreen(
             items = collaborators.map { contributor ->
                 Material3SettingsItem(
                     leadingContent = {
-                        var clickCount by remember(contributor.name) { mutableIntStateOf(0) }
                         ContributorAvatar(
                             avatarUrl = contributor.avatarUrl,
                             sizeDp = 48,
                             shape = contributor.polygon?.toShape() ?: CircleShape,
                             contentDescription = contributor.name,
-                            onClick = {
-                                handleEasterEggClick(
-                                    clickCount = clickCount,
-                                    favoriteSongVideoId = contributor.favoriteSongVideoId,
-                                    coroutineScope = coroutineScope,
-                                    snackbarHostState = snackbarHostState,
-                                    playerConnection = playerConnection,
-                                    wannaPlayStr = wannaPlayStr,
-                                    yeahStr = yeahStr,
-                                    onCountUpdate = { clickCount = it }
-                                )
-                            }
                         )
                     },
                     title = { Text(text = contributor.name, fontWeight = FontWeight.SemiBold) },

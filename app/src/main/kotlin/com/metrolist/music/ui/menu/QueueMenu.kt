@@ -7,8 +7,6 @@ package com.metrolist.music.ui.menu
 
 import android.content.Intent
 import android.content.res.Configuration
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -57,7 +53,6 @@ import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerConnection
@@ -67,9 +62,7 @@ import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.models.MediaMetadata
-import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.ExoDownloadService
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.BottomSheetState
 import com.metrolist.music.ui.component.ListDialog
 import com.metrolist.music.ui.component.Material3MenuGroup
@@ -100,13 +93,6 @@ fun QueueMenu(
     val download by LocalDownloadUtil.current.getDownload(mediaMetadata.id)
         .collectAsStateWithLifecycle(initialValue = null)
 
-    var refetchIconDegree by remember { mutableFloatStateOf(0f) }
-    val rotationAnimation by animateFloatAsState(
-        targetValue = refetchIconDegree,
-        animationSpec = tween(durationMillis = 800),
-        label = "",
-    )
-
     val artists = remember(mediaMetadata.artists) {
         mediaMetadata.artists.filter { it.id != null }
     }
@@ -120,9 +106,6 @@ fun QueueMenu(
         onGetSong = { playlist ->
             database.withTransaction {
                 insert(mediaMetadata)
-            }
-            coroutineScope.launch(Dispatchers.IO) {
-                playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
             }
             listOf(mediaMetadata.id)
         },
@@ -203,31 +186,6 @@ fun QueueMenu(
                                 database.query {
                                     update(songEntity.copy(inLibrary = if (isCurrentlySaved) null else java.time.LocalDateTime.now()))
                                 }
-                                launch {
-                                    if (isCurrentlySaved) {
-                                        val setVideoIdEntity = database.getSetVideoId(songEntity.id)
-                                        val setVideoId = setVideoIdEntity?.setVideoId
-                                        if (setVideoId != null) {
-                                            YouTube.removeEpisodeFromSavedEpisodes(songEntity.id, setVideoId).onSuccess {
-                                                timber.log.Timber.d("[EPISODE_SAVE] Removed episode from Episodes for Later: ${songEntity.id}")
-                                            }.onFailure { e ->
-                                                timber.log.Timber.e(e, "[EPISODE_SAVE] Failed to remove episode: ${songEntity.id}")
-                                                kotlinx.coroutines.withContext(Dispatchers.Main) {
-                                                    android.widget.Toast.makeText(context, R.string.error_episode_remove, android.widget.Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        YouTube.addEpisodeToSavedEpisodes(songEntity.id).onSuccess {
-                                            timber.log.Timber.d("[EPISODE_SAVE] Saved episode to Episodes for Later: ${songEntity.id}")
-                                        }.onFailure { e ->
-                                            timber.log.Timber.e(e, "[EPISODE_SAVE] Failed to save episode: ${songEntity.id}")
-                                            kotlinx.coroutines.withContext(Dispatchers.Main) {
-                                                android.widget.Toast.makeText(context, R.string.error_episode_save, android.widget.Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    }
-                                }
                             } else {
                                 // Regular song: toggle like
                                 val s = songEntity.toggleLike()
@@ -275,30 +233,6 @@ fun QueueMenu(
                     NewAction(
                         icon = {
                             Icon(
-                                painter = painterResource(R.drawable.radio),
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        text = stringResource(R.string.start_radio),
-                        onClick = {
-                            onDismiss()
-                            val currentMediaId = playerConnection.player.currentMediaItemIndex.let {
-                                playerConnection.player.getMediaItemAt(it).mediaId
-                            }
-                            if (mediaMetadata.id == currentMediaId) {
-                                playerConnection.startRadioSeamlessly()
-                            } else {
-                                playerConnection.playQueue(
-                                    YouTubeQueue.radio(mediaMetadata)
-                                )
-                            }
-                        }
-                    ),
-                    NewAction(
-                        icon = {
-                            Icon(
                                 painter = painterResource(R.drawable.playlist_add),
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
@@ -325,7 +259,7 @@ fun QueueMenu(
                                 type = "text/plain"
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "https://music.youtube.com/watch?v=${mediaMetadata.id}"
+                                    "${mediaMetadata.title} - ${mediaMetadata.artists.joinToString { it.name }}"
                                 )
                             }
                             context.startActivity(Intent.createChooser(intent, null))
@@ -533,54 +467,26 @@ fun QueueMenu(
 
         item { Spacer(modifier = Modifier.height(12.dp)) }
 
-        // Details and refetch section
+        // Details section
         item {
             Material3MenuGroup(
-                items = buildList {
-                    add(
-                        Material3MenuItemData(
-                            title = { Text(text = stringResource(R.string.refetch)) },
-                            description = { Text(text = stringResource(R.string.refetch_desc)) },
-                            icon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.sync),
-                                    contentDescription = null,
-                                    modifier = Modifier.graphicsLayer(rotationZ = rotationAnimation),
-                                )
-                            },
-                            onClick = {
-                                refetchIconDegree -= 360
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    YouTube.queue(listOf(mediaMetadata.id)).onSuccess {
-                                        val newSong = it.firstOrNull()
-                                        if (newSong != null && librarySong != null) {
-                                            database.transaction {
-                                                update(librarySong!!, newSong.toMediaMetadata())
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        )
+                items = listOf(
+                    Material3MenuItemData(
+                        title = { Text(text = stringResource(R.string.details)) },
+                        description = { Text(text = stringResource(R.string.details_desc)) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.info),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        onClick = {
+                            onShowDetailsDialog()
+                            onDismiss()
+                        }
                     )
-                    add(
-                        Material3MenuItemData(
-                            title = { Text(text = stringResource(R.string.details)) },
-                            description = { Text(text = stringResource(R.string.details_desc)) },
-                            icon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.info),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            },
-                            onClick = {
-                                onShowDetailsDialog()
-                                onDismiss()
-                            }
-                        )
-                    )
-                }
+                )
             )
         }
     }

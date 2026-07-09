@@ -17,7 +17,7 @@
     <string name="cached_playlist">Predpomnjeno</string>
     <string name="sync_playlist">Sinhronizacija seznama predvajanja</string>
     <string name="sync_disabled">Sinhronizacija onemogočena</string>
-    <string name="allows_for_sync_witch_youtube">Opomba: To omogoča sinhronizacijo z aplikacijo YouTube Music. Tega kasneje NI mogoče spremeniti.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generiranje slike</string>
     <string name="please_wait">Prosim, počakajte</string>
     <string name="cancel">Prekliči</string>
@@ -69,8 +69,8 @@
     <string name="advanced_login">Prijava s tokenom</string>
     <string name="token_hidden">Tapnite za prikaz tokena</string>
     <string name="token_shown">Ponovno tapnite za kopiranje ali urejanje</string>
-    <string name="token_adv_login_description">To je NAPREDEN način prijave. Namesto spletnega portala lahko tukaj neposredno vnesete ali posodobite svoj prijavni token. S tem lahko na primer pospešite prijavo v več napravah. Upoštevajte, da vsi neveljavni formati tokenov, ki jih aplikacija ne uspe razčleniti, ne bodo sprejeti</string>
-    <string name="yt_sync">Samodejna sinhronizacija z računom</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Samodejna sinhronizacija z računom</string>
     <string name="more_content">Več vsebine</string>
     <string name="general">Splošno</string>
     <string name="proxy">Proxy</string>
@@ -92,7 +92,7 @@
     <string name="clear_image_cache_dialog">Ali ste prepričani, da želite počistiti vse slike v predpomnilniku?</string>
     <string name="clear_downloads_dialog">Ali ste prepričani, da želite počistiti vse prenose?</string>
     <string name="disable">Onemogoči</string>
-    <string name="not_logged_in_youtube">Niste prijavljeni na YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Odpri podprte povezave</string>
     <string name="open_app_settings_error">Ni bilo mogoče odpreti nastavitev aplikacije</string>
     <string name="release_notes">Opombe ob izdaji</string>
@@ -141,7 +141,7 @@
     <string name="download_in_progress_desc">Prenos je v teku</string>
     <string name="share_playlist_desc">Deli ta seznam predvajanja z drugimi</string>
     <string name="delete_playlist_desc">Trajno odstrani ta seznam predvajanja</string>
-    <string name="sync_playlist_desc">Sinhroniziraj seznam predvajanja z YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="starting_radio">Zaganjanje radia</string>
     <string name="crop_album_art">Obreži sliko albuma</string>
     <string name="crop_album_art_desc">Vsili kvadratno razmerje stranic z obrezovanjem sličic videoposnetkov</string>
@@ -180,7 +180,7 @@
     <string name="last_fm_send_likes">Pošlji všečke/nevšečke</string>
     <string name="last_fm_send_likes_description">Dodaj/odstrani pesmi med priljubljenimi na Last.fm, ko jih všečkaš/odvšečkaš v Metrolistu</string>
     <string name="lyrics_romanize_chinese">Romaniziraj kitajska besedila</string>
-    <string name="edit_playlist_cover_note">Opomba: Vaš račun mora biti povezan s telefonsko številko in preverjen na YouTube Music, da lahko spremenite naslovnico seznama predvajanja.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="settings_section_player_content">Predvajalnik in vsebina</string>
     <string name="settings_section_storage">Shramba in podatki</string>
     <string name="settings_section_system">Sistem in o programu</string>
@@ -224,7 +224,7 @@
     <string name="add_to_library_desc">Shrani v knjižnico</string>
     <string name="download_desc">Omogoči predvajanje brez povezave</string>
     <string name="add_to_playlist_desc">Dodaj na enega od seznamov predvajanja</string>
-    <string name="refetch_desc">Pridobi najnovejše metapodatke iz YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Deli povezavo do tega elementa</string>
     <string name="delete_desc">Trajno odstrani ta element</string>
     <string name="advanced_desc">Spremeni tempo in višino tona skladbe</string>

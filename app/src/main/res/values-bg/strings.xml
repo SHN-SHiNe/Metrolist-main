@@ -23,7 +23,7 @@
     <string name="account">Профил</string>
     <string name="quick_picks_empty">Слушай песни, за да генерираш своя бърз избор</string>
     <string name="forgotten_favorites">Забравени любими</string>
-    <string name="your_youtube_playlists">Вашите плейлисти в YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="most_played_songs">Най-пускани песни</string>
     <string name="other_versions">Други версии</string>
     <string name="radio">Радио</string>
@@ -42,7 +42,7 @@
     <string name="search_library">Търсене в библиотека…</string>
     <string name="filter_artists">Изпълнители</string>
     <string name="most_played_artists">Най-пускани изпълнители</string>
-    <string name="search_yt_music">Търсене в YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="filter_liked">Харесвани</string>
     <string name="filter_downloaded">Изтеглени</string>
     <string name="filter_all">Всички</string>
@@ -277,6 +277,6 @@
     <string name="enable_discord_rpc">Активирай Rich Presence</string>
     <string name="new_version_available">Налична е нова версия</string>
     <string name="use_login_for_browse">Използвай вход за разглеждане на съдържание</string>
-    <string name="use_login_for_browse_desc">Това може да повлияе какво съдържание виждате и например показва само премиум албуми, ако сте влезли с Премиум профил</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Вход</string>
 </resources>

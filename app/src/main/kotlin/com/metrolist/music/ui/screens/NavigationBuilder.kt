@@ -26,7 +26,6 @@ import androidx.navigation.navArgument
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.ui.screens.artist.ArtistAlbumsScreen
-import com.metrolist.music.ui.screens.artist.ArtistItemsScreen
 import com.metrolist.music.ui.screens.artist.ArtistOnlineScreen
 import com.metrolist.music.ui.screens.artist.ArtistScreen
 import com.metrolist.music.ui.screens.artist.ArtistSongsScreen
@@ -34,12 +33,11 @@ import com.metrolist.music.ui.screens.comments.SongCommentsScreen
 import com.metrolist.music.ui.screens.equalizer.EqScreen
 import com.metrolist.music.ui.screens.equalizer.wizard.WizardScreen
 import com.metrolist.music.ui.screens.library.LibraryScreen
+import com.metrolist.music.ui.screens.localmusic.LocalMusicScreen
 import com.metrolist.music.ui.screens.playlist.AutoPlaylistScreen
 import com.metrolist.music.ui.screens.playlist.CachePlaylistScreen
 import com.metrolist.music.ui.screens.playlist.LocalPlaylistScreen
-import com.metrolist.music.ui.screens.playlist.OnlinePlaylistScreen
 import com.metrolist.music.ui.screens.playlist.TopPlaylistScreen
-import com.metrolist.music.ui.screens.podcast.OnlinePodcastScreen
 import com.metrolist.music.ui.screens.recognition.RecognitionHistoryScreen
 import com.metrolist.music.ui.screens.recognition.RecognitionScreen
 import com.metrolist.music.ui.screens.search.ChinaSearchScreen
@@ -47,7 +45,6 @@ import com.metrolist.music.ui.screens.search.ChinaSonglistScreen
 import com.metrolist.music.ui.screens.search.ChinaBoardScreen
 import com.metrolist.music.ui.screens.search.ChinaSourceSelectScreen
 import com.metrolist.music.ui.screens.search.ChinaTagSonglistsScreen
-import com.metrolist.music.ui.screens.search.OnlineSearchResult
 import com.metrolist.music.ui.screens.search.SearchScreen
 import com.metrolist.music.ui.screens.settings.AboutScreen
 import com.metrolist.music.ui.screens.settings.ChinaMusicSourceSettings
@@ -144,6 +141,10 @@ fun NavGraphBuilder.navigationBuilder(
         LibraryScreen(navController)
     }
 
+    composable(Screens.LocalMusic.route) {
+        LocalMusicScreen(navController)
+    }
+
     composable(Screens.ListenTogether.route) {
         ListenTogetherScreen(navController, showTopBar = false)
     }
@@ -163,19 +164,19 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("mood_and_genres") {
-        MoodAndGenresScreen(navController)
+        ChinaSearchScreen(navController = navController)
     }
 
     composable("account") {
-        AccountScreen(navController)
+        SettingsScreen(navController, latestVersionName)
     }
 
     composable("new_release") {
-        NewReleaseScreen(navController)
+        ChinaSearchScreen(navController = navController)
     }
 
     composable("charts_screen") {
-        ChartsScreen(navController)
+        ChinaSearchScreen(navController = navController)
     }
 
     composable(
@@ -187,10 +188,7 @@ fun NavGraphBuilder.navigationBuilder(
                 },
             ),
     ) {
-        BrowseScreen(
-            navController,
-            it.arguments?.getString("browseId"),
-        )
+        ChinaSearchScreen(navController = navController)
     }
 
     composable(
@@ -222,11 +220,10 @@ fun NavGraphBuilder.navigationBuilder(
             fadeOut(tween(200))
         },
     ) { backStackEntry ->
-        OnlineSearchResult(
+        ChinaSearchScreen(
             navController = navController,
-            savedStateHandle = backStackEntry.savedStateHandle
+            initialQuery = backStackEntry.arguments?.getString("query"),
         )
-
     }
 
     composable(
@@ -287,7 +284,7 @@ fun NavGraphBuilder.navigationBuilder(
                 },
             ),
     ) {
-        ArtistOnlineScreen(navController)
+        ArtistOnlineScreen(navController = navController)
     }
 
     composable(
@@ -319,7 +316,7 @@ fun NavGraphBuilder.navigationBuilder(
                 },
             ),
     ) {
-        ArtistItemsScreen(navController)
+        ChinaSearchScreen(navController = navController)
     }
 
     composable(
@@ -331,7 +328,7 @@ fun NavGraphBuilder.navigationBuilder(
                 },
             ),
     ) {
-        OnlinePlaylistScreen(navController)
+        ChinaSearchScreen(navController = navController)
     }
 
     composable(
@@ -343,7 +340,7 @@ fun NavGraphBuilder.navigationBuilder(
                 },
             ),
     ) {
-        OnlinePodcastScreen(navController, scrollBehavior)
+        ChinaSearchScreen(navController = navController)
     }
 
     composable(
@@ -392,23 +389,6 @@ fun NavGraphBuilder.navigationBuilder(
             ),
     ) {
         TopPlaylistScreen(navController)
-    }
-
-    composable(
-        route = "youtube_browse/{browseId}?params={params}",
-        arguments =
-            listOf(
-                navArgument("browseId") {
-                    type = NavType.StringType
-                    nullable = true
-                },
-                navArgument("params") {
-                    type = NavType.StringType
-                    nullable = true
-                },
-            ),
-    ) {
-        YouTubeBrowseScreen(navController)
     }
 
     composable("china_search") {
@@ -565,7 +545,7 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("login") {
-        LoginScreen(navController)
+        SettingsScreen(navController, latestVersionName)
     }
 
     composable("wrapped") {

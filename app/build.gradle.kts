@@ -1,4 +1,4 @@
-﻿import org.gradle.api.DefaultTask
+import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
@@ -96,6 +96,8 @@ android {
         targetSdk = 36
         versionCode = 148
         versionName = "13.4.4"
+        multiDexEnabled = true
+        multiDexKeepFile = file("multidex-config.txt")
         resValue("string", "app_name", appNameOverride ?: "SHiNe MUSIC")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -396,8 +398,11 @@ dependencies {
     // Protobuf for message serialization (lite version for Android)
     implementation(libs.protobuf.javalite)
     implementation(libs.protobuf.kotlin.lite)
+    implementation(libs.onnxruntime.android)
 
     coreLibraryDesugaring(libs.desugaring)
 
     implementation(libs.timber)
+
+    testImplementation(libs.junit)
 }

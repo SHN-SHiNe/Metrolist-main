@@ -14,6 +14,14 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.room.Room
 import com.metrolist.music.constants.MaxSongCacheSizeKey
 import com.metrolist.music.db.InternalDatabase
+import com.metrolist.music.db.MIGRATION_1_2
+import com.metrolist.music.db.MIGRATION_21_24
+import com.metrolist.music.db.MIGRATION_22_24
+import com.metrolist.music.db.MIGRATION_24_25
+import com.metrolist.music.db.MIGRATION_37_38
+import com.metrolist.music.db.MIGRATION_37_39
+import com.metrolist.music.db.MIGRATION_38_39
+import com.metrolist.music.db.MIGRATION_39_40
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.listentogether.ListenTogetherClient
 import com.metrolist.music.listentogether.ListenTogetherManager
@@ -52,6 +60,16 @@ object AppModule {
         @ApplicationContext context: Context,
     ): InternalDatabase = Room
         .databaseBuilder(context, InternalDatabase::class.java, InternalDatabase.DB_NAME)
+        .addMigrations(
+            MIGRATION_1_2,
+            MIGRATION_21_24,
+            MIGRATION_22_24,
+            MIGRATION_24_25,
+            MIGRATION_37_38,
+            MIGRATION_37_39,
+            MIGRATION_38_39,
+            MIGRATION_39_40,
+        )
         .build()
 
     @Singleton

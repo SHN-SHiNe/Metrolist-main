@@ -23,7 +23,7 @@
     <string name="most_played_artists">Nghệ sĩ được phát nhiều nhất</string>
     <string name="most_played_albums">Album được phát nhiều nhất</string>
     <string name="search">Tìm kiếm</string>
-    <string name="search_yt_music">Tìm kiếm trên YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Tìm kiếm trong thư viện…</string>
     <string name="filter_library">Thư viện</string>
     <string name="filter_liked">Đã thích</string>
@@ -253,7 +253,7 @@
     <string name="stop_music_on_task_clear">Dừng nhạc khi đóng ứng dụng</string>
     <string name="disable_screenshot">Vô hiệu ảnh chụp màn hình</string>
     <string name="auto_skip_next_on_error">Tự động chuyển sang bài hát tiếp theo khi xảy ra lỗi</string>
-    <string name="your_youtube_playlists">Danh sách phát YouTube của bạn</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Tương tự</string>
     <string name="auto_load_more_desc">Tự động thêm nhiều bài hát hơn khi hàng đợi kết thúc, nếu có thể</string>
     <string name="add_all_to_library">Thêm tất cả vào thư viện</string>
@@ -268,6 +268,6 @@
     <string name="disable_screenshot_desc">Khi tùy chọn này được bật, ảnh chụp màn hình và chế độ xem ứng dụng trong mục Gần đây sẽ bị vô hiệu hóa.</string>
     <string name="discord_information">Metrolist sử dụng thư viện KizzyRPC để thiết lập trạng thái tài khoản Discord của bạn. Điều này liên quan đến việc sử dụng kết nối Discord Gateway, có thể được coi là vi phạm TOS của Discord. Tuy nhiên, không có trường hợp nào được biết đến về việc tài khoản người dùng bị đình chỉ vì lý do này. Sử dụng theo rủi ro của riêng bạn. \n \nMetrolist sẽ chỉ trích xuất mã thông báo của bạn và mọi thứ khác được lưu trữ cục bộ.</string>
     <string name="use_login_for_browse">Đăng nhập để xem nội dung</string>
-    <string name="use_login_for_browse_desc">Điều này có thể ảnh hưởng đến nội dung bạn nhìn thấy, ví dụ như hiện những album dành riêng cho premium nếu bạn đăng nhập với tài khoản Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Đăng nhập</string>
 </resources>

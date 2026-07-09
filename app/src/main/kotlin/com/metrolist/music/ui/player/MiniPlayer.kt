@@ -78,6 +78,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -88,6 +89,7 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DarkModeKey
+import com.metrolist.music.constants.LocalSimilarAutoplayKey
 import com.metrolist.music.constants.MiniPlayerHeight
 import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SwipeSensitivityKey
@@ -146,6 +148,7 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
     navController: androidx.navigation.NavController? = null,
     onClick: () -> Unit = {},
+    forceTransparentBackground: Boolean = false,
 ) {
     val useNewMiniPlayerDesign by rememberPreference(UseNewMiniPlayerDesignKey, true)
 
@@ -158,6 +161,7 @@ fun MiniPlayer(
             navController = navController,
             modifier = modifier,
             onClick = onClick,
+            forceTransparentBackground = forceTransparentBackground,
         )
     } else {
         Box(modifier = modifier.fillMaxWidth()) {
@@ -165,6 +169,7 @@ fun MiniPlayer(
                 progressState = progressState,
                 modifier = Modifier.align(Alignment.Center),
                 onClick = onClick,
+                forceTransparentBackground = forceTransparentBackground,
             )
         }
     }
@@ -180,15 +185,22 @@ private fun NewMiniPlayer(
     modifier: Modifier = Modifier,
     navController: androidx.navigation.NavController? = null,
     onClick: () -> Unit = {},
+    forceTransparentBackground: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val menuState = LocalMenuState.current
 
     // Theme settings - these rarely change
-    val miniPlayerBackground by rememberEnumPreference(
+    val preferredMiniPlayerBackground by rememberEnumPreference(
         MiniPlayerBackgroundStyleKey,
         defaultValue = MiniPlayerBackgroundStyle.DEFAULT,
     )
+    val miniPlayerBackground =
+        if (forceTransparentBackground) {
+            MiniPlayerBackgroundStyle.TRANSPARENT
+        } else {
+            preferredMiniPlayerBackground
+        }
     val context = LocalContext.current
     var gradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     val isSystemInDarkTheme = isSystemInDarkTheme()
@@ -203,6 +215,7 @@ private fun NewMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
+    val localSimilarAutoplay by rememberPreference(LocalSimilarAutoplayKey, false)
 
     // Cast state - safely access castConnectionHandler to prevent crashes during service lifecycle changes
     val castHandler =
@@ -214,6 +227,7 @@ private fun NewMiniPlayer(
             }
         }
     val isCasting by castHandler?.isCasting?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
+    val localSimilarPlaybackMode = localSimilarAutoplay && mediaMetadata?.isLocal == true && !isCasting
 
     // Swipe settings
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
@@ -292,7 +306,7 @@ private fun NewMiniPlayer(
     // Memoize colors
     val backgroundColor = when (miniPlayerBackground) {
         MiniPlayerBackgroundStyle.DEFAULT    -> MaterialTheme.colorScheme.surfaceContainer
-        MiniPlayerBackgroundStyle.TRANSPARENT -> Color.Black.copy(alpha = 0.25f)
+        MiniPlayerBackgroundStyle.TRANSPARENT -> Color.Transparent
         MiniPlayerBackgroundStyle.BLUR       -> MaterialTheme.colorScheme.surfaceContainer
         MiniPlayerBackgroundStyle.GRADIENT   -> MaterialTheme.colorScheme.surfaceContainer
         MiniPlayerBackgroundStyle.PURE_BLACK -> Color.Black
@@ -305,6 +319,8 @@ private fun NewMiniPlayer(
     val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
     val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
     val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
+    val outlineAlpha = if (forceTransparentBackground) 0.62f else 0.3f
+    val outlineWidth = if (forceTransparentBackground) 1.25.dp else 1.dp
 
     Box(
         modifier =
@@ -329,8 +345,10 @@ private fun NewMiniPlayer(
                                 onHorizontalDrag = { _, dragAmount ->
                                     val adjustedDragAmount =
                                         if (layoutDirection == LayoutDirection.Rtl) -dragAmount else dragAmount
-                                    val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
-                                    val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
+                                    val canSkipPrevious =
+                                        playerConnection.player.previousMediaItemIndex != -1 || localSimilarPlaybackMode
+                                    val canSkipNext =
+                                        playerConnection.player.nextMediaItemIndex != -1 || localSimilarPlaybackMode
                                     val tryingToSwipeRight = adjustedDragAmount > 0
                                     val tryingToSwipeLeft = adjustedDragAmount < 0
                                     val allowLeft = tryingToSwipeLeft && canSkipNext
@@ -360,9 +378,9 @@ private fun NewMiniPlayer(
 
                                     if (shouldChangeSong) {
                                         if (currentOffset > 0 && canSkipPrevious) {
-                                            playerConnection.player.seekToPreviousMediaItem()
+                                            playerConnection.seekToPrevious()
                                         } else if (currentOffset <= 0 && canSkipNext) {
-                                            playerConnection.player.seekToNext()
+                                            playerConnection.seekToNext()
                                         }
                                     }
                                     coroutineScope.launch {
@@ -385,7 +403,7 @@ private fun NewMiniPlayer(
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
                     .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+                    .border(outlineWidth, outlineColor.copy(alpha = outlineAlpha), RoundedCornerShape(32.dp))
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,
@@ -443,6 +461,8 @@ private fun NewMiniPlayer(
                     mediaMetadata = mediaMetadata,
                     primaryColor = primaryColor,
                     outlineColor = outlineColor,
+                    outlineAlpha = outlineAlpha,
+                    outlineWidth = outlineWidth,
                     listenTogetherManager = listenTogetherManager,
                 )
 
@@ -476,6 +496,8 @@ private fun NewMiniPlayer(
                         artistId = artistId,
                         artistName = artist.name,
                         outlineColor = outlineColor,
+                        outlineAlpha = outlineAlpha,
+                        outlineWidth = outlineWidth,
                         onSurfaceColor = onSurfaceColor,
                         navController = navController,
                     )
@@ -496,6 +518,8 @@ private fun NewMiniPlayer(
                             }
                         },
                         outlineColor = outlineColor,
+                        outlineAlpha = outlineAlpha,
+                        outlineWidth = outlineWidth,
                         onSurfaceColor = onSurfaceColor,
                     )
                 }
@@ -507,6 +531,8 @@ private fun NewMiniPlayer(
                     songId = it.id,
                     errorColor = errorColor,
                     outlineColor = outlineColor,
+                    outlineAlpha = outlineAlpha,
+                    outlineWidth = outlineWidth,
                     onSurfaceColor = onSurfaceColor,
                 )
                 }
@@ -529,6 +555,8 @@ private fun NewMiniPlayerPlayButton(
     mediaMetadata: MediaMetadata?,
     primaryColor: Color,
     outlineColor: Color,
+    outlineAlpha: Float,
+    outlineWidth: Dp,
     listenTogetherManager: ListenTogetherManager?,
 ) {
     val isPlaying by playerConnection.isPlaying.collectAsStateWithLifecycle()
@@ -537,8 +565,8 @@ private fun NewMiniPlayerPlayButton(
     val isListenTogetherGuest = listenTogetherManager?.let { it.isInRoom && !it.isHost } ?: false
     val isMuted by playerConnection.isMuted.collectAsStateWithLifecycle()
 
-    val trackColor = outlineColor.copy(alpha = 0.2f)
-    val strokeWidth = 3.dp
+    val trackColor = outlineColor.copy(alpha = outlineAlpha * 0.6f)
+    val strokeWidth = if (outlineWidth > 1.dp) 3.4.dp else 3.dp
 
     Box(
         contentAlignment = Alignment.Center,
@@ -584,7 +612,7 @@ private fun NewMiniPlayerPlayButton(
                 Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), CircleShape)
+                    .border(outlineWidth, outlineColor.copy(alpha = outlineAlpha), CircleShape)
                     .clickable {
                         if (isListenTogetherGuest) {
                             playerConnection.toggleMute()
@@ -710,6 +738,7 @@ private fun LegacyMiniPlayer(
     progressState: ProgressState,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    forceTransparentBackground: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val pureBlack by rememberPreference(PureBlackMiniPlayerKey, defaultValue = false)
@@ -718,6 +747,7 @@ private fun LegacyMiniPlayer(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
+    val localSimilarAutoplay by rememberPreference(LocalSimilarAutoplayKey, false)
 
     val castHandler =
         remember(playerConnection) {
@@ -728,6 +758,7 @@ private fun LegacyMiniPlayer(
             }
         }
     val isCasting by castHandler?.isCasting?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
+    val localSimilarPlaybackMode = localSimilarAutoplay && mediaMetadata?.isLocal == true && !isCasting
 
     val swipeSensitivity by rememberPreference(SwipeSensitivityKey, 0.73f)
     val swipeThumbnailPref by rememberPreference(SwipeThumbnailKey, true)
@@ -775,12 +806,20 @@ private fun LegacyMiniPlayer(
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                 .background(
-                    if (pureBlack && isSystemInDarkTheme()) {
+                    if (forceTransparentBackground) {
+                        Color.Transparent
+                    } else if (pureBlack && isSystemInDarkTheme()) {
                         Color.Black
                     } else {
                         MaterialTheme.colorScheme.surfaceContainer
                     },
-                ).clickable(
+                )
+                .border(
+                    width = if (forceTransparentBackground) 1.25.dp else 0.dp,
+                    color = if (forceTransparentBackground) MaterialTheme.colorScheme.outline.copy(alpha = 0.62f) else Color.Transparent,
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                )
+                .clickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
                     onClick = onClick
@@ -798,8 +837,10 @@ private fun LegacyMiniPlayer(
                                 onHorizontalDrag = { _, dragAmount ->
                                     val adjustedDragAmount =
                                         if (layoutDirection == LayoutDirection.Rtl) -dragAmount else dragAmount
-                                    val canSkipPrevious = playerConnection.player.previousMediaItemIndex != -1
-                                    val canSkipNext = playerConnection.player.nextMediaItemIndex != -1
+                                    val canSkipPrevious =
+                                        playerConnection.player.previousMediaItemIndex != -1 || localSimilarPlaybackMode
+                                    val canSkipNext =
+                                        playerConnection.player.nextMediaItemIndex != -1 || localSimilarPlaybackMode
                                     val tryingToSwipeRight = adjustedDragAmount > 0
                                     val tryingToSwipeLeft = adjustedDragAmount < 0
                                     val allowLeft = tryingToSwipeLeft && canSkipNext
@@ -829,9 +870,9 @@ private fun LegacyMiniPlayer(
 
                                     if (shouldChangeSong) {
                                         if (currentOffset > 0 && canSkipPrevious) {
-                                            playerConnection.player.seekToPreviousMediaItem()
+                                            playerConnection.seekToPrevious()
                                         } else if (currentOffset <= 0 && canSkipNext) {
-                                            playerConnection.player.seekToNext()
+                                            playerConnection.seekToNext()
                                         }
                                     }
                                     coroutineScope.launch { offsetXAnimatable.animateTo(0f, animationSpec) }
@@ -884,7 +925,7 @@ private fun LegacyMiniPlayer(
             )
 
             IconButton(
-                enabled = canSkipNext && !isListenTogetherGuest,
+                enabled = (canSkipNext || localSimilarPlaybackMode) && !isListenTogetherGuest,
                 onClick = if (isListenTogetherGuest) ({}) else ({ playerConnection.seekToNext() }),
             ) {
                 Icon(painter = painterResource(R.drawable.skip_next), contentDescription = null)
@@ -1059,6 +1100,8 @@ private fun ArtistNavigateButton(
     artistId: String,
     artistName: String,
     outlineColor: Color,
+    outlineAlpha: Float,
+    outlineWidth: Dp,
     onSurfaceColor: Color,
     navController: androidx.navigation.NavController? = null,
 ) {
@@ -1069,8 +1112,8 @@ private fun ArtistNavigateButton(
                 .size(40.dp)
                 .clip(CircleShape)
                 .border(
-                    width = 1.dp,
-                    color = outlineColor.copy(alpha = 0.3f),
+                    width = outlineWidth,
+                    color = outlineColor.copy(alpha = outlineAlpha),
                     shape = CircleShape,
                 ).clickable {
                     navController?.navigate("artist/${Uri.encode(artistId)}?name=${Uri.encode(artistName)}")
@@ -1089,6 +1132,8 @@ private fun ArtistNavigateButton(
 private fun AddToPlaylistButton(
     onClick: () -> Unit,
     outlineColor: Color,
+    outlineAlpha: Float,
+    outlineWidth: Dp,
     onSurfaceColor: Color,
 )
 
@@ -1101,8 +1146,8 @@ private fun AddToPlaylistButton(
             .size(40.dp)
             .clip(CircleShape)
             .border(
-                width = 1.dp,
-                color = outlineColor.copy(alpha = 0.3f),
+                width = outlineWidth,
+                color = outlineColor.copy(alpha = outlineAlpha),
                 shape = CircleShape,
             )
             .background(
@@ -1125,6 +1170,8 @@ private fun FavoriteButton(
     songId: String,
     errorColor: Color,
     outlineColor: Color,
+    outlineAlpha: Float,
+    outlineWidth: Dp,
     onSurfaceColor: Color,
 ) {
     val database = LocalDatabase.current
@@ -1141,11 +1188,11 @@ private fun FavoriteButton(
                 .size(40.dp)
                 .clip(CircleShape)
                 .border(
-                    width = 1.dp,
-                    color = if (isLiked) errorColor.copy(alpha = 0.5f) else outlineColor.copy(alpha = 0.3f),
+                    width = outlineWidth,
+                    color = if (isLiked) errorColor.copy(alpha = maxOf(0.5f, outlineAlpha)) else outlineColor.copy(alpha = outlineAlpha),
                     shape = CircleShape,
                 ).background(
-                    color = if (isLiked) errorColor.copy(alpha = 0.1f) else Color.Transparent,
+                    color = if (isLiked && outlineAlpha < 0.5f) errorColor.copy(alpha = 0.1f) else Color.Transparent,
                     shape = CircleShape,
                 ).clickable { playerConnection.service.toggleLike() },
     ) {

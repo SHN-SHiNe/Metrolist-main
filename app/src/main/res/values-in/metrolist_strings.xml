@@ -19,7 +19,7 @@
     <string name="liked">Disukai</string>
     <string name="offline">Diunduh</string>
     <string name="sync_playlist">Sinkronkan playlist</string>
-    <string name="allows_for_sync_witch_youtube">CATATAN: Ini memungkinkan sinkronisasi dengan YouTube Music. Pengaturan ini TIDAK dapat diubah di kemudian hari.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="share_lyrics">Bagikan lirik</string>
     <string name="share_as_text">Bagikan sebagai teks</string>
     <string name="share_as_image">Bagikan sebagai gambar</string>
@@ -37,7 +37,7 @@
     <string name="token_shown">Ketuk lagi untuk menyalin atau mengubah</string>
     <string name="general">Umum</string>
     <string name="app_language">Bahasa aplikasi</string>
-    <string name="not_logged_in_youtube">Belum login ke YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="release_notes">Catatan rilis</string>
     <string name="default_links">Buka link yang didukung</string>
     <string name="open_app_settings_error">Tidak dapat membuka pengaturan aplikasi</string>
@@ -53,7 +53,7 @@
     <string name="likes">Suka</string>
     <string name="dislikes">Tidak Suka</string>
     <string name="clear_downloads_dialog">Apakah Anda yakin ingin menghapus semua unduhan?</string>
-    <string name="token_adv_login_description">Ini adalah metode masuk TINGKAT LANJUT. Alih-alih menggunakan portal web, Anda dapat memasukkan atau memperbarui token masuk Anda secara langsung. Ini berguna untuk masuk di beberapa perangkat dengan cepat. Token dengan format yang tidak dikenali akan ditolak</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="local_history">Lokal</string>
     <string name="sort_by_last_updated">Tanggal diperbarui</string>
     <string name="link_copied">Link disalin ke papan klip</string>
@@ -85,7 +85,7 @@
     <string name="show_downloaded_playlist">Tampilkan playlist Diunduh</string>
     <string name="show_top_playlist">Tampilkan playlist Teratas</string>
     <string name="show_cached_playlist">Tampilkan playlist Tersimpan</string>
-    <string name="yt_sync">Sinkronisasi otomatis dengan akun</string>
+    <string name="account_auto_sync">Sinkronisasi otomatis dengan akun</string>
     <string name="more_content">Konten lainnya</string>
     <string name="proxy">Proksi</string>
     <string name="default_lib_chips">Ubah chip pustaka default</string>
@@ -122,7 +122,7 @@
     <string name="edit_playlist_cover">Ubah sampul playlist</string>
     <string name="hide_player_thumbnail">Sembunyikan thumbnail pemutar</string>
     <string name="hide_player_thumbnail_desc">Ganti gambar album dengan logo aplikasi di pemutar</string>
-    <string name="edit_playlist_cover_note">CATATAN: Akun Anda harus ditautkan ke nomor telepon dan diverifikasi di YouTube Music untuk mengubah sampul playlist</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="enable_authentication">Aktifkan autentikasi</string>
     <string name="line_by_line_dialog_title">Apakah Anda yakin?</string>
     <string name="line_by_line_dialog_desc">Ini adalah fitur eksperimental yang hasilnya tidak menentu.\n\nSecara default, bahasa dideteksi dari keseluruhan lagu. Dengan opsi ini aktif, deteksi akan dilakukan baris per baris. Ini memungkinkan lagu multi-bahasa berfungsi, TETAPI bahasa yang terdeteksi mungkin tidak selalu benar. Misalnya, baris berbahasa Ukraina tanpa karakter khusus Ukraina mungkin diromanisasi sebagai bahasa Rusia.\n\nJika Anda tidak mengalami masalah apa pun, disarankan untuk menonaktifkan opsi ini</string>
@@ -180,7 +180,7 @@
     <string name="download_in_progress_desc">Unduhan sedang berlangsung</string>
     <string name="share_playlist_desc">Bagikan playlist ini kepada orang lain</string>
     <string name="delete_playlist_desc">Hapus playlist ini secara permanen</string>
-    <string name="sync_playlist_desc">Sinkronkan playlist ini dengan YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Warna primer</string>
     <string name="tertiary_color_style">Warna tersier</string>
     <string name="enable_better_lyrics">Aktifkan penyedia lirik Better Lyrics</string>
@@ -265,7 +265,7 @@
     <string name="add_to_library_desc">Simpan ke pustaka Anda</string>
     <string name="download_desc">Unduh untuk pemutaran offline</string>
     <string name="add_to_playlist_desc">Tambahkan ke playlist</string>
-    <string name="refetch_desc">Segarkan metadata dari YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="lyrics_glow_effect">Aktifkan efek cahaya lirik</string>
     <string name="lyrics_glow_effect_desc">Menambahkan animasi bercahaya dan efek pantulan pada baris lirik yang aktif</string>
     <string name="shuffle_playlist_first">Acak playlist atau album terlebih dahulu</string>
@@ -469,7 +469,7 @@
     <string name="crossfade_beta_title">Fitur beta!</string>
     <string name="crossfade_beta_message">Crossfade adalah fitur baru dan mungkin memiliki bug. Jika Anda mengalami masalah apa pun, harap laporkan.\n\nCATATAN: Fitur ini menonaktifkan audio offload karena keterbatasan teknis</string>
     <string name="audio_offload_disabled_by_crossfade">Dinonaktifkan karena crossfade aktif</string>
-    <string name="hide_youtube_shorts">Sembunyikan YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Listen Together di bilah atas</string>
     <string name="listen_together_in_top_bar_desc">Tampilkan Listen Together di bilah aplikasi atas alih-alih bilah navigasi</string>
     <string name="ai_translation_literal_desc">Menerjemahkan makna ke dalam bahasa target</string>
@@ -505,7 +505,7 @@
     <string name="first_row_is_header">Baris pertama adalah header</string>
     <string name="artist_name_column">Kolom nama artis</string>
     <string name="song_title_column">Kolom judul lagu</string>
-    <string name="youtube_url_column">Kolom URL YouTube (opsional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">Lanjutkan</string>
     <string name="importing_csv">Mengimpor CSV…</string>
     <string name="recently_converted">Baru-baru ini dikonversi</string>
@@ -549,7 +549,7 @@
     <string name="density_restart_message">Perubahan kepadatan tampilan akan berlaku setelah aplikasi di-restart. Restart sekarang?</string>
     <string name="enable_lrclib_desc">Database lirik sinkron dari komunitas</string>
     <string name="enable_kugou_desc">Mengambil lirik dari KuGou, platform musik populer asal Cina</string>
-    <string name="youtube_music_lyrics_note">CATATAN: Lirik dari YouTube Music akan otomatis ditampilkan jika lirik lain tidak tersedia. Biasanya lirik tidak sinkron.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Aktifkan LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Lirik sinkron dari berbagai sumber</string>
     <string name="lyrics_provider_selection">Pilih Penyedia</string>
@@ -791,8 +791,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Bagian yang terlihat</string>
     <string name="android_auto_reorder_hint">Ketuk bagian untuk mengaktifkan atau menonaktifkannya.\nTekan lama gagang seret untuk mengurutkan ulang. Bagian pertama akan ditampilkan secara default</string>
-    <string name="android_auto_youtube_playlists">Tampilkan playlist yang disarankan YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Tampilkan playlist yang direkomendasikan YouTube Music di bagian playlist saat menjelajah dengan Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Tujuan tambah cepat</string>
     <string name="android_auto_target_playlist_desc">Pilih playlist tempat lagu disimpan saat menggunakan tombol tambah cepat di Android Auto</string>
     <string name="android_auto_target_playlist_auto">Belum diatur</string>

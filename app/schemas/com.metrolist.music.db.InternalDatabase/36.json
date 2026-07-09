@@ -1096,7 +1096,7 @@
       },
       {
         "tableName": "recognition_history",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `trackId` TEXT NOT NULL, `title` TEXT NOT NULL, `artist` TEXT NOT NULL, `album` TEXT, `coverArtUrl` TEXT, `coverArtHqUrl` TEXT, `genre` TEXT, `releaseDate` TEXT, `label` TEXT, `shazamUrl` TEXT, `appleMusicUrl` TEXT, `spotifyUrl` TEXT, `isrc` TEXT, `youtubeVideoId` TEXT, `recognizedAt` INTEGER NOT NULL, `liked` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `trackId` TEXT NOT NULL, `title` TEXT NOT NULL, `artist` TEXT NOT NULL, `album` TEXT, `coverArtUrl` TEXT, `coverArtHqUrl` TEXT, `genre` TEXT, `releaseDate` TEXT, `label` TEXT, `shazamUrl` TEXT, `appleMusicUrl` TEXT, `spotifyUrl` TEXT, `isrc` TEXT, `sourceTrackId` TEXT, `recognizedAt` INTEGER NOT NULL, `liked` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -1173,8 +1173,8 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "youtubeVideoId",
-            "columnName": "youtubeVideoId",
+            "fieldPath": "sourceTrackId",
+            "columnName": "sourceTrackId",
             "affinity": "TEXT"
           },
           {

@@ -93,6 +93,12 @@ lint/tmp/
 app/release
 output-metadata.json
 
+# Local Codex/debug artifacts
+.debug-device/
+.gradle-local/
+.omo/
+song-*.db
+
 # VS Code
 .vscode/
 

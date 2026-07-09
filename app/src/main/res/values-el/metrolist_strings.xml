@@ -17,7 +17,7 @@
     <string name="cached_playlist">Αποθηκευμένα στην προσωρινή μνήμη</string>
     <string name="sync_playlist">Συγχρονισμός λίστας αναπαραγωγής</string>
     <string name="sync_disabled">Συγχρονισμός ανενεργός</string>
-    <string name="allows_for_sync_witch_youtube">ΣΗΜΕΙΩΣΗ: Αυτή η επιλογή επιτρέπει τον συγχρονισμό με το YouTube Music και ΔΕΝ μπορεί να αλλάξει αργότερα</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="remove_from_cache">Αφαίρεση από την προσωρινή μνήμη</string>
     <string name="copy_link">Αντιγραφή συνδέσμου</string>
     <string name="select">Επιλογή όλων</string>
@@ -51,7 +51,7 @@
     <string name="advanced_login">Σύνθετη σύνδεση (token)</string>
     <string name="token_hidden">Πατήστε για να εμφανιστεί το token</string>
     <string name="token_shown">Πατήστε ξανά για αντιγραφή ή επεξεργασία</string>
-    <string name="token_adv_login_description">Αυτή είναι μια ΣΥΝΘΕΤΗ μέθοδος σύνδεσης. Ως εναλλακτική της πύλης Ιστού, μπορείτε να εισαγάγετε ή να ενημερώσετε απευθείας το token σύνδεσής σας εδώ. Για παράδειγμα, αυτό μπορεί να επιταχύνει τη σύνδεση σε πολλές συσκευές. Λάβετε υπόψη ότι τυχόν μη έγκυρες μορφές διακριτικών που η εφαρμογή αποτυγχάνει να αναλύσει δεν θα γίνουν αποδεκτές</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">Γενικά</string>
     <string name="proxy">Διακομιστής μεσολάβησης</string>
     <string name="default_lib_chips">Αλλαγή προεπιλεγμένου τσιπ βιβλιοθήκης</string>
@@ -63,7 +63,7 @@
     <string name="percentage_format">%d%%</string>
     <string name="clear_song_cache_dialog">Είστε σίγουροι ότι θέλετε να διαγράψετε όλα τα τραγούδια που είναι στην κρυφή μνήμη;</string>
     <string name="clear_downloads_dialog">Είστε σίγουροι ότι θέλετε να διαγράψετε όλες τις λήψεις;</string>
-    <string name="not_logged_in_youtube">Δεν έχετε συνδεθεί στο YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Άνοιγμα υποστηριζόμενων συνδέσμων</string>
     <string name="open_app_settings_error">Αδυναμία ανοίγματος των ρυθμίσεων της εφαρμογής</string>
     <string name="release_notes">Σημειώσεις Έκδοσης</string>
@@ -111,7 +111,7 @@
     <string name="subscribe">Εγραφή</string>
     <string name="subscribed">Οι εγραφές μου</string>
     <string name="more_content">Περισσότερο περιεχόμενο</string>
-    <string name="yt_sync">Αυτόματος συγχρονισμός με λογαριασμό</string>
+    <string name="account_auto_sync">Αυτόματος συγχρονισμός με λογαριασμό</string>
     <string name="new_player_design">Νέος σχεδιασμός προγράμματος αναπαραγωγής</string>
     <string name="uploaded_playlist">Ανεβασμένα</string>
     <string name="filter_uploaded">Ανεβασμένα</string>
@@ -127,7 +127,7 @@
     <string name="swipe_song_to_remove">Σύρετε το τραγούδι για να το αφαιρέσετε από τη λίστα αναπαραγωγής</string>
     <string name="show_uploaded_playlist">Εμφάνιση \"ανεβασμένης\" λίστας αναπαραγωγής</string>
     <string name="edit_playlist_cover">Επεξεργασία εξώφυλλου λίστας αναπαραγωγής</string>
-    <string name="edit_playlist_cover_note">Σημείωση: Ο λογαριασμός σας πρέπει να συνδέεται με έναν αριθμό τηλεφώνου και να επαληθευτεί στο YouTube Music για να αλλάξει το εξώφυλλο της λίστας αναπαραγωγής.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Αφού επιλέξετε μια εικόνα, περιμένετε λίγο μέχρι να εμφανιστεί το νέο εξώφυλλο στη λίστα αναπαραγωγής σας.</string>
     <string name="choose_from_library">Επιλέξτε από τη βιβλιοθήκη</string>
     <string name="remove_custom_image">Κατάργηση προσαρμοσμένης εικόνας</string>
@@ -190,7 +190,7 @@
     <string name="download_in_progress_desc">Μια λήψη βρίσκεται σε εξέλιξη</string>
     <string name="share_playlist_desc">Κοινοποίηση αυτής της λίστας αναπαραγωγής με άλλους</string>
     <string name="delete_playlist_desc">Διαγραφή αυτής της λίστας αναπαραγωγής οριστικά</string>
-    <string name="sync_playlist_desc">Συγχρονισμός αυτής της λίστας με το YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="crop_album_art">Περικοπή εξώφυλλου άλμπουμ</string>
     <string name="crop_album_art_desc">Επιβολή τετράγωνης αναλογίας διαστάσεων με περικοπή των μικρογραφιών βίντεο</string>
     <string name="primary_color_style">Κύριο χρώμα</string>
@@ -224,7 +224,7 @@
     <string name="add_to_library_desc">Αποθήκευση στη βιβλιοθήκη σας</string>
     <string name="download_desc">Να γίνει διαθέσιμο για αναπαραγωγή εκτός σύνδεσης</string>
     <string name="add_to_playlist_desc">Προσθήκη σε μια από τις λίστες αναπαραγωγής σας</string>
-    <string name="refetch_desc">Λήψη των πιο πρόσφατων μεταδεδομένων από το YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Μοιραστείτε έναν σύνδεσμο για αυτό το στοιχείο</string>
     <string name="delete_desc">Μόνιμη διαγραφή αυτού του στοιχείου</string>
     <string name="advanced_desc">Αλλαγή του τέμπο και του τόνου του τραγουδιού</string>

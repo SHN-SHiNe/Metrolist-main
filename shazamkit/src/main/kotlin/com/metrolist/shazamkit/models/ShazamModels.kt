@@ -304,7 +304,6 @@ data class RecognitionResult(
     val appleMusicUrl: String?,
     val spotifyUrl: String?,
     val isrc: String?,
-    val youtubeVideoId: String? = null
 )
 
 sealed class RecognitionStatus {

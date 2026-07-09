@@ -12,7 +12,7 @@
     <string name="quick_picks_empty">Dengarlah lagu untuk membina pilihan lagu segera anda</string>
     <string name="forgotten_favorites">Kegemaran lama</string>
     <string name="keep_listening">Teruskan mendengar</string>
-    <string name="your_youtube_playlists">Senarai lagu Youtube anda</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Sama dengan</string>
     <string name="new_release_albums">Album keluaran baharu</string>
     <string name="today">Sejarah</string>
@@ -23,7 +23,7 @@
     <string name="most_played_artists">Artis paling banyak dimainkan</string>
     <string name="most_played_albums">Album paling banyak dimainkan</string>
     <string name="search">Carian</string>
-    <string name="search_yt_music">Cari di Youtube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Cari di pustaka</string>
     <string name="filter_library">Pustaka</string>
     <string name="filter_liked">Suka</string>

@@ -54,10 +54,10 @@
     <string name="account">Račun</string>
     <string name="quick_picks">Brzi odabiri</string>
     <string name="quick_picks_empty">Slušajte pjesme za generiranje brzih odabira</string>
-    <string name="your_youtube_playlists">Vaše YouTube playliste</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Slično kao</string>
     <string name="new_release_albums">Nova izdanja albuma</string>
-    <string name="search_yt_music">Pretraži YouTube Music …</string>
+    <string name="search_music">Search music...</string>
     <string name="filter_library">Zbirka</string>
     <string name="filter_liked">Sviđa mi se</string>
     <string name="filter_downloaded">Preuzeto</string>
@@ -286,6 +286,6 @@
     <string name="new_version_available">Dostupna je nova verzija</string>
     <string name="translation_models">Modeli prevođenja</string>
     <string name="use_login_for_browse">Koristi prijavu za pregledavanje sadržaja</string>
-    <string name="use_login_for_browse_desc">Ovo može utjecati na sadržaj koji vidiš i, na primjer, prikazuje samo premium albume ako si prijavljen/a s Premium računom</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Prijavi se</string>
 </resources>

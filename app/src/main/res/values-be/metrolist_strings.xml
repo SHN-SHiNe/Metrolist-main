@@ -13,7 +13,7 @@
     <string name="my_top">Мой топ</string>
     <string name="sync_playlist">Сінхранізаваць плей-ліст</string>
     <string name="sync_disabled">Сінхранізацыя адключана</string>
-    <string name="allows_for_sync_witch_youtube">Заўвага: Гэта дазволіць сінхранізацыю з YouTube Music. Гэта НЕЛЬГА змяніць пазней.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Генерацыя відарыса</string>
     <string name="please_wait">Пачакайце, калі ласка</string>
     <string name="cancel">Скасаваць</string>
@@ -49,7 +49,7 @@
     <string name="download_in_progress_desc">Спампаванне ў прагрэсе</string>
     <string name="share_playlist_desc">Падзяліцца гэтым плэйлістом з другімі</string>
     <string name="delete_playlist_desc">Выдаліць гэты плэйліст назаўсёды</string>
-    <string name="sync_playlist_desc">Сінхранізіраваць плэйліст з YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="copy_link">Скапіраваць спасылку</string>
     <string name="select">Выбраць усё</string>
     <string name="link_copied">Спасылка скапіравана ў буфер абмену</string>

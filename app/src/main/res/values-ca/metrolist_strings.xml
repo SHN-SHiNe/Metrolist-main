@@ -17,7 +17,7 @@
     <string name="cached_playlist">En memòria cau</string>
     <string name="sync_playlist">Sincronitza la llista</string>
     <string name="sync_disabled">Sincronització deshabitada</string>
-    <string name="allows_for_sync_witch_youtube">Nota: Això permet sincronitzar amb Youtube Music. Un cop fet, això NO es podrà canviar.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generant imatge</string>
     <string name="please_wait">Sisplau espera</string>
     <string name="cancel">Cancel·la</string>
@@ -70,7 +70,7 @@
     <string name="download_in_progress_desc">Descàrrega en procés</string>
     <string name="share_playlist_desc">Comparteix la llista amb altres</string>
     <string name="delete_playlist_desc">Elimina aquesta llista de manera permanent</string>
-    <string name="sync_playlist_desc">Sincronitza una llista amb YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Color primari</string>
     <string name="tertiary_color_style">Color terciari</string>
     <string name="swipe_song_to_add">Llisca la cançó cap a la esquerra per a afegir-la a la cua o a la dreta per a reproduir-la a continuació</string>
@@ -96,11 +96,11 @@
     <string name="shuffle_playlist_first_desc">Quan mescles, reprodueix totes les cançons de la llista/àlbum primer, després contingut semblant</string>
     <string name="token_hidden">Toca per mostrar el token</string>
     <string name="token_shown">Toca de nou per a copiar o editar</string>
-    <string name="token_adv_login_description">Aquest és una forma d\'inici de sessió AVANÇADA. Com alternativa al portal web, vostè ha d\'introduir o actualitzat el seu token ací directament. Per exemple, aquesta acció pot accelerar l\'inici de sessió en múltiples dispositius. Tinga en compte que qualsevol format de token que la app no puga processar no serà acceptat</string>
-    <string name="yt_sync">Sincronitza automàticament amb el compte</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Sincronitza automàticament amb el compte</string>
     <string name="more_content">Més contingut</string>
     <string name="edit_playlist_cover">Edita la portada de la llista</string>
-    <string name="edit_playlist_cover_note">Nota: Cal que el seu compte estiga enllaçat a un número de telèfon i a un compte verificat de YouTube Music per poder canviar la portada de la llista de reproducció.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Després de seleccionar una imatge, per favor espere un moment per a que la nova portada es mostre en la llista de reproducció.</string>
     <string name="choose_from_library">Tria de la biblioteca</string>
     <string name="remove_custom_image">Elimina imatge personalitzada</string>
@@ -129,7 +129,7 @@
     <string name="clear_image_cache_dialog">Està segur de que desitja eliminar les imatges de la memòria cau?</string>
     <string name="clear_downloads_dialog">Està segur de que desitja eliminar les descàrregues?</string>
     <string name="disable">Deshabilitar</string>
-    <string name="not_logged_in_youtube">No ha iniciat sessió a YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Obrir enllaços compatibles</string>
     <string name="open_app_settings_error">No s\'ha pogut obrir la configuració de l\'aplicació</string>
     <string name="release_notes">Notes de la versió</string>
@@ -206,7 +206,7 @@
     <string name="add_to_library_desc">Guarda a la teua biblioteca</string>
     <string name="download_desc">Habilita per a la reproducció sense xarxa</string>
     <string name="add_to_playlist_desc">Afig a una de les teues llistes de reproducció</string>
-    <string name="refetch_desc">Obtindre les últimes metadades de YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Compartir un enllaç a aquest element</string>
     <string name="delete_desc">Eliminar element de manera permanent</string>
     <string name="advanced_desc">Canviar tempo i to de la cançó</string>
@@ -480,7 +480,7 @@
     <string name="crossfade_beta_title">Funcionalitat Beta</string>
     <string name="crossfade_beta_message">El transicionat suau es una nova funcionalitat que pot presentar errors. Si trobes cap problema, per favor, informa\'ns.\n\nAquesta funcionalitat deshabilita la descarrega d\'àudio a causa de limitacions tècniques.</string>
     <string name="audio_offload_disabled_by_crossfade">Deshabilitat per que el transicionat suau està actiu</string>
-    <string name="hide_youtube_shorts">Amaga Youtube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Escoltar Junts a la barra superior</string>
     <string name="listen_together_in_top_bar_desc">Mostra l\'opció d\'Escoltar Junts a la barra superior de l\'aplicació en lloc de a la barra de navegació</string>
     <string name="ai_translation_literal_desc">Tradueix el significat a l\'idioma objectiu</string>
@@ -516,7 +516,7 @@
     <string name="first_row_is_header">La primera fila son les capçaleres</string>
     <string name="artist_name_column">Columna del nom de l\'Artista</string>
     <string name="song_title_column">Columna del nom de la Cançó</string>
-    <string name="youtube_url_column">Columna de l\'enllaç de Youtube (Opcional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">Continuar</string>
     <string name="importing_csv">Important CSV</string>
     <string name="recently_converted">Convertit recentment</string>
@@ -570,7 +570,7 @@
     <string name="from_the_community">De la comunitat</string>
     <string name="enable_lrclib_desc">Base de dades de lletres sincronitzada impulsat per la comunitat</string>
     <string name="enable_kugou_desc">Pren les lletres de KuGou, una coneguda plataforma de música Xinesa</string>
-    <string name="youtube_music_lyrics_note">NOTA: Les lletres provinents de YouTube Music es mostraran automàticament quan no haja cap altra lletra disponible. Les lletres de YTM no solen estar sincronitzades.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Habilita LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Lletra sincronitzada de diverses fonts</string>
     <string name="lyrics_provider_selection">Selecció de proveïdor</string>

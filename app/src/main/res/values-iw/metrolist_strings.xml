@@ -18,7 +18,7 @@
     <string name="cached_playlist">הוטמן</string>
     <string name="sync_playlist">סנכרן את רשימת ההשמעה</string>
     <string name="sync_disabled">סינכרון מבוטל</string>
-    <string name="allows_for_sync_witch_youtube">הערה: זה מאפשר סנכרון עם יוטיוב מיוזיק. לא ניתן לשנות זאת מאוחר יותר.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">יצירת תמונה…</string>
     <string name="please_wait">אנא המתן</string>
     <string name="cancel">ביטול</string>
@@ -30,7 +30,7 @@
     <string name="customize_colors">התאמה אישית של צבעים</string>
     <string name="text_color">צבע טקסט</string>
     <string name="secondary_text_color">צבע טקסט משני</string>
-    <string name="sync_playlist_desc">סנכרון רשימת ההשמעה עם יוטיוב מיוזיק</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="description">תיאור</string>
     <string name="lyrics">מילות השיר</string>
     <string name="close">סגור</string>
@@ -116,7 +116,7 @@
     <string name="density_restart_message">שינוי דחיסות תצוגה תושפע לאחר הפעלה מחדש של הישומון. התרצה להפעיל מחדש כעת?</string>
     <string name="enable_lrclib_desc">מסד נתונים מסונכרן מונע-מקהילה</string>
     <string name="enable_kugou_desc">לקיחת מילות שיר מקוגו, אסדת מוזיקה סינית אהודה</string>
-    <string name="youtube_music_lyrics_note">הערה: שירים מיוטיוב מיוזיק יוצגו באופן ממוכן כשמילות שיר אחרות לא זמינות. מילות שיר מיוטיוב מיוזיק בדר\"כ אינן מסונכרנות.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">הפעל לירקספלוס</string>
     <string name="enable_lyricsplus_desc">סנכרן מילות שיר ממקורות מרובים</string>
     <string name="lyrics_provider_selection">בחירת ספק</string>
@@ -130,13 +130,13 @@
     <string name="advanced_login">התחברות עם אסימון</string>
     <string name="token_hidden">הקש כדי להציג אסימון (טוקן)</string>
     <string name="token_shown">הקש שוב כדי להעתיק או לערוך</string>
-    <string name="token_adv_login_description">זוהי שיטת התחברות מתקדמת. כחלופה לפורטל האינטרנט, ניתן להזין או לעדכן את אסימון (טוקן) ההתחברות שלך ישירות כאן. לדוגמה, פעולה זו יכולה להאיץ את ההתחברות במספר מכשירים. שימו לב שכל פורמט אסימון (טוקן) לא חוקי שהאפליקציה לא מצליחה לנתח לא יתקבל.</string>
-    <string name="yt_sync">סנכרון אוטומטי עם החשבון</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">סנכרון אוטומטי עם החשבון</string>
     <string name="more_content">תוכן נוסף</string>
     <string name="sort_ascending">מיון בסדר עולה</string>
     <string name="sort_descending">מיון בסדר יורד</string>
     <string name="edit_playlist_cover">עריכת עטיפת רשימת השמעה</string>
-    <string name="edit_playlist_cover_note">הערה: על מנת לשנות את עטיפת הפלייליסט, יש לקשר את החשבון שלך למספר טלפון ולאמת אותו ב-YouTube Music.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">לאחר בחירת תמונה, אנא המתן רגע עד שהעטיפה החדשה תופיע ברשימת ההשמעה שלך.</string>
     <string name="choose_from_library">בחר מתוך ספרייה</string>
     <string name="remove_custom_image">הסר תמונה מותאמת אישית</string>
@@ -179,7 +179,7 @@
     <string name="clear_image_cache_dialog">האם הנך בטוח שברצונך לנקות את כל התמונות במטמון?</string>
     <string name="clear_downloads_dialog">האם הנך בטוח שברצונך למחוק את כל ההורדות?</string>
     <string name="disable">השבת</string>
-    <string name="not_logged_in_youtube">לא מחובר ליוטיוב</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">פתח קישורים נתמכים</string>
     <string name="open_app_settings_error">לא ניתן לפתוח את הגדרות האפליקציה</string>
     <string name="release_notes">הערות שחרור</string>
@@ -319,7 +319,7 @@
     <string name="last_fm_send_likes_description">שירי אהבתי/לא אהבתי ב-Last.fm כשהם מקבלים לייק/לא לייק ב-Metrolist</string>
     <string name="logging_in">מתחבר…</string>
     <string name="hide_video_songs">הסתר שירי וידאו</string>
-    <string name="hide_youtube_shorts">הסתר סרטוני יוטיוב קצרים</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="details_desc">צפה במידע על השיר</string>
     <string name="edit_desc">שנה את הכותרת או את האמן</string>
     <string name="start_radio_desc">צור תחנה המבוססת על פריט זה</string>
@@ -328,7 +328,7 @@
     <string name="add_to_library_desc">שמור בספרייה שלך</string>
     <string name="download_desc">הפוך לזמין להפעלה במצב לא מקוון</string>
     <string name="add_to_playlist_desc">הוסף לאחת מרשימות ההשמעה שלך</string>
-    <string name="refetch_desc">אחזור המטא-דאטה העדכניים ביותר מ-YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">שתף קישור לפריט הזה</string>
     <string name="delete_desc">הסר פריט זה לצמיתות</string>
     <string name="advanced_desc">שינוי הקצב והגובה של השיר</string>
@@ -641,7 +641,7 @@
     <string name="first_row_is_header">השורה הראשונה היא כותרת עליונה</string>
     <string name="artist_name_column">עמודת שם האמן</string>
     <string name="song_title_column">עמודת כותרת השיר</string>
-    <string name="youtube_url_column">עמודת כתובת האתר של YouTube (אופציונלי)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">המשך</string>
     <string name="importing_csv">מייבא CSV</string>
     <string name="importing_playlist">מייבא רשימת השמעה</string>

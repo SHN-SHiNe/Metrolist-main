@@ -216,7 +216,7 @@ fun RecognitionHistoryScreen(navController: NavController) {
                     RecognitionHistoryItem(
                         item = item,
                         onClick = {
-                            // Search for the track on YouTube Music
+                            // Search for the track in the app
                             val searchQuery = "${item.title} ${item.artist}"
                             navController.navigate("search/${java.net.URLEncoder.encode(searchQuery, "UTF-8")}")
                         },

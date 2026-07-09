@@ -1853,12 +1853,9 @@ fun OriginalLyrics(
                                             Intent().apply {
                                                 action = Intent.ACTION_SEND
                                                 type = "text/plain"
-                                                val songLink =
-                                                    "https://music.youtube.com/watch?v=${mediaMetadata?.id}"
-                                                // Use the potentially multi-line lyricsText here
                                                 putExtra(
                                                     Intent.EXTRA_TEXT,
-                                                    "\"$lyricsText\"\n\n$songTitle - $artists\n$songLink",
+                                                    "\"$lyricsText\"\n\n$songTitle - $artists",
                                                 )
                                             }
                                         context.startActivity(

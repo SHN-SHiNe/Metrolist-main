@@ -1,4 +1,4 @@
-Client Material 3 YouTube Music pu Android
+Client Material 3 SHiNe MUSIC pu Android
 
 Fonksyonaliyé:
 
@@ -9,7 +9,7 @@ Fonksyonaliyé:
 - Download bann lamizik pu zwé offline
 - Rod bann lamizik, album, artist, vidéo ek playlist
 - Bann parole en temps réel.
-- Login ek compte YouTube Music
+- Login ek compte SHiNe MUSIC
 - Senkroniz bann lamizik, artist, album ek artist depi ek vers ou compte
 - Sote bann silans.
 - Import bann playlist.

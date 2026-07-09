@@ -45,14 +45,14 @@
     <string name="background_color">Kolor tła</string>
     <string name="show_downloaded_playlist">Pokaż playlistę \"Pobrane\"</string>
     <string name="customize_colors">Dostosuj kolory</string>
-    <string name="token_adv_login_description">Jest to ZAAWANSOWANA metoda logowania. Alternatywnie do portalu internetowego można tutaj bezpośrednio wprowadzić lub zaktualizować token logowania. Może to na przykład przyspieszyć logowanie na wielu urządzeniach. Należy pamiętać, że wszelkie nieprawidłowe formaty tokenów, których aplikacja nie przeanalizuje, nie zostaną zaakceptowane</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="text_color">Kolor tekstu</string>
     <string name="secondary_text_color">Drugi kolor tekstu</string>
     <string name="similar_content_desc">Automatycznie dodawaj więcej podobnych utworów po osiągnięciu końca kolejki</string>
     <string name="clear_downloads_dialog">Czy na pewno chcesz wyczyścić wszystkie pobrane pliki?</string>
     <string name="top_music_videos">Najlepsze teledyski</string>
     <string name="sync_disabled">Synchronizacja wyłączona</string>
-    <string name="allows_for_sync_witch_youtube">UWAGA: Włącza to synchronizację z YouTube Music i NIE można tego zmienić później.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generowanie obrazu…</string>
     <string name="please_wait">Proszę czekać</string>
     <string name="share_lyrics">Udostępnij tekst</string>
@@ -89,7 +89,7 @@
     <string name="auto_download_on_like_desc">Automatycznie pobieraj utwory, gdy je polubisz</string>
     <string name="clear_song_cache_dialog">Czy na pewno chcesz wyczyścić wszystkie utwory z pamięci podręcznej?</string>
     <string name="show_cached_playlist">Pokaż playlistę \"Zapisane w pamięci\"</string>
-    <string name="not_logged_in_youtube">Niezalogowany do YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Otwórz obsługiwane linki</string>
     <string name="open_app_settings_error">Nie można otworzyć ustawień aplikacji</string>
     <string name="release_notes">Informacje o wersji</string>
@@ -107,7 +107,7 @@
     <string name="playlist_add_local_to_synced_note">Notatka: Dodawanie lokalnej muzyki do synchronizowanej/zewnętrznej listy odtworzeń nie jest wspierane. Wszelkie inne kombinacje są poprawne</string>
     <string name="lyrics_romanize_japanese">Romanizuj teksty japońskie</string>
     <string name="lyrics_romanize_korean">Romanizuj teksty koreańskie</string>
-    <string name="yt_sync">Automatyczna synchronizacja z kontem</string>
+    <string name="account_auto_sync">Automatyczna synchronizacja z kontem</string>
     <string name="more_content">Więcej zawartości</string>
     <string name="swipe_sensitivity">Czułość przesunięcia</string>
     <string name="clear_image_cache_dialog">Czy na pewno chcesz wyczyścić wszystkie obrazy z pamięci podręcznej?</string>
@@ -134,7 +134,7 @@
     <string name="settings_section_system">System i informacje</string>
     <string name="starting_radio">Uruchamianie radia…</string>
     <string name="edit_playlist_cover">Edytuj okładkę playlisty</string>
-    <string name="edit_playlist_cover_note">Uwaga: Twoje konto musi być powiązane z numerem telefonu i zweryfikowane w YouTube Music, aby zmienić okładkę playlisty.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Po wybraniu obrazu, zaczekaj chwilę, aż nowa okładka pojawi się na twojej playliście.</string>
     <string name="choose_from_library">Wybierz z biblioteki</string>
     <string name="remove_custom_image">Usuń niestandardowy obraz</string>
@@ -196,7 +196,7 @@
     <string name="add_to_library_desc">Zapisz w swojej bibliotece</string>
     <string name="download_desc">Udostępnij do odtwarzania offline</string>
     <string name="add_to_playlist_desc">Dodaj do jednej ze swoich list odtwarzania</string>
-    <string name="refetch_desc">Pobierz najnowsze metadane z YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Udostępnij link do tego elementu</string>
     <string name="delete_desc">Trwale usuń ten element</string>
     <string name="advanced_desc">Zmień tempo i wysokość dźwięku utworu</string>
@@ -211,7 +211,7 @@
     <string name="download_in_progress_desc">Pobieranie w trakcie</string>
     <string name="share_playlist_desc">Podziel się playlistą z innymi</string>
     <string name="delete_playlist_desc">Trwale usuń playlistę</string>
-    <string name="sync_playlist_desc">Synchronizuj tę playlistę z YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="wavy">Fala</string>
     <string name="lyrics_glow_effect">Włącz efekt podświetlenia tekstu</string>
     <string name="lyrics_glow_effect_desc">Dodaj efekty podświetlenia i odbicia do aktywnego tekstu</string>
@@ -360,7 +360,7 @@
     <string name="lyrics_provider_priority_desc">Przeciągnij, aby zmienić kolejność dostawców tekstów utworów. Wyższa pozycja -&gt; wyższy priorytet.</string>
     <string name="enable_lrclib_desc">Synchronizowana baza danych tekstów utworów tworzona przez społeczność</string>
     <string name="enable_kugou_desc">Pobiera teksty utworów z KuGou, popularnej chińskiej platformy muzycznej</string>
-    <string name="youtube_music_lyrics_note">UWAGA: Teksty z YouTube Music będą wyświetlane automatycznie, gdy inne teksty nie są dostępne. Zwykle nie są one synchronizowane.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="lyrics_provider_priority">Kolejność dostawców tekstów utworów</string>
     <string name="listen_together_server_url">Serwer URL</string>
     <string name="listen_together_username">Nazwa użytkownika</string>
@@ -428,7 +428,7 @@
     <string name="lyrics_romanize_hindi">Romanizuj tekst Hindi</string>
     <string name="lyrics_romanize_punjabi">Romanizuj teksty w pendżabskim</string>
     <string name="audio_offload_disabled_by_crossfade">Wyłączone ponieważ włączono Crossfade</string>
-    <string name="hide_youtube_shorts">Ukryj YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="export_playlist">Eksportuj playlistę</string>
     <string name="export_as_csv">Eksportuj jako CSV</string>
     <string name="export_as_m3u">Eksportuj jako M3U</string>
@@ -619,7 +619,7 @@
     <string name="first_row_is_header">Pierwszy wiersz to nagłówek</string>
     <string name="artist_name_column">Kolumna Nazwy artysty</string>
     <string name="song_title_column">Kolumna tytułu piosenki</string>
-    <string name="youtube_url_column">Kolumna adresu URL YouTube (opcjonalnie)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">Kontynuuj</string>
     <string name="importing_csv">Importowanie CSV</string>
     <string name="importing_playlist">Importowanie Playlisty</string>
@@ -784,8 +784,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Widoczne sekcje</string>
     <string name="android_auto_reorder_hint">Dotknij sekcji aby ją włączyć lub wyłączyć\nPrzytrzymaj ikonę przeciągania aby zmienić kolejność. Domyślnie wyświetlana będzie pierwsza sekcja.</string>
-    <string name="android_auto_youtube_playlists">Pokazuj playlisty sugerowane przez YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Pokazuj playlisty rekomendowane przez YouTube Music w sekcji playlist podczas przeglądania w Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Lokalizacja szybkiego dodawania</string>
     <string name="android_auto_target_playlist_desc">Wybierz playlistę gdzie piosenki będą zapisywane przy użyciu przycisku szybkiego dodawania w Android Auto</string>
     <string name="android_auto_target_playlist_auto">Nie wybrano</string>

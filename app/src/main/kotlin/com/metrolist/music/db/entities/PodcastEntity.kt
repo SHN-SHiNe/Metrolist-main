@@ -11,14 +11,10 @@ import androidx.room.PrimaryKey
 import java.time.LocalDateTime
 
 /**
- * Podcast library entries with YTM "Save to Library" sync support.
+ * Podcast library entries.
  *
- * Podcasts are saved using the likePlaylist API (like/like endpoint with playlistId).
- * The podcast ID format is "MPSP<playlistId>", e.g., "MPSPPLxxx..." where the
- * playlistId is extracted by removing the "MPSP" prefix.
- *
- * Note: channelId, libraryAddToken, libraryRemoveToken are legacy fields kept
- * for backwards compatibility. The correct API is likePlaylist().
+ * Note: channelId, libraryAddToken, and libraryRemoveToken are legacy fields kept
+ * for backwards compatibility with existing databases.
  */
 @Immutable
 @Entity(tableName = "podcast")

@@ -17,7 +17,7 @@
     <string name="new_release_albums">新作のアルバム</string>
     <string name="forgotten_favorites">忘れられているお気に入り</string>
     <string name="keep_listening">最近聴いたもの</string>
-    <string name="your_youtube_playlists">YouTubeのプレイリスト</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">関連</string>
     <string name="today">今日</string>
     <string name="yesterday">昨日</string>
@@ -27,7 +27,7 @@
     <string name="most_played_artists">最も聴いたアーティスト</string>
     <string name="most_played_albums">最も聴いたアルバム</string>
     <string name="search">検索</string>
-    <string name="search_yt_music">YouTube Musicを検索…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">ライブラリを検索…</string>
     <string name="filter_library">ライブラリ</string>
     <string name="filter_liked">高評価済み</string>
@@ -267,7 +267,7 @@
     <string name="new_version_available">アップデートがあります</string>
     <string name="translation_models">翻訳モデル</string>
     <string name="clear_translation_models">翻訳モデルを削除</string>
-    <string name="use_login_for_browse_desc">例えば、Premiumのアカウントでログインしたときに、Premium限定のアルバムが表示されるようになります。</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="use_login_for_browse">表示されるコンテンツをアカウントと連携する</string>
     <string name="action_login">ログイン</string>
 </resources>

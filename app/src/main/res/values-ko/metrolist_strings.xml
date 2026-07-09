@@ -23,7 +23,7 @@
     <string name="new_player_design">새로운 플레이어 디자인</string>
     <string name="new_mini_player_design">새로운 미니 플레이어 디자인</string>
     <string name="app_language">앱 언어</string>
-    <string name="not_logged_in_youtube">YouTube에 로그인되어 있지 않습니다</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="views">조회수</string>
     <string name="likes">좋아요</string>
     <string name="subscribe">구독</string>
@@ -58,12 +58,12 @@
     <string name="lyrics_text_size">가사 글씨 크기</string>
     <string name="lyrics_line_spacing">가사 줄간격</string>
     <string name="karaoke">노래방</string>
-    <string name="token_adv_login_description">고급 로그인 방식입니다. 토큰을 직접 입력해 여러 기기에 빠르게 로그인할 수 있습니다. 올바르지 않은 형식의 토큰은 거부됩니다</string>
-    <string name="youtube_music_lyrics_note">참고: 다른 출처가 없으면 YouTube Music 가사가 자동으로 표시되며, 보통 싱크가 지원되지 않습니다</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="swipe_song_to_add">왼쪽으로 스와이프해 재생목록에 추가, 혹은 오른쪽으로 스와이프해 다음에 재생</string>
     <string name="density_restart_message">앱을 재시작해야 변경 사항이 적용됩니다. 지금 재시작하시겠습니까?</string>
     <string name="playlist_add_local_to_synced_note">참고: 동기화 / 원격 재생목록에 로컬 곡 추가는 지원되지 않습니다. 그 외 조합은 모두 가능합니다</string>
-    <string name="allows_for_sync_witch_youtube">참고: 이 옵션은 YouTube Music과의 동기화를 활성화하며 나중에 변경할 수 없습니다</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="seek_seconds_addup_description">탐색 시마다 탐색 시간이 5초씩 누적됩니다</string>
     <string name="sleep_timer_stop_after_current_song_description">현재 재생 중인 곡이 끝나면 재생을 중단합니다</string>
     <string name="crop_album_art_desc">비디오 썸네일을 크롭하여 정사각형 화면비 강제 적용</string>
@@ -78,7 +78,7 @@
     <string name="download_in_progress_desc">다운로드 진행 중</string>
     <string name="share_playlist_desc">이 재생목록을 다른 사람과 공유합니다</string>
     <string name="delete_playlist_desc">이 재생목록을 영구적으로 제거합니다</string>
-    <string name="sync_playlist_desc">이 재생목록을 YouTube Music과 동기화합니다</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="select">전체 선택</string>
     <string name="continuous">연속 재생</string>
     <string name="offline">다운로드됨</string>
@@ -155,7 +155,7 @@
     <string name="advanced_login">토큰으로 로그인</string>
     <string name="token_hidden">탭하여 토큰 표시</string>
     <string name="token_shown">다시 탭하여 복사 또는 수정</string>
-    <string name="yt_sync">계정 자동 동기화</string>
+    <string name="account_auto_sync">계정 자동 동기화</string>
     <string name="sort_ascending">오름차순</string>
     <string name="sort_descending">내림차순</string>
     <string name="edit_playlist_cover">재생목록 커버 편집</string>
@@ -213,7 +213,7 @@
     <string name="widget_recognizer_channel_desc">위젯에서 노래 검색 시 알림을 표시합니다</string>
     <string name="prevent_duplicate_tracks_in_queue">대기열 내 중복 곡 방지</string>
     <string name="prevent_duplicate_tracks_in_queue_desc">대기열에 이미 있는 곡을 추가하면, 중복 추가 대신 기존 곡의 위치를 현재 순서로 이동합니다</string>
-    <string name="edit_playlist_cover_note">참고: 재생목록 커버를 변경하려면 YouTube Music에서 전화번호 연결 및 인증을 완료해야 합니다</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">이미지 선택 후 새 커버가 재생목록에 반영될 때까지 잠시 기다려 주십시오</string>
     <string name="choose_from_library">라이브러리에서 선택</string>
     <string name="remove_custom_image">커스텀 이미지 제거</string>
@@ -361,7 +361,7 @@
     <string name="scrobble_min_track_duration">지정된 시간(초) 이상 재생 시 스크로블링</string>
     <string name="scrobble_delay_percent">스크로블링 전송 기준(%)</string>
     <string name="hide_video_songs">비디오 곡 숨기기</string>
-    <string name="hide_youtube_shorts">YouTube Shorts 숨기기</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="details_desc">곡 상세 정보 보기</string>
     <string name="edit_desc">제목 또는 아티스트 편집</string>
     <string name="play_next_desc">대기열 다음 곡으로 재생</string>
@@ -369,7 +369,7 @@
     <string name="scrobble_delay_minutes">스크로블링 전송 기준(분)</string>
     <string name="add_to_library_desc">라이브러리에 저장</string>
     <string name="download_desc">오프라인 재생을 위해 다운로드</string>
-    <string name="refetch_desc">메타데이터 다시 불러오기</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">이 항목에 대한 링크 공유</string>
     <string name="delete_desc">이 항목을 영구 삭제</string>
     <string name="advanced_desc">곡의 속도와 피치 조절</string>
@@ -516,8 +516,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">표시할 섹션</string>
     <string name="android_auto_reorder_hint">섹션을 탭하여 활성화하거나 비활성화합니다.\n드래그 핸들을 길게 눌러 순서를 변경할 수 있습니다. 첫 번째 섹션이 기본으로 표시됩니다</string>
-    <string name="android_auto_youtube_playlists">YouTube 추천 재생목록 표시</string>
-    <string name="android_auto_youtube_playlists_desc">안드로이드 오토를 사용하는 동안 재생목록 섹션에 YouTube Music 추천 재생목록을 표시합니다</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">빠른 추가 대상</string>
     <string name="android_auto_target_playlist_desc">안드로이드 오토에서 \'빠른 추가\' 버튼을 사용할 때 곡이 저장될 재생목록을 선택하세요</string>
     <string name="android_auto_target_playlist_auto">설정되지 않음</string>
@@ -646,7 +646,7 @@
     <string name="first_row_is_header">첫 번째 행은 헤더(제목)로 취급합니다</string>
     <string name="artist_name_column">아티스트 이름 열</string>
     <string name="song_title_column">곡 제목 열</string>
-    <string name="youtube_url_column">YouTube URL 열 (선택 사항)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">계속</string>
     <string name="recently_converted">최근 변환된 항목</string>
     <string name="column_label">%d열</string>

@@ -24,7 +24,7 @@
     <string name="most_played_artists">بیشترین هنرمندهای پخش‌شده</string>
     <string name="most_played_albums">بیشترین مجموعه‌های پخش‌شده</string>
     <string name="search">جستجو</string>
-    <string name="search_yt_music">جستجو در یوتیوب موزیک…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">جستجوی کتاب‌خانه…</string>
     <string name="filter_library">کتاب‌خانه</string>
     <string name="filter_liked">پسندشده</string>
@@ -222,7 +222,7 @@
     <string name="clear_translation_models">پاک‌کردن نمونه‌های ترجمه</string>
     <string name="forgotten_favorites">موارد دلخواه فراموش شده</string>
     <string name="keep_listening">به گوش دادن ادامه بده</string>
-    <string name="your_youtube_playlists">لیست های پخش یوتیوب شما</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">شبیه به</string>
     <string name="library_song_empty">آهنگ‌ های کتابخانه اینجا نمایش داده می‌ شوند</string>
     <string name="library_artist_empty">هنرمندان کتابخانه اینجا نمایش داده می شوند</string>

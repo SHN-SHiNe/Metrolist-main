@@ -16,7 +16,7 @@
     <string name="cached_playlist">În cache</string>
     <string name="sync_playlist">Sincronizează playlistul</string>
     <string name="sync_disabled">Sincronizare dezactivată</string>
-    <string name="allows_for_sync_witch_youtube">Notă: Această setare activează sincronizarea cu YouTube Music și NU poate fi modificată mai târziu</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Se generează imaginea…</string>
     <string name="please_wait">Așteaptă</string>
     <string name="cancel">Anulează</string>
@@ -66,8 +66,8 @@
     <string name="advanced_login">Autentifică-te cu token</string>
     <string name="token_hidden">Atinge pentru a afișa tokenul</string>
     <string name="token_shown">Atinge din nou pentru a-l copia sau edita</string>
-    <string name="token_adv_login_description">Aceasta este o metodă AVANSATĂ de autentificare. În loc să folosești portalul web, poți să-ți introduci sau să-ți actualizezi direct tokenul de autentificare. Acest lucru poate fi util pentru autentificarea rapidă pe mai multe dispozitive. Token-urile care sunt într-un format nerecunoscut vor fi respinse</string>
-    <string name="yt_sync">Sincronizează automat cu contul</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Sincronizează automat cu contul</string>
     <string name="more_content">Mai mult conținut</string>
     <string name="general">General</string>
     <string name="proxy">Proxy</string>
@@ -88,7 +88,7 @@
     <string name="clear_image_cache_dialog">Sigur vrei să ștergi toate imaginile din cache?</string>
     <string name="clear_downloads_dialog">Sigur vrei să ștergi toate descărcările?</string>
     <string name="disable">Dezactivează</string>
-    <string name="not_logged_in_youtube">Neautentificat la YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Deschide linkurile suportate</string>
     <string name="open_app_settings_error">Nu s-au putut deschide setările aplicației</string>
     <string name="release_notes">Notele lansării</string>
@@ -150,7 +150,7 @@
     <string name="romanize_current_track">Romanizează pista curentă</string>
     <string name="lyrics_romanization_cyrillic">Chirilic</string>
     <string name="edit_playlist_cover">Editează coperta playlistului</string>
-    <string name="edit_playlist_cover_note">NOTĂ: Contul tău trebuie să fie asociat cu un număr de telefon verificat pe YouTube Music pentru a putea schimba coperta playlistului</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">După selectarea unei imagini, așteaptă un moment pentru ca noua coperta să apară la playlistul tău</string>
     <string name="choose_from_library">Alege din bibliotecă</string>
     <string name="remove_custom_image">Elimină imaginea personalizată</string>
@@ -197,7 +197,7 @@
     <string name="add_to_library_desc">Salvează în biblioteca ta</string>
     <string name="download_desc">Descarcă pentru redare offline</string>
     <string name="add_to_playlist_desc">Adaugă într-un playlist</string>
-    <string name="refetch_desc">Reîmprospătează metadatele de pe YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Distribuie un link către acest element</string>
     <string name="delete_desc">Elimină acest element permanent</string>
     <string name="advanced_desc">Ajustează tempo-ul și înălțimea melodiei</string>
@@ -213,7 +213,7 @@
     <string name="download_in_progress_desc">O descărcare este în progres</string>
     <string name="share_playlist_desc">Distribuie acest playlist cu alții</string>
     <string name="delete_playlist_desc">Elimină acest playlist permanent</string>
-    <string name="sync_playlist_desc">Sincronizează acest playlist cu YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="lyrics_glow_effect">Activează efectul de strălucire al versurilor</string>
     <string name="lyrics_glow_effect_desc">Adaugă o animație de strălucire și un efect de bounce la versurile active</string>
     <string name="enable_better_lyrics">Activează Better Lyrics</string>
@@ -470,7 +470,7 @@
     <string name="palette_crimson">Stacojiu</string>
     <string name="palette_amber">Chihlimbar</string>
     <string name="recognize_music">Recunoaște muzica</string>
-    <string name="youtube_url_column">Coloana cu URL-ul YouTube (opțional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="re_listen">Reascultă</string>
     <string name="clear_recognition_history_confirm">Ești sigur(ă) că vrei să elimini tot istoricul recunoașterilor?</string>
     <string name="no_match_found">Nicio potrivire găsită</string>
@@ -504,7 +504,7 @@
     <string name="audio_offload_disabled_by_crossfade">Dezactivat, deoarece funcția Tranziție lină este activată</string>
     <string name="prevent_duplicate_tracks_in_queue">Previne piesele duplicate în coadă</string>
     <string name="prevent_duplicate_tracks_in_queue_desc">Atunci când adaugi o piesă care este deja în coadă, aceasta va fi mutată din poziția ei anterioară în loc să fie adăugată din nou</string>
-    <string name="hide_youtube_shorts">Ascunde YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Ascultă împreună în bara de sus</string>
     <string name="listen_together_in_top_bar_desc">Arată funcția Ascultă împreună în bara de sus în loc de bara de navigare</string>
     <string name="ai_translation_literal_desc">Traduce sensul în limba țintă</string>
@@ -557,7 +557,7 @@
     <string name="density_restart_message">Modificarea densității afișajului va avea efect după repornirea aplicației. Repornești acum?</string>
     <string name="enable_lrclib_desc">Bază de date pentru versuri sincronizate condusă de comunitate</string>
     <string name="enable_kugou_desc">Preia versurile de pe KuGou, o platformă populară chinezească de muzică</string>
-    <string name="youtube_music_lyrics_note">NOTĂ: Versurile de pe YouTube Music vor fi afișate automat atunci când alte versuri nu sunt disponibile. Acestea nu sunt de obicei sincronizate</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Activează LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Versuri sincronizate din mai multe surse</string>
     <string name="lyrics_provider_selection">Selecția de furnizori</string>
@@ -781,8 +781,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Secțiuni vizibile</string>
     <string name="android_auto_reorder_hint">Atinge o secțiune pentru a o activa sau dezactiva.\nȚine apăsat glisorul pentru a reordona. Prima secțiune va fi afișată în mod prestabilit</string>
-    <string name="android_auto_youtube_playlists">Arată playlisturi sugerate de YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Arată playlisturi recomandate de YouTube Music în secțiunea Playlisturi atunci când navighezi cu Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist_desc">Alege playlistul unde melodiile vor fi salvate atunci când folosești butonul de adăugare rapidă în Android Auto</string>
     <string name="android_auto_target_playlist">Destinație adăugare rapidă</string>
     <string name="android_auto_target_playlist_auto">Nesetată</string>

@@ -22,7 +22,7 @@
     <string name="generating_image">Generování obrázku…</string>
     <string name="max_selection_limit">Dosaženo maximálního limitu výběru</string>
     <string name="share_as_text">Sdílet jako text</string>
-    <string name="token_adv_login_description">Toto je POKROČILÝ způsob přihlášení. Namísto použití webového portálu můžete zadat nebo aktualizovat váš přihlašovací token ručně. Toto může být užitečné pro rychlé přihlašování napříč více zařízeními. Token v nerozpoznaném formátu nebude přijat</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="share_selected">Sdílet vybrané</string>
     <string name="customize_colors">Přizpůsobit barvy</string>
     <string name="text_color">Barva textu</string>
@@ -69,7 +69,7 @@
     <string name="cached_playlist">V mezipaměti</string>
     <string name="sync_playlist">Synchronizovat playlist</string>
     <string name="sync_disabled">Synchronizace zakázána</string>
-    <string name="allows_for_sync_witch_youtube">UPOZORNĚNÍ: Tato funkce povolí synchronizaci se službou YouTube Music a NELZE ji později změnit</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="remove_from_cache">Odstranit z mezipaměti</string>
     <string name="copy_link">Kopírovat odkaz</string>
     <string name="dislike_all">Nelíbí se u všeho</string>
@@ -87,7 +87,7 @@
     <string name="auto_download_on_like_desc">Automaticky stáhnout skladby, když je přidáte do oblíbených</string>
     <string name="clear_song_cache_dialog">Opravdu chcete vymazat všechny skladby v mezipaměti?</string>
     <string name="clear_downloads_dialog">Opravdu chcete vymazat všechna stahování?</string>
-    <string name="not_logged_in_youtube">Nepřihlášeni do YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Otevírat podporované odkazy</string>
     <string name="history_duration">Délka historie</string>
     <string name="information">Informace</string>
@@ -107,7 +107,7 @@
     <string name="playlist_add_local_to_synced_note">UPOZORNĚNÍ: Přidávání místních skladeb do synchronizovaných nebo vzdálených playlistů není podporováno. Jakákoli jiná kombinace je platná</string>
     <string name="lyrics_romanize_japanese">Přepsat japonské texty do latinky</string>
     <string name="lyrics_romanize_korean">Přepsat korejské texty do latinky</string>
-    <string name="yt_sync">Automaticky synchronizovat s účtem</string>
+    <string name="account_auto_sync">Automaticky synchronizovat s účtem</string>
     <string name="more_content">Další obsah</string>
     <string name="new_player_design">Nový vzhled přehrávače</string>
     <string name="swipe_sensitivity">Citlivost posunutí v mini přehrávači</string>
@@ -152,7 +152,7 @@
     <string name="line_by_line_dialog_desc">Toto je experimentální funkce, která nemusí vždy fungovat správně.\n\nVe výchozím nastavení je jazyk rozpoznáván z celé písně. Po zapnutí této možnosti se bude určovat pro každý řádek zvlášť. To umožní fungování vícejazyčných písní, ALE jazyk nemusí být vždy určen správně (například pokud ukrajinský text neobsahuje žádná písmena specifická pro ukrajinštinu, může být chybně přepsán jako ruský).\n\nPokud jste nenarazili na žádné problémy, doporučujeme nechat tuto možnost vypnutou</string>
     <string name="romanize_current_track">Přepsat aktuální skladbu do latinky</string>
     <string name="edit_playlist_cover">Upravit obal playlistu</string>
-    <string name="edit_playlist_cover_note">UPOZORNĚNÍ: Pro změnu obalu alba musí být k vašemu účtu připojeno telefonní číslo a účet musí být ověřen na YouTube Music</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Po vybrání obrázku prosím počkejte, než se nový obal objeví ve vašem playlistu</string>
     <string name="choose_from_library">Vybrat z knihovny</string>
     <string name="remove_custom_image">Odstranit vlastní obrázek</string>
@@ -187,7 +187,7 @@
     <string name="google_cast">Google Cast</string>
     <string name="google_cast_description">Streamovat zvuk do Chromecastu a dalších zařízení kompatibilních s protokolem Cast</string>
     <string name="hide_video_songs">Skrýt videoklipy</string>
-    <string name="refetch_desc">Obnovit metadata z YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="play_next_desc">Přehrát další ve frontě</string>
     <string name="cache_size_warning_message">Vybraný limit (%1$s) je menší, než kolik aplikace aktuálně používá. Pokračování může způsobit odstranění některých %2$s v mezipaměti. Chcete přesto pokračovat?</string>
     <string name="cache_size_warning_confirm">Pokračovat</string>
@@ -215,7 +215,7 @@
     <string name="download_in_progress_desc">Probíhá stahování</string>
     <string name="share_playlist_desc">Sdílejte tento playlist s ostatními</string>
     <string name="delete_playlist_desc">Trvale odstranit tento playlist</string>
-    <string name="sync_playlist_desc">Synchronizovat tento playlist s YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="enable_better_lyrics">Povolit Better Lyrics</string>
     <string name="enable_better_lyrics_desc">Texty synchronizované slovo po slově, perfektní pro karaoke</string>
     <string name="lyrics_animation_style">Styl animace textů</string>
@@ -452,7 +452,7 @@
     <string name="enter_room_code">Zadejte kód místnosti</string>
     <string name="listen_together_settings_desc">Nastavit server, uživatelské jméno a další</string>
     <string name="recognize_music">Rozpoznat hudbu</string>
-    <string name="youtube_url_column">Sloupec adresy YouTube (nepovinný)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="ai_translation_mode">Režim překladu</string>
     <string name="ai_model">Model</string>
     <string name="re_listen">Znovu poslechnout</string>
@@ -506,7 +506,7 @@
     <string name="crossfade_beta_title">Beta funkce!</string>
     <string name="crossfade_beta_message">Prolnutí je nová funkce, ve které se mohou vyskytnout chyby. Pokud na nějaké narazíte, prosíme nahlaste je.\n\nUPOZORNĚNÍ: Tato funkce zakáže offload zvuku z důvodu technických omezení</string>
     <string name="audio_offload_disabled_by_crossfade">Zakázáno z důvodu aktivního prolínání</string>
-    <string name="hide_youtube_shorts">Skrýt YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Společný poslech v horní liště</string>
     <string name="listen_together_in_top_bar_desc">Zobrazit Společný poslech v horní liště namísto navigační lišty</string>
     <string name="player_background_solid">Jednolité</string>
@@ -656,7 +656,7 @@
     <string name="error_podcast_subscribe">Nepodařilo se přihlásit k odběru podcastu</string>
     <string name="error_episode_save">Nepodařilo se uložit epizodu</string>
     <string name="error_episode_remove">Nepodařilo se odebrat epizodu</string>
-    <string name="youtube_music_lyrics_note">UPOZORNĚNÍ: Texty YouTube Music budou zobrazeny automaticky, když není dostupný jiný zdroj. Obvykle nejsou synchronizované</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Povolit LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Synchronizované texty z několika zdrojů</string>
     <string name="lyrics_provider_selection">Výběr poskytovatele</string>
@@ -792,8 +792,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Viditelné sekce</string>
     <string name="android_auto_reorder_hint">Klepněte na sekci pro její povolení nebo zakázání.\nPodržte posuvník pro změnu pořadí. První sekce bude ve výchozím nastavení zobrazena</string>
-    <string name="android_auto_youtube_playlists">Zobrazit navrhované playlisty YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Zobrazit playlisty navrhované službou YouTube Music v sekci playlistů během procházení v Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Cíl rychlého přidání</string>
     <string name="android_auto_target_playlist_desc">Vyberte playlist, kam jsou ukládány skladby při použití tlačítka rychlého přidání v Android Auto</string>
     <string name="android_auto_target_playlist_auto">Nenastaveno</string>

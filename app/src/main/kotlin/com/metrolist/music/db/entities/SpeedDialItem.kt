@@ -35,7 +35,7 @@ data class SpeedDialItem(
                 } ?: emptyList(),
                 album = if (albumId != null && albumName != null) com.metrolist.innertube.models.Album(name = albumName, id = albumId) else null,
                 thumbnail = thumbnailUrl ?: "",
-                explicit = explicit
+                explicit = explicit,
             )
             "ALBUM" -> AlbumItem(
                 browseId = id,
@@ -45,14 +45,14 @@ data class SpeedDialItem(
                     Artist(name = name, id = subtitleIds?.split(", ")?.getOrNull(index))
                 },
                 thumbnail = thumbnailUrl ?: "",
-                explicit = explicit
+                explicit = explicit,
             )
             "ARTIST" -> ArtistItem(
                 id = id,
                 title = title,
                 thumbnail = thumbnailUrl,
                 shuffleEndpoint = null,
-                radioEndpoint = null
+                radioEndpoint = null,
             )
             "PLAYLIST", "LOCAL_PLAYLIST" -> PlaylistItem(
                 id = id,
@@ -64,7 +64,7 @@ data class SpeedDialItem(
                 thumbnail = thumbnailUrl,
                 playEndpoint = null,
                 shuffleEndpoint = null,
-                radioEndpoint = null
+                radioEndpoint = null,
             )
             else -> throw IllegalArgumentException("Unknown type: $type")
         }
@@ -82,7 +82,7 @@ data class SpeedDialItem(
                     type = "SONG",
                     explicit = item.explicit,
                     albumId = item.album?.id,
-                    albumName = item.album?.name
+                    albumName = item.album?.name,
                 )
                 is AlbumItem -> SpeedDialItem(
                     id = item.browseId,
@@ -92,13 +92,13 @@ data class SpeedDialItem(
                     subtitleIds = item.artists?.joinToString(", ") { it.id ?: "" },
                     thumbnailUrl = item.thumbnail,
                     type = "ALBUM",
-                    explicit = item.explicit
+                    explicit = item.explicit,
                 )
                 is ArtistItem -> SpeedDialItem(
                     id = item.id,
                     title = item.title,
                     thumbnailUrl = item.thumbnail,
-                    type = "ARTIST"
+                    type = "ARTIST",
                 )
                 is PlaylistItem -> SpeedDialItem(
                     id = item.id,
@@ -106,7 +106,7 @@ data class SpeedDialItem(
                     subtitle = item.author?.name,
                     subtitleIds = item.author?.id,
                     thumbnailUrl = item.thumbnail,
-                    type = "PLAYLIST"
+                    type = "PLAYLIST",
                 )
                 is PodcastItem -> SpeedDialItem(
                     id = item.id,
@@ -114,7 +114,7 @@ data class SpeedDialItem(
                     subtitle = item.author?.name,
                     subtitleIds = item.author?.id,
                     thumbnailUrl = item.thumbnail,
-                    type = "PLAYLIST"
+                    type = "PLAYLIST",
                 )
                 is EpisodeItem -> SpeedDialItem(
                     id = item.id,
@@ -125,7 +125,7 @@ data class SpeedDialItem(
                     type = "SONG",
                     explicit = item.explicit,
                     albumId = item.podcast?.id,
-                    albumName = item.podcast?.name
+                    albumName = item.podcast?.name,
                 )
             }
         }

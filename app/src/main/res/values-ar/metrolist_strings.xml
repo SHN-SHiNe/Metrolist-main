@@ -14,7 +14,7 @@
     <string name="cached_playlist">الأغاني المخزنة مؤقتًا</string>
     <string name="sync_playlist">مزامنة قائمة التشغيل</string>
     <string name="sync_disabled">المزامنة غير مفعلة</string>
-    <string name="allows_for_sync_witch_youtube">ملاحظة: يتيح هذا الخيار المزامنة مع YouTube Music ولا يمكن تغييره لاحقًا.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="remove_from_cache">إزالة من التخزين المؤقت</string>
     <string name="copy_link">نسخ الرابط</string>
     <string name="select">تحديد الكل</string>
@@ -69,7 +69,7 @@
     <string name="advanced_login">تسجيل الدخول باستخدام الرمز (Token)</string>
     <string name="token_hidden">اضغط لعرض ال Token</string>
     <string name="token_shown">اضغط مرة أخرى للنسخ أو التعديل</string>
-    <string name="token_adv_login_description">هذه طريقة تسجيل دخول متقدمة. بدلاً من استخدام بوابة الويب، يمكنك إدخال الرمز الخاص بك أو تحديثه مباشرة. يسهل ذلك تسجيل الدخول على أجهزة متعددة بسرعة. سيتم رفض الرموز ذات الصيغ غير المدعومة</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">عام</string>
     <string name="proxy">الوكيل</string>
     <string name="default_lib_chips">تغيير الشريحة الافتراضية للمكتبة</string>
@@ -84,7 +84,7 @@
     <string name="clear_song_cache_dialog">هل أنت متأكد أنك تريد مسح كافة الأغاني المخزنة مؤقتًا؟</string>
     <string name="clear_downloads_dialog">هل أنت متأكد أنك تريد مسح كافة التنزيلات؟</string>
     <string name="lyrics">الكلمات</string>
-    <string name="not_logged_in_youtube">لم يتم تسجيل الدخول إلى يوتيوب</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">فتح الروابط المدعومة افتراضيًا</string>
     <string name="open_app_settings_error">لم يتمكن التطبيق من فتح إعدادات التطبيق</string>
     <string name="all_time">طوال الوقت</string>
@@ -111,7 +111,7 @@
     <string name="import_online">استيراد قوائم التشغيل من نوع \"m3u\"</string>
     <string name="lyrics_romanize_japanese">كلمات الأغاني اليابانيه الرومانيه</string>
     <string name="lyrics_romanize_korean">كلمات الأغاني الكوريه الرومانيه</string>
-    <string name="yt_sync">المزامنة التلقائية مع الحساب</string>
+    <string name="account_auto_sync">المزامنة التلقائية مع الحساب</string>
     <string name="more_content">المزيد من المحتوي</string>
     <string name="new_player_design">تصميم المشغل الجديد</string>
     <string name="swipe_sensitivity">حساسية السحب الخاص بالمشغل الصغير</string>
@@ -156,7 +156,7 @@
     <string name="line_by_line_dialog_desc">بالنسبة لميزة التجربة هذه، إما أن تنجح أو تفشل.\n\nبشكل افتراضي، يتم تحديد اللغة من خلال الأغنية بأكملها، ولكن عند تفعيل هذا الخيار، سيتم تحديد اللغة سطراً تلو الآخر. وهذا سيسمح للأغاني متعددة اللغات بالعمل، ولكن قد لا تكون اللغة صحيحة دائماً (على سبيل المثال، إذا كانت هناك كلمات أوكرانية لا تحتوي على أي أحرف خاصة بالأوكرانية، فقد يتم تحويلها إلى الروسية بدلاً من ذلك).\n\nإذا لم تواجه أي مشاكل، يُوصى بإبقاء هذا الخيار معطلاً.</string>
     <string name="romanize_current_track">كتابة المسار الحالي بالرومانية</string>
     <string name="edit_playlist_cover">تبديل غلاف القائمة</string>
-    <string name="edit_playlist_cover_note">ملاحظة: يجب ربط حسابك برقم هاتف وتوثيقه على YouTube Music لتتمكن من تغيير غلاف قائمة التشغيل.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">بعد تحديد الصورة، يرجى الانتظار قليلاً حتى يظهر الغلاف الجديد في قائمة التشغيل.</string>
     <string name="choose_from_library">اختر من المكتبة</string>
     <string name="remove_custom_image">إزالة الصورة المخصصة</string>
@@ -201,7 +201,7 @@
     <string name="add_to_library_desc">احفظ في مكتبتك</string>
     <string name="download_desc">اجعلها متاحة للتشغيل دون اتصال بالإنترنت</string>
     <string name="add_to_playlist_desc">أضفها إلي إحدي قوائم التشغيل الخاصة بك ‍</string>
-    <string name="refetch_desc">استخراج أحداث البيانات الوصفية من يوتيوب ميزوك</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">شارك رابط هذا العنصر</string>
     <string name="delete_desc">قم بإزالة هذا العنصر نهائيا</string>
     <string name="advanced_desc">غير ايقاع الأغنية ودرجة صوتها</string>
@@ -219,7 +219,7 @@
     <string name="download_in_progress_desc">عملية التنزيل جارية</string>
     <string name="share_playlist_desc">شارك قائمة التشغيل هذه مع الآخرين</string>
     <string name="delete_playlist_desc">قم بإزالة قائمة التشغيل هذه نهائياً</string>
-    <string name="sync_playlist_desc">مزامنة قائمة التشغيل مع YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="enable_better_lyrics">تفعيل كلمات الأغاني الأفضل</string>
     <string name="enable_better_lyrics_desc">كلمات متزامنة مقطعيًا لأي أغنية، مثالية للكاريوكي</string>
     <string name="lyrics_animation_style">نمط تحريك كلمات الأغاني</string>
@@ -458,7 +458,7 @@
     <string name="unblock">إلغاء الحظر</string>
     <string name="user_blocked_by_host">تم حظر المستخدم من قبل المضيف</string>
     <string name="recognize_music">التعرف على الموسيقى</string>
-    <string name="youtube_url_column">خانة رابط يوتيوب (اختياري)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="ai_translation_mode">وضع الترجمة</string>
     <string name="ai_model">نموذج</string>
     <string name="re_listen">إعادة الاستماع</string>
@@ -514,7 +514,7 @@
     <string name="crossfade_beta_title">ميزة تجريبية</string>
     <string name="crossfade_beta_message">خاصية التلاشي المتقاطع ميزة جديدة وقد تحتوي على بعض الأخطاء. إذا واجهت أي مشاكل، يرجى الإبلاغ عنها.\nهذه الخاصية تعطل نقل الصوت (تفريغ الصوت) بسبب قيود تقنية.</string>
     <string name="audio_offload_disabled_by_crossfade">معطل لأن التلاشي المتقاطع نشط</string>
-    <string name="hide_youtube_shorts">إخفاء مقاطع يوتيوب القصيرة</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">استمع معًا من شريط الأعلى</string>
     <string name="listen_together_in_top_bar_desc">عرض استمعوا معًا في شريط التطبيق العلوي بدلاً من شريط التنقل</string>
     <string name="player_background_solid">ثابت</string>
@@ -582,7 +582,7 @@
     <string name="from_the_community">‌من قِبل المجتمع</string>
     <string name="enable_lrclib_desc">قاعدة بيانات لكلمات الأغاني المتزامنة تعتمد على مساهمات المجتمع</string>
     <string name="enable_kugou_desc">جلب كلمات الأغاني من KuGou، وهي منصة موسيقى صينية شهيرة</string>
-    <string name="youtube_music_lyrics_note">ملاحظة: سيتم عرض كلمات الأغاني من YouTube Music تلقائيًا عند عدم توفر مصادر أخرى. وغالبًا ما تكون غير متزامنة.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">تفعيل LyricsPlus</string>
     <string name="enable_lyricsplus_desc">كلمات متزامنة من مصادر متعددة</string>
     <string name="lyrics_provider_selection">اختيار الموفر</string>

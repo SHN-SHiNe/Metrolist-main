@@ -189,7 +189,6 @@ fun RecognitionScreen(
                         appleMusicUrl = result.appleMusicUrl,
                         spotifyUrl = result.spotifyUrl,
                         isrc = result.isrc,
-                        youtubeVideoId = result.youtubeVideoId,
                         recognizedAt = LocalDateTime.now(),
                     ),
                 )
@@ -261,7 +260,7 @@ fun RecognitionScreen(
                         SuccessState(
                             result = status.result,
                             onPlayOnApp = { result ->
-                                // Search for the track on YouTube Music
+                                // Search for the track in the app
                                 val searchQuery = "${result.title} ${result.artist}"
                                 navController.navigate("search/${java.net.URLEncoder.encode(searchQuery, "UTF-8")}")
                             },

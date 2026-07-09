@@ -17,7 +17,7 @@
     <string name="cached_playlist">Cache-elt</string>
     <string name="sync_playlist">Lejátszási lista szinkronizálása</string>
     <string name="sync_disabled">Szinkronizálás kikapcsolva</string>
-    <string name="allows_for_sync_witch_youtube">Figyelem: Ez lehetővé teszi a YouTube Music-al való szinkronizálást és NEM változtatható meg később</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Kép generálása…</string>
     <string name="please_wait">Kérem várjon</string>
     <string name="cancel">Mégse</string>
@@ -67,8 +67,8 @@
     <string name="advanced_login">Bejelentkezés token-nel</string>
     <string name="token_hidden">Koppintson a token megjelenítéséhez</string>
     <string name="token_shown">Koppintson újra a másoláshoz vagy szerkesztéshez</string>
-    <string name="token_adv_login_description">Ez egy ÖSSZETETTEBB belépési módszer. A webes portálhoz képest itt közvetlen adhatja meg vagy frissítheti a belépési tokenjét. Hasznos lehet ha egyszerre több eszközön akar belépni. Azonban minden azonosíthatatlan formátumú token visszautasításra fog kerülni</string>
-    <string name="yt_sync">Automata szinkronizálás a fiókkal</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Automata szinkronizálás a fiókkal</string>
     <string name="more_content">Több tartalom</string>
     <string name="general">Általános</string>
     <string name="proxy">Proxy</string>
@@ -90,7 +90,7 @@
     <string name="clear_image_cache_dialog">Biztosan ki akarja üríteni az összes gyorsítótárazott képet?</string>
     <string name="clear_downloads_dialog">Biztosan ki akarja üríteni az összes letöltést?</string>
     <string name="disable">Letilt</string>
-    <string name="not_logged_in_youtube">Nincs bejelentkezve a YouTube-ba</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Támogatott hivatkozások megnyitása</string>
     <string name="open_app_settings_error">Nem nyitható meg az app beállítás</string>
     <string name="release_notes">Megjelenési jegyzet</string>
@@ -139,7 +139,7 @@
     <string name="download_in_progress_desc">A Letöltés folyamatban</string>
     <string name="share_playlist_desc">Lejátszási lista megosztása</string>
     <string name="delete_playlist_desc">Lejátszási lista végleges törlése</string>
-    <string name="sync_playlist_desc">Lejátszási lista szinkronizálása a YouTube Music-kal</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Elsődleges szín</string>
     <string name="tertiary_color_style">Harmadlagos szín</string>
     <string name="lyrics_glow_effect">Ragyogó dalszöveg effekt bekapcsolása</string>
@@ -150,7 +150,7 @@
     <string name="shuffle_playlist_first">Először ezen lista vagy album keverése</string>
     <string name="shuffle_playlist_first_desc">Keverés esetén először a lejátszási listát vagy albumot játssza le a hasonló tartalom ajánlás előtt</string>
     <string name="show_wrapped_card">Wrapped kártya megjelenítése</string>
-    <string name="edit_playlist_cover_note">MEGJEGYZÉS: A lejátszási lista borítójának módosításához össze kell kapcsolnia a fiókját egy telefonszámmal, és hitelesíteni kell a YouTube Music-on</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Kérem legyen türelemmel amíg a kiválasztott kép megjelenik a lejátszási lista borítóján</string>
     <string name="choose_from_library">Választás mappából</string>
     <string name="remove_custom_image">Egyedi kép eltávolítása</string>
@@ -223,7 +223,7 @@
     <string name="add_to_library_desc">Mentés a saját könyvtárba</string>
     <string name="download_desc">Későbbi offline lejátszáshoz letöltés</string>
     <string name="add_to_playlist_desc">Hozzáadás lejátszási listához</string>
-    <string name="refetch_desc">Meta-adat frissítése YouTube Music-ról</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Elem hivatkozásának megosztása</string>
     <string name="delete_desc">Elem végleges eltávolítása</string>
     <string name="advanced_desc">Dal ütemének és hangszínének szabályozása</string>
@@ -239,7 +239,7 @@
     <string name="density_restart_message">Az új kijelző sűrűség újraindítás után lép érvénybe. Újra kívánja indítani az alkalmazást?</string>
     <string name="enable_lrclib_desc">Közösség alapú dalszöveg szinkronizálás adatbázis</string>
     <string name="enable_kugou_desc">A közkedvelt KuGou kínai dalszöveg platformról való letöltés</string>
-    <string name="youtube_music_lyrics_note">MEGJEGYZÉS: Ha nem áll rendelkezésre más forrás, a Youtube Music dalszöveg jelenik meg. Utóbbi általában nincs összhangban a zenével</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">LyricsPlus engedélyezése</string>
     <string name="enable_lyricsplus_desc">Összehangolt dalszövegek több forrásból</string>
     <string name="lyrics_provider_selection">Szolgáltató kiválasztása</string>
@@ -311,7 +311,7 @@
     <string name="lyrics_romanize_punjabi">Punjabi dalszövegek latin betűs átírása</string>
     <string name="audio_offload_disabled_by_crossfade">Kikapcsolva mert az áttünés aktív</string>
     <string name="lyrics_romanize_as_main">Átírt dalszövegek mutatása alapértelmezetten</string>
-    <string name="hide_youtube_shorts">YouTube Short-ok elrejtése</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="equalizer_desc">Hangszínszabályzó megnyitása</string>
     <string name="enable_dynamic_icon">Dinamikus ikon bekapcsolása</string>
     <string name="mini_player">Mini-lejátszó</string>
@@ -467,7 +467,7 @@
     <string name="first_row_is_header">Az első sor a fejléc</string>
     <string name="artist_name_column">Előadó Név oszlop</string>
     <string name="song_title_column">Dal Cím oszlop</string>
-    <string name="youtube_url_column">YouTube URL oszlop (nem kötelező)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">Tovább</string>
     <string name="importing_csv">CSV importálása…</string>
     <string name="importing_playlist">Lejátszási lista importálása…</string>
@@ -777,8 +777,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Látható részek</string>
     <string name="android_auto_reorder_hint">Koppintson egy szakaszra az engedélyezéséhez vagy letiltásához.\nNyomja meg hosszan a fogót az átrendezéshez. Alapértelmezés szerint az első szakasz jelenik meg</string>
-    <string name="android_auto_youtube_playlists">YouTube által javasolt lejátszási listák megjelenítése</string>
-    <string name="android_auto_youtube_playlists_desc">YouTube Music által ajánlott lejátszási listák megjelenítése a Lejátszási listák részben, amikor az Android Auto-val való böngészésnél</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Gyors-hozzáadás cél</string>
     <string name="android_auto_target_playlist_desc">Válassza ki a lejátszási listát, ahova a dalok mentésre kerülnek az Android Auto gyors hozzáadással</string>
     <string name="android_auto_target_playlist_auto">Nincs beállítva</string>

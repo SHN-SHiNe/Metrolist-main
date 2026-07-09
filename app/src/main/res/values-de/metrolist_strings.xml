@@ -19,7 +19,7 @@
     <string name="advanced_login">Mit Token anmelden</string>
     <string name="token_hidden">Tippen, um Token anzuzeigen</string>
     <string name="token_shown">Tippen, um zu kopieren oder zu bearbeiten</string>
-    <string name="token_adv_login_description">Dies ist eine FORTGESCHRITTENE Anmeldemethode. Statt das Webportal zu nutzen, können Sie hier Ihr Anmeldetoken direkt eingeben oder aktualisieren. Das kann nützlich für eine schnelle Anmeldung auf mehreren Geräten sein. Tokens in einem unbekannten Format werden abgelehnt</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">Allgemein</string>
     <string name="proxy">Proxy</string>
     <string name="default_lib_chips">Standard-Mediatheksauswahl ändern</string>
@@ -47,14 +47,14 @@
         <item quantity="one">1 Sekunde</item>
         <item quantity="other">%d Sekunden</item>
     </plurals>
-    <string name="not_logged_in_youtube">Nicht bei YouTube angemeldet</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="percentage_format">%d%%</string>
     <string name="local_history">Lokal</string>
     <string name="dislike_all">Alle aus \"Favoriten\" entfernen</string>
     <string name="similar_content">Ähnlicher Inhalt</string>
     <string name="clear_song_cache_dialog">Bist du sicher dass du den Song-Cache leeren willst?</string>
     <string name="copy_link">Link kopieren</string>
-    <string name="allows_for_sync_witch_youtube">Hinweis: Diese Option aktiviert die Synchronisierung mit YouTube Music und kann später NICHT mehr geändert werden</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="default_style">Standard</string>
     <string name="clear_downloads_dialog">Bist du sicher dass du alle Downloads löschen willst?</string>
     <string name="months">Monate</string>
@@ -104,7 +104,7 @@
     <string name="new_player_design">Neues Design für den Player</string>
     <string name="lyrics_romanize_japanese">Japanische Liedtexte romanisieren</string>
     <string name="lyrics_romanize_korean">Koreanische Liedtexte romanisieren</string>
-    <string name="yt_sync">Auto-Sync mit Konto</string>
+    <string name="account_auto_sync">Auto-Sync mit Konto</string>
     <string name="more_content">Mehr Inhalt</string>
     <string name="swipe_sensitivity">Mini-Player-Wischempfindlichkeit</string>
     <string name="sensitivity_percentage">%1$d%%</string>
@@ -130,7 +130,7 @@
     <string name="settings_section_system">System &amp; Über</string>
     <string name="starting_radio">Radio starten …</string>
     <string name="edit_playlist_cover">Playlist-Cover bearbeiten</string>
-    <string name="edit_playlist_cover_note">HINWEIS: Ihr Konto muss mit einer Telefonnummer verknüpft und bei YouTube Music verifiziert sein, um das Cover der Wiedergabeliste ändern zu können</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Nachdem Sie ein Bild ausgewählt haben, warten Sie bitte einen Moment, bis das neue Cover in Ihrer Wiedergabeliste angezeigt wird</string>
     <string name="choose_from_library">Von Mediathek auswählen</string>
     <string name="remove_custom_image">Benutzerdefiniertes Bild entfernen</string>
@@ -182,7 +182,7 @@
     <string name="download_in_progress_desc">Ein Download läuft</string>
     <string name="share_playlist_desc">Diese Wiedergabeliste mit anderen teilen</string>
     <string name="delete_playlist_desc">Diese Wiedergabeliste dauerhaft entfernen</string>
-    <string name="sync_playlist_desc">Diese Playlist mit YouTube Music synchronisieren</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Primärfarbe</string>
     <string name="tertiary_color_style">Tertiärfarbe</string>
     <string name="enable_better_lyrics">Better Lyrics-Songtext-Anbieter aktivieren</string>
@@ -206,7 +206,7 @@
     <string name="add_to_library_desc">In Ihrer Mediathek speichern</string>
     <string name="download_desc">Herunterladen für die Offline-Wiedergabe</string>
     <string name="add_to_playlist_desc">Zur Wiedergabeliste hinzufügen</string>
-    <string name="refetch_desc">Metadaten von YouTube Music aktualisieren</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Link zum teilen</string>
     <string name="delete_desc">Diese Playlist dauerhaft entfernen</string>
     <string name="advanced_desc">Passe das Tempo und die Tonhöhe des Songs an</string>
@@ -465,7 +465,7 @@
     <string name="palette_amber">Bernstein</string>
     <string name="play_all">Alle abspielen</string>
     <string name="recognize_music">Musik erkennen</string>
-    <string name="youtube_url_column">YouTube-URL-Spalte (optional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="re_listen">Noch einmal zuhören</string>
     <string name="clear_recognition_history_confirm">Bist du sicher, dass du den gesamten Erkennungsverlauf löschen möchten?</string>
     <string name="no_match_found">Keine Übereinstimmung gefunden</string>
@@ -498,7 +498,7 @@
     <string name="crossfade_beta_title">Beta-Funktion</string>
     <string name="crossfade_beta_message">Song-Überblendung (Crossfade) ist eine neue Funktion und kann Fehler enthalten. Sollten Sie Probleme feststellen, melden Sie diese bitte.\n\nACHTUNG: Diese Funktion deaktiviert die Audioauslagerung aus technischen Gründen.</string>
     <string name="audio_offload_disabled_by_crossfade">Deaktiviert, da Song-Überblendung (Crossfade) aktiv ist</string>
-    <string name="hide_youtube_shorts">YouTube Shorts ausblenden</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Gemeinsam hören in der oberen Leiste anzeigen</string>
     <string name="listen_together_in_top_bar_desc">„Gemeinsam hören“ in der oberen App-Leiste anstelle der Navigationsleiste anzeigen</string>
     <string name="player_background_solid">Einfärbig</string>
@@ -556,7 +556,7 @@
     <string name="from_the_community">Aus der Community</string>
     <string name="enable_lrclib_desc">Von der Community betriebene Datenbank für synchronisierte Songtexte</string>
     <string name="enable_kugou_desc">Nimmt Songtexte von KuGou, einer beliebten chinesischen Musikplattform</string>
-    <string name="youtube_music_lyrics_note">HINWEIS: Songtexte von YouTube Music werden automatisch angezeigt, wenn keine andere Quelle verfügbar ist. Sie sind in der Regel nicht synchronisiert</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">LyricsPlus-Song-Text-Anbieter aktivieren</string>
     <string name="enable_lyricsplus_desc">Synchronisierte Songtexte aus mehreren Quellen</string>
     <string name="lyrics_provider_selection">Auswahl des Anbieters</string>
@@ -771,8 +771,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Sichtbare Sektionen</string>
     <string name="android_auto_reorder_hint">Tippen Sie auf einen Abschnitt, um ihn zu aktivieren oder zu deaktivieren.\n\nHalten Sie den Ziehgriff gedrückt, um die Reihenfolge zu ändern. Der erste Abschnitt wird standardmäßig angezeigt.</string>
-    <string name="android_auto_youtube_playlists">Von YouTube vorgeschlagene Playlists anzeigen</string>
-    <string name="android_auto_youtube_playlists_desc">Zeige die von YouTube Music empfohlenen Playlisten im Bereich „Playlists“ an, wenn du mit Android Auto navigierst</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="alarm_battery_optimization_desc">Deaktivieren Sie die Akkuoptimierung, um die Zuverlässigkeit des Alarms im Hintergrund zu verbessern</string>
     <string name="copy_all_lyrics">Alle Songtexte kopieren</string>
     <string name="ai_system_prompt">Systemaufforderung</string>

@@ -394,15 +394,6 @@ object Shazam {
             it?.caption?.contains("spotify", ignoreCase = true) == true
         }
 
-        val youtubeAction = track.hub?.options?.find {
-            it?.type?.contains("video", ignoreCase = true) == true
-        }?.actions?.firstOrNull()
-        
-        val youtubeVideoId = youtubeAction?.uri?.let { uri ->
-            uri.substringAfterLast("v=", "").takeIf { it.isNotEmpty() }
-                ?: uri.substringAfterLast("/", "").takeIf { it.isNotEmpty() && it.length == 11 }
-        }
-
         return RecognitionResult(
             trackId = track.key ?: tagid ?: "",
             title = track.title ?: "",
@@ -417,8 +408,7 @@ object Shazam {
             shazamUrl = track.url,
             appleMusicUrl = appleAction?.uri,
             spotifyUrl = spotifyProvider?.actions?.firstOrNull()?.uri,
-            isrc = track.isrc,
-            youtubeVideoId = youtubeVideoId
+            isrc = track.isrc
         )
     }
 

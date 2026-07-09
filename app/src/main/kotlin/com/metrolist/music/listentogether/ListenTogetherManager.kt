@@ -8,8 +8,6 @@ package com.metrolist.music.listentogether
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.constants.ListenTogetherSyncVolumeKey
 import com.metrolist.music.extensions.currentMetadata
 import com.metrolist.music.extensions.metadata
@@ -19,7 +17,6 @@ import com.metrolist.music.models.MediaMetadata.Album
 import com.metrolist.music.models.MediaMetadata.Artist
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.PlayerConnection
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.utils.dataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -1131,7 +1128,7 @@ class ListenTogetherManager
                                     queueTitle = queueTitle,
                                 )
                             } else {
-                                // Fallback to old behavior (network fetch) if no queue provided
+                                // Fallback to the track metadata supplied by the host if no queue was provided.
                                 bufferingTrackId = track.id
                                 syncToTrack(track, false, 0)
                             }
@@ -1154,35 +1151,15 @@ class ListenTogetherManager
                             Timber.tag(TAG).w("QUEUE_ADD missing trackInfo")
                         } else {
                             Timber.tag(TAG).d("Guest: QUEUE_ADD ${track.title}, insertNext=${action.insertNext == true}")
-                            scope.launch(Dispatchers.IO) {
-                                // Fetch MediaItem via YouTube metadata
-                                YouTube
-                                    .queue(listOf(track.id))
-                                    .onSuccess { list ->
-                                        val mediaItem =
-                                            list
-                                                .firstOrNull()
-                                                ?.toMediaMetadata()
-                                                ?.copy(
-                                                    suggestedBy = track.suggestedBy,
-                                                )?.toMediaItem()
-                                        if (mediaItem != null) {
-                                            launch(Dispatchers.Main) {
-                                                // Allow internal sync to bypass guest restrictions
-                                                connection.allowInternalSync = true
-                                                if (action.insertNext == true) {
-                                                    connection.playNext(mediaItem)
-                                                } else {
-                                                    connection.addToQueue(mediaItem)
-                                                }
-                                                connection.allowInternalSync = false
-                                            }
-                                        } else {
-                                            Timber.tag(TAG).w("QUEUE_ADD failed to resolve media item for ${track.id}")
-                                        }
-                                    }.onFailure {
-                                        Timber.tag(TAG).e(it, "QUEUE_ADD metadata fetch failed")
-                                    }
+                            scope.launch(Dispatchers.Main) {
+                                val mediaItem = track.toMediaMetadata().toMediaItem()
+                                connection.allowInternalSync = true
+                                if (action.insertNext == true) {
+                                    connection.playNext(mediaItem)
+                                } else {
+                                    connection.addToQueue(mediaItem)
+                                }
+                                connection.allowInternalSync = false
                             }
                         }
                     }
@@ -1231,7 +1208,7 @@ class ListenTogetherManager
                         val queueTitle = action.queueTitle
                         if (queue != null) {
                             Timber.tag(TAG).d("Guest: SYNC_QUEUE size=${queue.size}")
-                            // Cancel any pending "smart" sync (e.g. YouTube radio fetch) in favor of this authoritative queue
+                            // Cancel any pending track sync in favor of this authoritative queue.
                             activeSyncJob?.cancel()
 
                             scope.launch(Dispatchers.Main) {
@@ -1505,107 +1482,82 @@ class ListenTogetherManager
                             return@launch
                         }
 
-                        // Use YouTube API to play the track by ID
-                        YouTube
-                            .queue(listOf(track.id))
-                            .onSuccess { queue ->
-                                Timber.tag(TAG).d("Got queue for track ${track.id}")
-                                launch(Dispatchers.Main) {
-                                    // Final generation check before applying changes
-                                    if (currentTrackGeneration != generation) {
-                                        Timber
-                                            .tag(
-                                                TAG,
-                                            ).d(
-                                                "Skipping stale track application for ${track.id} (generation $generation vs $currentTrackGeneration)",
-                                            )
-                                        isSyncing = false
-                                        return@launch
-                                    }
-
-                                    val connection =
-                                        playerConnection ?: run {
-                                            isSyncing = false
-                                            return@launch
-                                        }
-                                    if (playerConnection !== connection) {
-                                        isSyncing = false
-                                        return@launch
-                                    }
-                                    isSyncing = true
-                                    // Allow internal sync to bypass playback blocking for guests
-                                    connection.allowInternalSync = true
-                                    connection.playQueue(
-                                        YouTubeQueue(
-                                            endpoint = WatchEndpoint(videoId = track.id),
-                                            preloadItem = queue.firstOrNull()?.toMediaMetadata(),
-                                        ),
+                        launch(Dispatchers.Main) {
+                            // Final generation check before applying changes
+                            if (currentTrackGeneration != generation) {
+                                Timber
+                                    .tag(
+                                        TAG,
+                                    ).d(
+                                        "Skipping stale track application for ${track.id} (generation $generation vs $currentTrackGeneration)",
                                     )
-                                    try {
-                                        connection.service.queueTitle = "Listen Together" // Set default title
-                                    } catch (e: Exception) {
-                                        Timber.tag(TAG).e(e, "Failed to set queue title")
-                                    }
-                                    connection.allowInternalSync = false
+                                isSyncing = false
+                                return@launch
+                            }
 
-                                    // Wait for player to be ready - monitor actual player state
-                                    var waitCount = 0
-                                    while (waitCount < 40) { // Max 2 seconds (40 * 50ms)
-                                        // Check generation again while waiting
-                                        if (currentTrackGeneration != generation) {
-                                            Timber
-                                                .tag(
-                                                    TAG,
-                                                ).d("Generation changed while waiting for player ready - aborting sync for ${track.id}")
-                                            isSyncing = false
-                                            return@launch
-                                        }
-                                        try {
-                                            val player = connection.player
-                                            if (player.playbackState == Player.STATE_READY) {
-                                                Timber.tag(TAG).d("Player ready after ${waitCount * 50}ms")
-                                                break
-                                            }
-                                        } catch (e: Exception) {
-                                            Timber.tag(TAG).e(e, "Error checking player state")
-                                            break
-                                        }
-                                        delay(50)
-                                        waitCount++
-                                    }
+                            val connection =
+                                playerConnection ?: run {
+                                    isSyncing = false
+                                    return@launch
+                                }
+                            if (playerConnection !== connection) {
+                                isSyncing = false
+                                return@launch
+                            }
+                            isSyncing = true
+                            connection.allowInternalSync = true
+                            val mediaItem = track.toMediaMetadata().toMediaItem()
+                            val player = connection.player
+                            player.setMediaItem(mediaItem, position)
+                            player.prepare()
+                            try {
+                                connection.service.queueTitle = "Listen Together"
+                            } catch (e: Exception) {
+                                Timber.tag(TAG).e(e, "Failed to set queue title")
+                            }
+                            connection.allowInternalSync = false
 
-                                    // Do NOT seek here; defer the exact seek until after the server signals buffer-complete
-                                    // Ensure paused state before signaling ready
-                                    connection.pause()
-
-                                    // Store pending sync (guest will apply seek + play/pause after BufferComplete)
-                                    pendingSyncState =
-                                        SyncStatePayload(
-                                            currentTrack = track,
-                                            isPlaying = shouldPlay,
-                                            position = position,
-                                            lastUpdate = System.currentTimeMillis(),
-                                        )
-
-                                    // Apply immediately if buffer-complete already arrived
-                                    applyPendingSyncIfReady()
-
-                                    // Signal we're ready to play
-                                    client.sendBufferReady(track.id)
+                            var waitCount = 0
+                            while (waitCount < 40) {
+                                if (currentTrackGeneration != generation) {
                                     Timber
                                         .tag(
                                             TAG,
-                                        ).d("Sent buffer ready for ${track.id}, pending sync stored: pos=$position, play=$shouldPlay")
-
-                                    // Minimal delay before accepting sync commands
-                                    delay(100)
+                                        ).d("Generation changed while waiting for player ready - aborting sync for ${track.id}")
                                     isSyncing = false
+                                    return@launch
                                 }
-                            }.onFailure { e ->
-                                Timber.tag(TAG).e(e, "Failed to load track ${track.id}")
-                                playerConnection?.allowInternalSync = false
-                                isSyncing = false
+                                try {
+                                    if (player.playbackState == Player.STATE_READY) {
+                                        Timber.tag(TAG).d("Player ready after ${waitCount * 50}ms")
+                                        break
+                                    }
+                                } catch (e: Exception) {
+                                    Timber.tag(TAG).e(e, "Error checking player state")
+                                    break
+                                }
+                                delay(50)
+                                waitCount++
                             }
+
+                            connection.pause()
+                            pendingSyncState =
+                                SyncStatePayload(
+                                    currentTrack = track,
+                                    isPlaying = shouldPlay,
+                                    position = position,
+                                    lastUpdate = System.currentTimeMillis(),
+                                )
+                            applyPendingSyncIfReady()
+                            client.sendBufferReady(track.id)
+                            Timber
+                                .tag(
+                                    TAG,
+                                ).d("Sent buffer ready for ${track.id}, pending sync stored: pos=$position, play=$shouldPlay")
+
+                            delay(100)
+                            isSyncing = false
+                        }
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "Error syncing to track")
                         playerConnection?.allowInternalSync = false

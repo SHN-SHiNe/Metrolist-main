@@ -398,6 +398,10 @@ class PlayerConnection(
                 castHandler.skipToNext()
                 return
             }
+            if (service.tryPlayNextLocalSimilarFromCurrent()) {
+                onSkipNext?.invoke()
+                return
+            }
             player.seekToNext()
             if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
                 player.prepare()
@@ -417,6 +421,10 @@ class PlayerConnection(
             val castHandler = service.castConnectionHandler
             if (castHandler?.isCasting?.value == true) {
                 castHandler.skipToPrevious()
+                return
+            }
+            if (service.tryPlayPreviousLocalSimilarFromHistory()) {
+                onSkipPrevious?.invoke()
                 return
             }
 

@@ -61,7 +61,6 @@ import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.ui.component.LocalMenuState
 import com.metrolist.music.models.toMediaItem
 import com.metrolist.music.models.toMediaMetadata
-import com.metrolist.music.models.toSong
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.MediaMetadataListItem

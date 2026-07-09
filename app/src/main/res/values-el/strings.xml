@@ -27,7 +27,7 @@
     <string name="most_played_artists">Οι πιο πολυπαιγμένοι καλλιτέχνες</string>
     <string name="most_played_albums">Τα πιο πολυπαιγμένα άλμπουμ</string>
     <string name="search">Αναζήτηση</string>
-    <string name="search_yt_music">Αναζήτηση Μουσικής YouTube…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Αναζήτηση βιβλιοθήκης…</string>
     <string name="filter_library">Βιβλιοθήκη</string>
     <string name="filter_liked">Αγαπημένα</string>
@@ -269,7 +269,7 @@
     <string name="auto_load_more_desc">Αυτόματη προσθήκη περισσότερων τραγουδιών όταν το τέλος της ουράς επιτυγχάνεται, αν είναι δυνατόν</string>
     <string name="listen_history">Ιστορικό ακρόασης</string>
     <string name="disable_screenshot_desc">Όταν αυτή η επιλογή είναι ενεργή, τα στιγμιότυπα και η Πρόσφατη προβολή εφαρμογών θα είναι ανενεργή.</string>
-    <string name="your_youtube_playlists">Οι λίστες YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="other_versions">Άλλες εκδόσεις</string>
     <string name="remove_all_from_library">Αφαίρεση όλων από την βιβλιοθήκη</string>
     <string name="add_all_to_library">Προσθήκη όλων στη βιβλιοθήκη</string>

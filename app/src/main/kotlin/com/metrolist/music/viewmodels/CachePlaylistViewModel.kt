@@ -13,7 +13,6 @@ import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Song
-import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
 import com.metrolist.music.extensions.filterExplicit
 import com.metrolist.music.extensions.filterVideoSongs
@@ -22,6 +21,7 @@ import com.metrolist.music.utils.get
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -35,7 +35,6 @@ class CachePlaylistViewModel
         @ApplicationContext private val context: Context,
         private val database: MusicDatabase,
         @PlayerCache private val playerCache: SimpleCache,
-        @DownloadCache private val downloadCache: SimpleCache,
     ) : ViewModel() {
         private val _cachedSongs = MutableStateFlow<List<Song>>(emptyList())
         val cachedSongs: StateFlow<List<Song>> = _cachedSongs
@@ -45,13 +44,12 @@ class CachePlaylistViewModel
                 while (true) {
                     val hideExplicit = context.dataStore.get(HideExplicitKey, false)
                     val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                    val explicitOfflineSongs = database.offlineCachedSongsByCreateDateAsc().first()
                     val cachedIds = playerCache.keys.toSet()
-                    val downloadedIds = downloadCache.keys.toSet()
-                    val pureCacheIds = cachedIds.subtract(downloadedIds)
 
                     val songs =
-                        if (pureCacheIds.isNotEmpty()) {
-                            database.getSongsByIds(pureCacheIds.toList())
+                        if (cachedIds.isNotEmpty()) {
+                            database.getSongsByIds(cachedIds.toList())
                         } else {
                             emptyList()
                         }
@@ -61,21 +59,34 @@ class CachePlaylistViewModel
                             val contentLength = it.format?.contentLength
                             contentLength != null && playerCache.isCached(it.song.id, 0, contentLength)
                         }
-
                     if (completeSongs.isNotEmpty()) {
+                        val now = LocalDateTime.now()
                         database.query {
                             completeSongs.forEach {
                                 if (it.song.dateDownload == null) {
-                                    update(it.song.copy(dateDownload = LocalDateTime.now()))
+                                    update(it.song.copy(dateDownload = now))
                                 }
                             }
                         }
                     }
 
+                    val songsById = (explicitOfflineSongs + completeSongs).associateBy { it.song.id }
+                    val orderedIds =
+                        OfflineCachedSongs
+                            .merge(
+                                explicitOffline =
+                                    explicitOfflineSongs.map {
+                                        OfflineCachedSongRef(it.song.id, it.song.dateDownload)
+                                    },
+                                playerCache =
+                                    completeSongs.map {
+                                        OfflineCachedSongRef(it.song.id, it.song.dateDownload ?: LocalDateTime.now())
+                                    },
+                            ).map { it.id }
+
                     _cachedSongs.value =
-                        completeSongs
-                            .filter { it.song.dateDownload != null }
-                            .sortedByDescending { it.song.dateDownload }
+                        orderedIds
+                            .mapNotNull { songsById[it] }
                             .filterExplicit(hideExplicit)
                             .filterVideoSongs(hideVideoSongs)
 

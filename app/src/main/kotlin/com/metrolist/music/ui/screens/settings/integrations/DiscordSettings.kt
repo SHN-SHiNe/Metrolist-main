@@ -716,7 +716,7 @@ fun DiscordSettings(
                             Material3SettingsItem(
                                 title = { Text(stringResource(R.string.discord_button_1)) },
                                 description = {
-                                    Text(button1Text.ifEmpty { "Listen on YouTube Music" })
+                                    Text(button1Text.ifEmpty { "Now playing" })
                                 },
                                 trailingContent = {
                                     Switch(
@@ -971,22 +971,15 @@ fun RichPresence(
                 val resolvedButton1 =
                     if (song != null) {
                         DiscordRPC.resolveVariables(
-                            button1Text.ifEmpty { "Listen on YouTube Music" },
+                            button1Text.ifEmpty { "Now playing" },
                             song,
                         )
                     } else {
-                        button1Text.ifEmpty { "Listen on YouTube Music" }
+                        button1Text.ifEmpty { "Now playing" }
                     }
                 OutlinedButton(
-                    enabled = song != null,
-                    onClick = {
-                        val intent =
-                            Intent(
-                                Intent.ACTION_VIEW,
-                                "https://music.youtube.com/watch?v=${song?.id}".toUri(),
-                            )
-                        context.startActivity(intent)
-                    },
+                    enabled = false,
+                    onClick = {},
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(resolvedButton1)

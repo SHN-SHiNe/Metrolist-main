@@ -185,7 +185,6 @@ class MusicRecognizerWidgetService : Service() {
                                     appleMusicUrl = result.result.appleMusicUrl,
                                     spotifyUrl = result.result.spotifyUrl,
                                     isrc = result.result.isrc,
-                                    youtubeVideoId = result.result.youtubeVideoId,
                                     recognizedAt = LocalDateTime.now()
                                 )
                             )

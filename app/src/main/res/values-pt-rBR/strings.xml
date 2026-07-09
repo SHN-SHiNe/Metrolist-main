@@ -25,7 +25,7 @@
     <string name="most_played_artists">Artistas mais tocados</string>
     <string name="most_played_albums">Álbuns mais tocados</string>
     <string name="search">Pesquisar</string>
-    <string name="search_yt_music">Pesquisar no YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Pesquisar na biblioteca…</string>
     <string name="filter_library">Biblioteca</string>
     <string name="filter_liked">Favoritos</string>
@@ -253,7 +253,7 @@
     <string name="player_slider_style">Estilo do controle deslizante do tocador</string>
     <string name="default_">Padrão</string>
     <string name="squiggly">Cobrinha</string>
-    <string name="your_youtube_playlists">Suas playlists do YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="action_like_all">Favoritar tudo</string>
     <string name="action_remove_like_all">Remover todos os favoritos</string>
     <string name="grid_cell_size">Tamanho da célula da grade</string>
@@ -286,6 +286,6 @@
     <string name="theme">Tema</string>
     <string name="remove_all_from_library">Remover tudo da biblioteca</string>
     <string name="use_login_for_browse">Usar a conta para a navegação de conteúdo</string>
-    <string name="use_login_for_browse_desc">Isto pode influenciar em que conteúdo você vê, e se você tiver Premium por exemplo, verá álbuns que só estão disponíveis com Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Conectar-se</string>
 </resources>

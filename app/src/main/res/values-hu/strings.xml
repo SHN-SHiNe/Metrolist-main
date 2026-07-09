@@ -24,7 +24,7 @@
     <string name="most_played_artists">Legtöbbet játszott előadók</string>
     <string name="most_played_albums">Legtöbbet játszott albumok</string>
     <string name="search">Keresés</string>
-    <string name="search_yt_music">Keresés a YouTube Zenén…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Keresés a könyvtárban…</string>
     <string name="filter_library">Könyvtár</string>
     <string name="filter_liked">Kedvelt</string>
@@ -231,7 +231,7 @@
     <string name="remove_download_playlist_confirm">Biztosan el akarja távolítani a \"%s\" lejátszási listán szereplő összes zenét a Letöltött Zenék tárhelyről?</string>
     <string name="delete_playlist_confirm">Biztosan törölni szeretné a \"%s\" lejátszási listát?</string>
     <string name="remove_all_from_library">Az összes eltávolítása a könyvtárból</string>
-    <string name="your_youtube_playlists">YouTube lejátszási listái</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="add_all_to_library">Az összes hozzáadása a könyvtárhoz</string>
     <string name="remove_from_playlist">Eltávolítás lejátszási listáról</string>
     <string name="remove_from_queue">Eltávolítás listáról</string>
@@ -268,7 +268,7 @@
     <string name="listen_history">Hallgatás előzmény</string>
     <string name="search_history">Keresési előzmények</string>
     <string name="use_login_for_browse">Belépés használata a tartalom böngészéséhez</string>
-    <string name="use_login_for_browse_desc">Ez hatással lehet az ajánlott tartalomra. Például megjelenhetnek prémium albumok, ha prémium fiókkal jelentkezik be</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">Képernyőkép készítés kikapcsolása</string>
     <string name="disable_screenshot_desc">Ha ez be van kapcsolva, a képernyőkép készítés nem lehetséges, és az előzmények sem látszódnak.</string>
     <string name="enable_lrclib">A LrcLib dalszöveg szolgáltató engedélyezése</string>

@@ -19,7 +19,7 @@
     <string name="filter_uploaded">আপলোডেড</string>
     <string name="sync_playlist">প্লেলিস্ট সমন্বয়</string>
     <string name="sync_disabled">সমন্বয় বন্ধ</string>
-    <string name="allows_for_sync_witch_youtube">নোট: এই বিকল্পটি ইউটিউব মিউজিকের সাথে সমন্বয় চালু করে এবং এটি পরবর্তীতে পরিবর্তন করা সম্ভব নয়</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">ছবি তৈরি হচ্ছে…</string>
     <string name="please_wait">অপেক্ষা করুন</string>
     <string name="cancel">বাতিল</string>
@@ -51,7 +51,7 @@
     <string name="enable">চালু করুন</string>
     <string name="show_more">আরও দেখান</string>
     <string name="artist_page_settings">শিল্পীর পাতা</string>
-    <string name="sync_playlist_desc">এই প্লেলিস্টটি ইউটিউব মিউজিকের সাথে সমন্বয় করুন</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="copy_link">লিঙ্ক কপি করুন</string>
     <string name="select">সবগুলো নির্বাচন করুন</string>
     <string name="like_all">সবগুলো লাইক করুন</string>
@@ -102,7 +102,7 @@
     <string name="player_background_solid">সলিড</string>
     <string name="enable_lrclib_desc">কমিউনিটি-চালিত সিঙ্ক্রোনাইজড লিরিক্স ডেটাবেজ</string>
     <string name="enable_kugou_desc">জনপ্রিয় চীনা সঙ্গীত প্ল্যাটফর্ম KuGou থেকে লিরিক্স সংগ্রহ করে</string>
-    <string name="youtube_music_lyrics_note">নোট: অন্য কোনো উৎস উপলব্ধ না থাকলে ইউটিউব মিউজিকের লিরিক্স স্বয়ংক্রিয়ভাবে দেখানো হবে। এগুলি সাধারণত সিঙ্ক্রোনাইজড থাকে না</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_better_lyrics">Better Lyrics চালু করুন</string>
     <string name="enable_better_lyrics_desc">যেকোনো গানের অক্ষর-সমন্বিত লিরিক্স, যা কারাওকের জন্য উপযুক্ত</string>
     <string name="enable_paxsenix">Paxsenix চালু করুন</string>
@@ -126,12 +126,12 @@
     <string name="advanced_login">টোকেন দিয়ে লগইন করুন</string>
     <string name="token_hidden">টোকেন দেখতে ট্যাপ করুন</string>
     <string name="token_shown">কপি বা এডিট করতে আবার ট্যাপ করুন</string>
-    <string name="token_adv_login_description">এটি একটি উন্নত লগইন পদ্ধতি। ওয়েব পোর্টাল ব্যবহার করার পরিবর্তে, আপনি সরাসরি আপনার লগইন টোকেন প্রবেশ বা আপডেট করতে পারেন। একাধিক ডিভাইসে দ্রুত সাইন ইন করার জন্য এটি কার্যকর হতে পারে। অপরিচিত ফরম্যাটের টোকেন প্রত্যাখ্যান করা হবে</string>
-    <string name="yt_sync">স্বয়ংক্রিয়ভাবে একাউন্টের সাথে সমন্বয় করুন</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">স্বয়ংক্রিয়ভাবে একাউন্টের সাথে সমন্বয় করুন</string>
     <string name="more_content">আরও কন্টেন্ট</string>
     <string name="sort_ascending">ঊর্ধক্রমে সাজান</string>
     <string name="sort_descending">অধঃক্রমে সাজান</string>
-    <string name="edit_playlist_cover_note">নোট: প্লেলিস্ট কভার পরিবর্তন করতে হলে আপনার অ্যাকাউন্টটি অবশ্যই একটি ফোন নম্বরের সাথে সংযুক্ত করা এবং ইউটিউব মিউজিক-এ অনুমোদিত থাকতে হবে</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">ছবি নির্বাচন করার পর, আপনার প্লেলিস্টে নতুন কভারটি প্রদর্শিত হওয়ার জন্য অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন</string>
     <string name="choose_from_library">লাইব্রেরি থেকে বাছাই করুন</string>
     <string name="general">সাধারণ</string>
@@ -288,7 +288,7 @@
     <string name="last_fm_send_likes_description">মেট্রোলিস্টে যখন আপনি কোনো গান লাইক বা আনলাইক করেন, তখন Last.fmএ সেই গানগুলো পছন্দ বা অপছন্দ করুন</string>
     <string name="logging_in">লগইন করা হচ্ছে…</string>
     <string name="hide_video_songs">ভিডিও গান লুকান</string>
-    <string name="hide_youtube_shorts">ইউটিউব শর্টস লুকান</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="details_desc">গানটির বিবরণ দেখুন</string>
     <string name="edit_desc">শিরোনাম বা শিল্পী সম্পাদনা করুন</string>
     <string name="start_radio_desc">এই আইটেমটির উপর ভিত্তি করে একটি রেডিও চালু করুন</string>
@@ -297,7 +297,7 @@
     <string name="add_to_library_desc">আপনার লাইব্রেরিতে সংরক্ষণ করুন</string>
     <string name="download_desc">অফলাইন প্লেব্যাকের জন্য ডাউনলোড করুন</string>
     <string name="add_to_playlist_desc">প্লেলিস্টে যোগ করুন</string>
-    <string name="refetch_desc">ইউটিউব মিউজিক থেকে মেটাডেটা রিফ্রেশ করুন</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">এই আইটেমটির লিংক শেয়ার করুন</string>
     <string name="delete_desc">এই আইটেমটি স্থায়ীভাবে মুছে ফেলুন</string>
     <string name="advanced_desc">গানটির গতি ও পিচ সমন্বয় করুন</string>
@@ -484,8 +484,8 @@
     <string name="android_auto">অ্যান্ড্রয়েড অটো</string>
     <string name="android_auto_visible_sections">দৃশ্যমান সেকশন</string>
     <string name="android_auto_reorder_hint">কোনো সেকশন চালু বা বন্ধ করতে সেটিতে ট্যাপ করুন। পুনর্বিন্যাস করতে ড্র্যাগ হ্যান্ডেলটিতে দীর্ঘক্ষণ চাপ দিন। ডিফল্টরূপে প্রথম সেকশনটি দেখানো হবে</string>
-    <string name="android_auto_youtube_playlists">ইউটিউবের প্রস্তাবিত প্লেলিস্টগুলি দেখান</string>
-    <string name="android_auto_youtube_playlists_desc">অ্যান্ড্রয়েড অটো দিয়ে ব্রাউজ করার সময় প্লেলিস্ট বিভাগে ইউটিউব মিউজিকের প্রস্তাবিত প্লেলিস্টগুলি দেখান</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">দ্রুত যোগ করার গন্তব্য</string>
     <string name="android_auto_target_playlist_desc">অ্যান্ড্রয়েড অটোতে কুইক-অ্যাড বাটন ব্যবহার করার সময়, গানগুলি যেখানে সেভ করা হবে সেই প্লেলিস্টটি বেছে নিন</string>
     <string name="android_auto_target_playlist_auto">সেট করা হয়নি</string>
@@ -632,7 +632,7 @@
     <string name="clear_song_cache_dialog">আপনি কি নিশ্চিত যে আপনি ক্যাশে থাকা সমস্ত গান মুছে ফেলতে চান?</string>
     <string name="clear_image_cache_dialog">আপনি কি নিশ্চিত যে আপনি সমস্ত ক্যাশ করা ছবি মুছে ফেলতে চান?</string>
     <string name="clear_downloads_dialog">আপনি কি নিশ্চিত যে আপনি সমস্ত ডাউনলোড মুছে ফেলতে চান?</string>
-    <string name="not_logged_in_youtube">ইউটিউবে লগইন করা নেই</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">সমর্থিত লিঙ্কগুলো খুলুন</string>
     <string name="open_app_settings_error">অ্যাপের সেটিংস খোলা যায়নি</string>
     <string name="release_notes">প্রকাশকের মন্তব্য</string>
@@ -807,7 +807,7 @@
     <string name="first_row_is_header">প্রথম সারিটি হেডার</string>
     <string name="artist_name_column">শিল্পীর নামের কলাম</string>
     <string name="song_title_column">গানের শিরোনামের কলাম</string>
-    <string name="youtube_url_column">ইউটিউব ইউআরএল কলাম (ঐচ্ছিক)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">চালিয়ে যান</string>
     <string name="importing_csv">CSV ইম্পোর্ট করা হচ্ছে…</string>
     <string name="importing_playlist">প্লেলিস্ট ইম্পোর্ট করা হচ্ছে…</string>

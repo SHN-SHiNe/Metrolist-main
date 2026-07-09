@@ -27,7 +27,7 @@
     <string name="filter_uploaded">Įkėlimai</string>
     <string name="sync_playlist">Sinchronizuoti grojaraštį</string>
     <string name="sync_disabled">Sinchronizavimas išjungtas</string>
-    <string name="allows_for_sync_witch_youtube">Pastaba: Tai leidžia sinchronizuoti su YouTube Muzika. To NEGALIMA pakeisti vėliau.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Generuojamas paveikslėlis</string>
     <string name="please_wait">Prašome palaukti</string>
     <string name="share_lyrics">Dalintis dainos žodžiais</string>
@@ -91,7 +91,7 @@
     <string name="download_in_progress_desc">Atsiunčiama</string>
     <string name="share_playlist_desc">Dalintis grojaraščiu su kitais</string>
     <string name="delete_playlist_desc">Panaikinti grojaraštį visam laikui</string>
-    <string name="sync_playlist_desc">Sinchronizuoti grojaraštį su YouTube Muzika</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="like">Pažymėti, kad patinka</string>
     <string name="update_available_title">Galimas atnaujinimas</string>
     <string name="update_channel_name">Programėlės naujinimai</string>
@@ -161,7 +161,7 @@
     <string name="add_to_library_desc">Išsaugoti į biblioteką</string>
     <string name="download_desc">Padaryti pasiekiamą atkūrimui neprisijungus</string>
     <string name="add_to_playlist_desc">Pridėtį į grojaraštį</string>
-    <string name="refetch_desc">Gauti naujausią informaciją iš „YouTube Muzika”</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Dalintis nuoroda į šį elementą</string>
     <string name="delete_desc">Panaikinti šį elementą visam laikui</string>
     <string name="advanced_desc">Pakeisti dainos tempą ir aukštį</string>
@@ -269,11 +269,11 @@
     <string name="skip_silence_desc">Greitasis perėjimas per tyliąsias dainos vietas</string>
     <string name="skip_silence_instant">Staigiai praleiskite tylą</string>
     <string name="skip_silence_instant_desc">Peršokite per tylias vietas, vietoj pagreitinant atkūrimą</string>
-    <string name="token_adv_login_description">Tai PAŽANGUS prisijungimo būdas. Kaip alternatyvą žiniatinklio portalui, galite tiesiogiai įvesti arba atnaujinti savo prisijungimo raktą čia. Pavyzdžiui, tai gali pagreitinti prisijungimą keliuose įrenginiuose. Atminkite, kad bet kokie neteisingi rakto formatai, kurių programa nesugeba išanalizuoti, nebus priimti</string>
-    <string name="yt_sync">Automatiškai sinchronizuoti su paskyra</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Automatiškai sinchronizuoti su paskyra</string>
     <string name="more_content">Daugiau turinio</string>
     <string name="edit_playlist_cover">Koreguokite grojaraščio viršelį</string>
-    <string name="edit_playlist_cover_note">Pastaba: norint pakeisti grojaraščio viršelį, jūsų paskyra turi būti susieta su telefono numeriu ir patvirtinta „YouTube Muzika“.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Pasirinkę paveikslėlį, palaukite, kol naujas viršelis pasirodys jūsų grojaraštyje.</string>
     <string name="choose_from_library">Pasirinkti iš bibliotekos</string>
     <string name="proxy">Proxy</string>
@@ -292,7 +292,7 @@
     <string name="restart_required">Reikalingas paleidimas iš naujo</string>
     <string name="enable_lrclib_desc">Bendruomenės kuriama sinchronizuota dainų tekstų duomenų bazė</string>
     <string name="enable_kugou_desc">Naudoja dainų tekstus iš KuGou, populiarios kinų muzikos platformos</string>
-    <string name="youtube_music_lyrics_note">SVARBU: Dainų tekstai iš YouTube Music bus automatiškai rodomi, kai kiti dainų tekstai nebus galimi. Dainų tekstai iš YTM paprastai nėra sinchronizuoti.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Įjungti LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Sinchronizuoti dainų tekstai iš daugelio šaltinių</string>
     <string name="lyrics_provider_selection">Pasirinkti tiekėją</string>
@@ -319,7 +319,7 @@
     <string name="clear_image_cache_dialog">Ar esate įsitikinę, kad norite pašalinti visus paveikslėlius iš podėlio?</string>
     <string name="clear_downloads_dialog">Ar esate įsitikinę, kad norite pašalinti visus atsisiuntimus?</string>
     <string name="disable">Išjungti</string>
-    <string name="not_logged_in_youtube">Neprisijungta prie YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Atidaryti palaikomas nuorodas</string>
     <string name="open_app_settings_error">Klaida atidarant programėlės nustatymus</string>
     <string name="release_notes">Leidimo pastabos</string>
@@ -400,5 +400,5 @@
     <string name="scrobble_min_track_duration">Skrobluoti dainas ilgesnes nei</string>
     <string name="scrobble_delay_percent">Skroblavimo vėlinimas procentais</string>
     <string name="scrobble_delay_minutes">Skroblavimo vėlinimas minutėmis</string>
-    <string name="hide_youtube_shorts">Slėpti YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
 </resources>

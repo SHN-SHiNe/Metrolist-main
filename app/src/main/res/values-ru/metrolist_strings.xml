@@ -30,11 +30,11 @@
         <item quantity="many">%d секунд</item>
         <item quantity="other">%d секунд</item>
     </plurals>
-    <string name="allows_for_sync_witch_youtube">ПРИМЕЧАНИЕ: Эта опция включает синхронизацию с YouTube Music, и её НЕЛЬЗЯ изменить позже</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="player_background_blur">Размытие</string>
     <string name="slim_navbar">Тонкая панель навигации</string>
     <string name="dislikes">Дизлайки</string>
-    <string name="token_adv_login_description">Это ПРОДВИНУТЫЙ способ входа. Вместо веб-портала можно напрямую ввести или обновить токен. Удобно для быстрого входа на нескольких устройствах. Токены с неверным форматом не принимаются</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="likes">Лайки</string>
     <string name="charts">Чарты</string>
     <string name="album_cover_desc">Обложка альбома</string>
@@ -84,7 +84,7 @@
     <string name="show_top_playlist">Показывать плейлист «Топ»</string>
     <string name="show_cached_playlist">Показывать плейлист «Кэшированные»</string>
     <string name="advanced_login">Вход по токену</string>
-    <string name="yt_sync">Автосинхронизация с аккаунтом</string>
+    <string name="account_auto_sync">Автосинхронизация с аккаунтом</string>
     <string name="more_content">Доп. контент</string>
     <string name="general">Общие</string>
     <string name="default_lib_chips">Изменение чипа библиотеки (по умолчанию)</string>
@@ -97,7 +97,7 @@
     <string name="auto_download_on_like_desc">Автоматически скачивать треки, отмечаемые как понравившиеся</string>
     <string name="clear_song_cache_dialog">Вы уверены, что хотите очистить все закэшированные треки?</string>
     <string name="clear_downloads_dialog">Вы уверены, что хотите очистить все скачанные?</string>
-    <string name="not_logged_in_youtube">Вы не вошли в YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Открыть поддерживаемые ссылки</string>
     <string name="open_app_settings_error">Не удалось открыть настройки приложения</string>
     <string name="release_notes">Примечания к выпуску</string>
@@ -152,7 +152,7 @@
     <string name="line_by_line_dialog_desc">Это экспериментальная функция и может работать нестабильно.\n\nПо умолчанию язык определяется для всей песни, но с этой опцией он будет определяться построчно. Это обеспечивает поддержку многоязычных песен, но язык может определяться неточно. Например, строка на украинском без характерных символов может быть распознана как русский.\n\nЕсли у вас нет проблем, рекомендуется оставить эту опцию выключенной</string>
     <string name="romanize_current_track">Романизировать текущий трек</string>
     <string name="edit_playlist_cover">Редактировать обложку плейлиста</string>
-    <string name="edit_playlist_cover_note">ПРИМЕЧАНИЕ: Для изменения обложки плейлиста аккаунт должен быть привязан к номеру телефона и подтверждён в YouTube Music</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">После выбора изображения подождите немного, пока новая обложка появится в вашем плейлисте</string>
     <string name="remove_custom_image">Удалить собственное изображение</string>
     <string name="choose_from_library">Выбрать из библиотеки</string>
@@ -197,7 +197,7 @@
     <string name="add_to_library_desc">Сохранить в вашу библиотеку</string>
     <string name="download_desc">Скачать для офлайн-прослушивания</string>
     <string name="add_to_playlist_desc">Добавить в плейлист</string>
-    <string name="refetch_desc">Обновить метаданные из YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Поделиться ссылкой на этот элемент</string>
     <string name="delete_desc">Безвозвратно удалить этот элемент</string>
     <string name="advanced_desc">Настроить темп и высоту тона трека</string>
@@ -215,7 +215,7 @@
     <string name="download_in_progress_desc">Идёт скачивание</string>
     <string name="share_playlist_desc">Поделиться этим плейлистом с другими</string>
     <string name="delete_playlist_desc">Удалить этот плейлист навсегда</string>
-    <string name="sync_playlist_desc">Синхронизировать этот плейлист с YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="enable_better_lyrics">Включить Better Lyrics</string>
     <string name="enable_better_lyrics_desc">Синхронизация текста по слогам для любой песни, идеально для караоке</string>
     <string name="lyrics_animation_style">Стиль анимации текста</string>
@@ -474,7 +474,7 @@
     <string name="ai_error_translation_failed">Ошибка перевода</string>
     <string name="play_all">Играть все</string>
     <string name="recognize_music">Распознать музыку</string>
-    <string name="youtube_url_column">Столбец ссылки на YouTube (необязательно)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="re_listen">Прослушать снова</string>
     <string name="clear_recognition_history_confirm">Вы уверены, что хотите очистить всю историю распознавания?</string>
     <string name="no_match_found">Совпадений не найдено</string>
@@ -506,7 +506,7 @@
     <string name="crossfade_beta_title">Бета-функция!</string>
     <string name="crossfade_beta_message">Кроссфейд - новая функция, которая может работать нестабильно. Пожалуйста, сообщите нам, если столкнётесь с ошибками.\n\nПРИМЕЧАНИЕ: Эта функция отключает аппаратное ускорение аудио из-за технических ограничений</string>
     <string name="audio_offload_disabled_by_crossfade">Отключено, так как включён кроссфейд</string>
-    <string name="hide_youtube_shorts">Скрыть YouTube Shorts</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">«Слушать вместе» в верхней панели</string>
     <string name="listen_together_in_top_bar_desc">Показывать «Слушать вместе» в верхней панели вместо панели навигации</string>
     <string name="discord_advanced_mode_description">Показать дополнительные параметры настройки Rich Presence</string>
@@ -561,7 +561,7 @@
     <string name="density_restart_message">Изменение плотности интерфейса вступит в силу после перезапуска приложения. Перезапустить сейчас?</string>
     <string name="enable_lrclib_desc">База синхронизированных текстов песен, поддерживаемая сообществом</string>
     <string name="enable_kugou_desc">Загружает тексты песен из KuGou, популярной китайской музыкальной платформы</string>
-    <string name="youtube_music_lyrics_note">ПРИМЕЧАНИЕ: Тексты из YouTube Music будут показываться автоматически, если нет других источников. Обычно они не синхронизированы</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Включить LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Синхронизированные тексты из нескольких источников</string>
     <string name="lyrics_provider_selection">Выбор поставщиков</string>
@@ -788,8 +788,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Видимые разделы</string>
     <string name="android_auto_reorder_hint">Нажмите на раздел, чтобы включить или отключить его.\nУдерживайте значок перетаскивания, чтобы изменить порядок. Первый раздел будет отображаться по умолчанию</string>
-    <string name="android_auto_youtube_playlists">Показывать предложенные плейлисты YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Показывать рекомендованные плейлисты YouTube Music в разделе плейлистов при просмотре через Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Плейлист для быстрого добавления</string>
     <string name="android_auto_target_playlist_desc">Выберите плейлист, в который будут сохраняться треки при нажатии кнопки быстрого добавления в Android Auto</string>
     <string name="android_auto_target_playlist_auto">Не указано</string>

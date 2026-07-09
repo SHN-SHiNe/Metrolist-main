@@ -18,29 +18,11 @@ import com.metrolist.music.ui.utils.resize
 val MediaItem.metadata: MediaMetadata?
     get() = localConfiguration?.tag as? MediaMetadata
 
-fun Song.toMediaItem() = MediaItem.Builder()
-    .setMediaId(song.id)
-    .setUri(song.id)
-    .setCustomCacheKey(song.id)
-    .setTag(toMediaMetadata())
-    .setMediaMetadata(
-        androidx.media3.common.MediaMetadata.Builder()
-            .setTitle(song.title)
-            .setSubtitle(orderedArtists.joinToString { it.name })
-            .setArtist(orderedArtists.joinToString { it.name })
-            .setArtworkUri(song.thumbnailUrl?.toUri())
-            .setAlbumTitle(song.albumName)
-            .setAlbumArtist(orderedArtists.firstOrNull()?.name)
-            .setDisplayTitle(song.title)
-            .setMediaType(MEDIA_TYPE_MUSIC)
-            .setIsBrowsable(false)
-            .setIsPlayable(true)
-            .setExtras(Bundle().apply {
-                putString("artwork_uri", song.thumbnailUrl)
-            })
-            .build()
-    )
-    .build()
+fun Song.toMediaItem() = toMediaMetadata().toMediaItem()
+
+fun Song.toMediaItem(playbackUri: String) = toMediaMetadata()
+    .copy(playbackUri = playbackUri, isLocal = true)
+    .toMediaItem()
 
 fun SongItem.toMediaItem() = MediaItem.Builder()
     .setMediaId(id)
@@ -62,13 +44,15 @@ fun SongItem.toMediaItem() = MediaItem.Builder()
             .setExtras(Bundle().apply {
                 putString("artwork_uri", thumbnail.resize(1080, 1080))
             })
-            .build()
+            .build(),
     )
     .build()
 
+private fun MediaMetadata.mediaUri() = playbackUri ?: id
+
 fun MediaMetadata.toMediaItem() = MediaItem.Builder()
     .setMediaId(id)
-    .setUri(id)
+    .setUri(mediaUri())
     .setCustomCacheKey(id)
     .setTag(this)
     .setMediaMetadata(
@@ -85,6 +69,7 @@ fun MediaMetadata.toMediaItem() = MediaItem.Builder()
             .setIsPlayable(true)
             .setExtras(Bundle().apply {
                 thumbnailUrl?.let { putString("artwork_uri", it) }
+                playbackUri?.let { putString("playback_uri", it) }
             })
             .build()
     )

@@ -34,7 +34,7 @@ data class RecognitionHistory(
     val appleMusicUrl: String? = null,
     val spotifyUrl: String? = null,
     val isrc: String? = null,
-    val youtubeVideoId: String? = null,
+    val sourceTrackId: String? = null,
     val recognizedAt: LocalDateTime = LocalDateTime.now(),
     val liked: Boolean = false
 )

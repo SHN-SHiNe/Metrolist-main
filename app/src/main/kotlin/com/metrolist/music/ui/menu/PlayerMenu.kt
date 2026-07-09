@@ -74,13 +74,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
+import dagger.hilt.android.EntryPointAccessors
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
-import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
@@ -88,7 +88,11 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.ListItemHeight
 import com.metrolist.music.constants.VarispeedKey
+import com.metrolist.music.di.LocalMusicAnalysisEntryPoint
 import com.metrolist.music.download.FileMusicDownloader
+import com.metrolist.music.localmusic.analysis.LocalMusicAnalysisStatus
+import com.metrolist.music.localmusic.analysis.actionPresentation
+import com.metrolist.music.localmusic.analysis.hasCompleteAnalysis
 import com.metrolist.music.listentogether.ConnectionState
 import com.metrolist.music.listentogether.ListenTogetherEvent
 import com.metrolist.chinamusic.ChinaMusicUtils
@@ -106,7 +110,6 @@ import com.metrolist.music.ui.component.VolumeSlider
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.time.LocalDateTime
 import kotlin.math.log2
@@ -120,6 +123,7 @@ fun PlayerMenu(
     playerBottomSheetState: BottomSheetState,
     isQueueTrigger: Boolean? = false,
     onShowDetailsDialog: () -> Unit,
+    onAnalysisStarted: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     mediaMetadata ?: return
@@ -144,6 +148,24 @@ fun PlayerMenu(
     val varispeedMode by rememberPreference(VarispeedKey, defaultValue = false)
 
     val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
+    val downloadedLocalMusic by database.localMusic(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
+    val activeDownloadedLocalMusic = downloadedLocalMusic?.takeIf { it.missingSince == null }
+    val localMusicAnalysisManager =
+        remember(context) {
+            EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                LocalMusicAnalysisEntryPoint::class.java,
+            ).localMusicAnalysisManager()
+        }
+    val localMusicAnalysisStates by localMusicAnalysisManager.states.collectAsStateWithLifecycle()
+    val localMusicAnalysisState = activeDownloadedLocalMusic?.songId?.let(localMusicAnalysisStates::get)
+    val isLocalMusicAnalyzing =
+        localMusicAnalysisState?.status == LocalMusicAnalysisStatus.Queued ||
+            localMusicAnalysisState?.status == LocalMusicAnalysisStatus.Running
+    val localMusicAnalysisAction =
+        activeDownloadedLocalMusic?.let { localMusic ->
+            localMusicAnalysisState.actionPresentation(localMusic.hasCompleteAnalysis())
+        }
     val coroutineScope = rememberCoroutineScope()
 
     val download by LocalDownloadUtil.current
@@ -153,6 +175,14 @@ fun PlayerMenu(
     val isPinned by database.speedDialDao.isPinned(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = false)
 
     val isChinaSong = remember(mediaMetadata.id) { ChinaMusicUtils.isChinaMediaId(mediaMetadata.id) }
+    val isLocalSong =
+        isLocalMenuSong(
+            isLocalMetadata = mediaMetadata.isLocal,
+            mediaId = mediaMetadata.id,
+            libraryIsLocal = librarySong?.song?.isLocal == true,
+            hasLocalFile = activeDownloadedLocalMusic != null,
+        )
+    val menuVisibility = musicMenuVisibility(isLocalSong)
 
     LaunchedEffect(mediaMetadata.id) {
         Timber.tag("ChinaArtist").d(
@@ -183,11 +213,6 @@ fun PlayerMenu(
         onGetSong = { playlist ->
             database.withTransaction {
                 insert(mediaMetadata)
-            }
-            if (!isChinaSong) {
-                coroutineScope.launch(Dispatchers.IO) {
-                    playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
-                }
             }
             listOf(mediaMetadata.id)
         },
@@ -252,33 +277,50 @@ fun PlayerMenu(
         )
     }
 
-    var showFileDownloadDialog by rememberSaveable {
-        mutableStateOf(false)
+    var fileDownloadMode by rememberSaveable {
+        mutableStateOf<LocalFileDownloadMode?>(null)
     }
     var fileDownloadInProgress by rememberSaveable {
         mutableStateOf(false)
     }
 
-    if (showFileDownloadDialog) {
+    fileDownloadMode?.let { pendingFileDownloadMode ->
         FileDownloadQualityDialog(
             inProgress = fileDownloadInProgress,
-            onDismiss = { showFileDownloadDialog = false },
+            confirmText = if (pendingFileDownloadMode == LocalFileDownloadMode.DownloadAndAnalyze) "下载并分析" else "开始下载",
+            onDismiss = { fileDownloadMode = null },
             onQualitySelected = { quality ->
                 fileDownloadInProgress = true
+                if (pendingFileDownloadMode == LocalFileDownloadMode.DownloadAndAnalyze) {
+                    onAnalysisStarted()
+                }
                 coroutineScope.launch {
-                    val result = FileMusicDownloader.download(context, mediaMetadata, quality)
-                    if (result.isSuccess) {
-                        database.withTransaction {
-                            insert(mediaMetadata)
-                            updateDownloadedInfo(mediaMetadata.id, true, LocalDateTime.now())
-                        }
-                    }
+                    val result =
+                        runLocalFileDownloadAction(
+                            context = context,
+                            database = database,
+                            mediaMetadata = mediaMetadata,
+                            quality = quality,
+                            mode = pendingFileDownloadMode,
+                            analysisManager = localMusicAnalysisManager,
+                        )
                     fileDownloadInProgress = false
-                    showFileDownloadDialog = false
+                    fileDownloadMode = null
                     Toast.makeText(
                         context,
                         result.fold(
-                            onSuccess = { "已下载到 Music/SHiNe MUSIC/$it" },
+                            onSuccess = { actionResult ->
+                                when {
+                                    actionResult.reusedExisting && actionResult.analysisStarted ->
+                                        "已在本地，开始分析：${actionResult.displayPath}"
+                                    actionResult.reusedExisting ->
+                                        "已在本地：${actionResult.displayPath}"
+                                    actionResult.analysisStarted ->
+                                        "已下载到 ${actionResult.displayPath}，开始分析"
+                                    else ->
+                                        "已下载到 ${actionResult.displayPath}"
+                                }
+                            },
                             onFailure = { "下载失败：${it.message ?: "未知错误"}" },
                         ),
                         Toast.LENGTH_LONG,
@@ -368,6 +410,73 @@ fun PlayerMenu(
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
+    fun MutableList<Material3MenuItemData>.addPlayerToolActions() {
+        if (isQueueTrigger != true) {
+            add(
+                Material3MenuItemData(
+                    title = { Text(text = stringResource(R.string.equalizer)) },
+                    description = { Text(text = stringResource(R.string.equalizer_desc)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.equalizer),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
+                    onClick = {
+                        navController.navigate("equalizer")
+                        onDismiss()
+                    },
+                ),
+            )
+            add(
+                Material3MenuItemData(
+                    title = { Text(text = stringResource(R.string.system_equalizer)) },
+                    description = { Text(text = stringResource(R.string.system_equalizer_desc)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.graphic_eq),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
+                    onClick = {
+                        val audioSessionId = playerConnection.player.audioSessionId
+                        if (audioSessionId != C.AUDIO_SESSION_ID_UNSET && audioSessionId > 0) {
+                            val intent =
+                                Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
+                                    putExtra(AudioEffect.EXTRA_AUDIO_SESSION, audioSessionId)
+                                    putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
+                                    putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+                                }
+                            if (intent.resolveActivity(context.packageManager) != null) {
+                                systemEqLauncher.launch(intent)
+                            }
+                        }
+                        onDismiss()
+                    },
+                ),
+            )
+            add(
+                Material3MenuItemData(
+                    title = { Text(text = stringResource(R.string.advanced)) },
+                    description = { Text(text = stringResource(R.string.advanced_desc)) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(R.drawable.tune),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
+                    onClick = {
+                        if (!varispeedMode) showPitchTempoDialog = true
+                        else showSpeedDialog = true
+                    },
+                ),
+            )
+        }
+    }
+
     LazyColumn(
         contentPadding =
             PaddingValues(
@@ -378,30 +487,9 @@ fun PlayerMenu(
             ),
     ) {
         item {
-            val startingRadioText = stringResource(R.string.starting_radio)
             NewActionGrid(
                 actions =
                     listOfNotNull(
-                        if (!isListenTogetherGuest && !isChinaSong) {
-                            NewAction(
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.radio),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                text = stringResource(R.string.start_radio),
-                                onClick = {
-                                    Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
-                                    playerConnection.startRadioSeamlessly()
-                                    onDismiss()
-                                },
-                            )
-                        } else {
-                            null
-                        },
                         NewAction(
                             icon = {
                                 Icon(
@@ -429,39 +517,8 @@ fun PlayerMenu(
                             text = stringResource(R.string.add_to_playlist),
                             onClick = { showChoosePlaylistDialog = true },
                         ),
-                        if (!isChinaSong) {
-                            NewAction(
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.link),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(32.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                text = stringResource(R.string.copy_link),
-                                onClick = {
-                                    val clipboard =
-                                        context.getSystemService(
-                                            android.content.Context.CLIPBOARD_SERVICE,
-                                        ) as android.content.ClipboardManager
-                                    val clip =
-                                        android.content.ClipData.newPlainText(
-                                            "Song Link",
-                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}",
-                                        )
-                                    clipboard.setPrimaryClip(clip)
-                                    android.widget.Toast
-                                        .makeText(context, R.string.link_copied, android.widget.Toast.LENGTH_SHORT)
-                                        .show()
-                                    onDismiss()
-                                },
-                            )
-                        } else {
-                            null
-                        },
                     ),
-                columns = if (isListenTogetherGuest || isChinaSong) 2 else 3,
+                columns = 2,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp),
             )
         }
@@ -476,7 +533,7 @@ fun PlayerMenu(
                 items =
                     buildList {
                         // View Artist
-                        if (artists.isNotEmpty() && !isPodcast) {
+                        if (menuVisibility.showOnlineMetadataActions && artists.isNotEmpty() && !isPodcast) {
                             add(
                                 Material3MenuItemData(
                                     title = { Text(text = stringResource(R.string.view_artist)) },
@@ -508,7 +565,7 @@ fun PlayerMenu(
                                 ),
                             )
                         }
-                        if (albumTitle != null) {
+                        if (menuVisibility.showOnlineMetadataActions && albumTitle != null) {
                             add(
                                 Material3MenuItemData(
                                     title = { Text(text = stringResource(if (isPodcast) R.string.view_podcast else R.string.view_album)) },
@@ -543,6 +600,43 @@ fun PlayerMenu(
                                 ),
                             )
                         }
+                        if (isLocalSong && activeDownloadedLocalMusic != null && localMusicAnalysisAction != null) {
+                            add(
+                                Material3MenuItemData(
+                                    title = { Text(text = localMusicAnalysisAction.label) },
+                                    description = {
+                                        Text(
+                                            text = localMusicAnalysisAction.description,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    icon = {
+                                        localMusicAnalysisAction.progress?.let { progress ->
+                                            CircularProgressIndicator(
+                                                progress = { progress.coerceIn(0f, 1f) },
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp,
+                                            )
+                                        } ?: Icon(
+                                            painter = painterResource(R.drawable.advanced_search),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    },
+                                    onClick =
+                                        if (isLocalMusicAnalyzing || !localMusicAnalysisAction.enabled) {
+                                            null
+                                        } else {
+                                            {
+                                                onAnalysisStarted()
+                                                localMusicAnalysisManager.analyze(activeDownloadedLocalMusic)
+                                                onDismiss()
+                                            }
+                                        },
+                                ),
+                            )
+                        }
                         add(
                             Material3MenuItemData(
                                 title = {
@@ -562,180 +656,159 @@ fun PlayerMenu(
                                         if (isPinned) {
                                             database.speedDialDao.delete(mediaMetadata.id)
                                         } else {
-                                            database.speedDialDao.insert(SpeedDialItem.fromYTItem(mediaMetadata.toYTItem()))
+                                            database.speedDialDao.insert(
+                                                SpeedDialItem(
+                                                    id = mediaMetadata.id,
+                                                    title = mediaMetadata.title,
+                                                    subtitle = mediaMetadata.artists.joinToString(", ") { it.name },
+                                                    subtitleIds = mediaMetadata.artists.joinToString(", ") { it.id.orEmpty() },
+                                                    thumbnailUrl = mediaMetadata.thumbnailUrl,
+                                                    type = "SONG",
+                                                    explicit = mediaMetadata.explicit,
+                                                    albumId = mediaMetadata.album?.id,
+                                                    albumName = mediaMetadata.album?.title,
+                                                ),
+                                            )
                                         }
                                     }
                                     onDismiss()
                                 },
                             ),
                         )
-                    },
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(12.dp)) }
-
-        item {
-            Material3MenuGroup(
-                items =
-                    listOf(
-                        when (download?.state) {
-                            Download.STATE_COMPLETED -> {
-                                Material3MenuItemData(
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.remove_download),
-                                        )
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.offline),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            mediaMetadata.id,
-                                            false,
-                                        )
-                                    },
-                                )
-                            }
-
-                            Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.downloading)) },
-                                    icon = {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp,
-                                        )
-                                    },
-                                    onClick = {
-                                        DownloadService.sendRemoveDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            mediaMetadata.id,
-                                            false,
-                                        )
-                                    },
-                                )
-                            }
-
-                            else -> {
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.action_download)) },
-                                    description = { Text(text = "下载到手机音乐文件夹") },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.download),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        showFileDownloadDialog = true
-                                    },
-                                )
-                            }
-                        },
-                    ),
-            )
-        }
-
-        item { Spacer(modifier = Modifier.height(12.dp)) }
-
-        item {
-            Material3MenuGroup(
-                items =
-                    buildList {
-                        add(
-                            Material3MenuItemData(
-                                title = { Text(text = "查看歌曲评论") },
-                                description = { Text(text = "查看当前歌曲评论") },
-                                icon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.info),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                },
-                                onClick = {
-                                    Timber.tag("SongComments").d("PlayerMenu comments click mediaId=${mediaMetadata.id}")
-                                    onShowDetailsDialog()
-                                    onDismiss()
-                                },
-                            ),
-                        )
-
-                        if (isQueueTrigger != true) {
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.equalizer)) },
-                                    description = { Text(text = stringResource(R.string.equalizer_desc)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.equalizer),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        navController.navigate("equalizer")
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.system_equalizer)) },
-                                    description = { Text(text = stringResource(R.string.system_equalizer_desc)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.graphic_eq),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        val audioSessionId = playerConnection.player.audioSessionId
-                                        if (audioSessionId != C.AUDIO_SESSION_ID_UNSET && audioSessionId > 0) {
-                                            val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
-                                                putExtra(AudioEffect.EXTRA_AUDIO_SESSION, audioSessionId)
-                                                putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.packageName)
-                                                putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
-                                            }
-                                            if (intent.resolveActivity(context.packageManager) != null) {
-                                                systemEqLauncher.launch(intent)
-                                            }
-                                        }
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                            add(
-                                Material3MenuItemData(
-                                    title = { Text(text = stringResource(R.string.advanced)) },
-                                    description = { Text(text = stringResource(R.string.advanced_desc)) },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.tune),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(24.dp),
-                                        )
-                                    },
-                                    onClick = {
-                                        if (!varispeedMode) showPitchTempoDialog = true
-                                        else showSpeedDialog = true
-                                    },
-                                ),
-                            )
+                        if (!menuVisibility.showOnlineMetadataActions) {
+                            addPlayerToolActions()
                         }
                     },
             )
+        }
+
+        if (menuVisibility.showDownloadAction) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                Material3MenuGroup(
+                    items =
+                        buildList {
+                            when (download?.state) {
+                                Download.STATE_COMPLETED -> {
+                                    add(
+                                        Material3MenuItemData(
+                                            title = {
+                                                Text(
+                                                    text = stringResource(R.string.remove_download),
+                                                )
+                                            },
+                                            icon = {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.offline),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(24.dp),
+                                                )
+                                            },
+                                            onClick = {
+                                                DownloadService.sendRemoveDownload(
+                                                    context,
+                                                    ExoDownloadService::class.java,
+                                                    mediaMetadata.id,
+                                                    false,
+                                                )
+                                            },
+                                        ),
+                                    )
+                                }
+
+                                Download.STATE_QUEUED, Download.STATE_DOWNLOADING -> {
+                                    add(
+                                        Material3MenuItemData(
+                                            title = { Text(text = stringResource(R.string.downloading)) },
+                                            icon = {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            },
+                                            onClick = {
+                                                DownloadService.sendRemoveDownload(
+                                                    context,
+                                                    ExoDownloadService::class.java,
+                                                    mediaMetadata.id,
+                                                    false,
+                                                )
+                                            },
+                                        ),
+                                    )
+                                }
+
+                                else -> Unit
+                            }
+                            if (download?.state != Download.STATE_QUEUED && download?.state != Download.STATE_DOWNLOADING) {
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = "下载到本地") },
+                                        description = { Text(text = "保存为本地音乐文件") },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.download),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(24.dp),
+                                            )
+                                        },
+                                        onClick = {
+                                            fileDownloadMode = LocalFileDownloadMode.DownloadOnly
+                                        },
+                                    ),
+                                )
+                                add(
+                                    Material3MenuItemData(
+                                        title = { Text(text = "下载并分析") },
+                                        description = { Text(text = "保存后分析情绪、BPM 和调性") },
+                                        icon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.advanced_search),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(24.dp),
+                                            )
+                                        },
+                                        onClick = {
+                                            fileDownloadMode = LocalFileDownloadMode.DownloadAndAnalyze
+                                        },
+                                    ),
+                                )
+                            }
+                        },
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+        }
+
+        if (menuVisibility.showSongCommentsAction) {
+            item {
+                Material3MenuGroup(
+                    items =
+                        buildList {
+                            add(
+                                Material3MenuItemData(
+                                    title = { Text(text = "查看歌曲评论") },
+                                    description = { Text(text = "查看当前歌曲评论") },
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.info),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    },
+                                    onClick = {
+                                        Timber.tag("SongComments").d("PlayerMenu comments click mediaId=${mediaMetadata.id}")
+                                        onShowDetailsDialog()
+                                        onDismiss()
+                                    },
+                                ),
+                            )
+                            addPlayerToolActions()
+                        },
+                )
+            }
         }
     }
 }
@@ -743,6 +816,7 @@ fun PlayerMenu(
 @Composable
 private fun FileDownloadQualityDialog(
     inProgress: Boolean,
+    confirmText: String,
     onDismiss: () -> Unit,
     onQualitySelected: (FileMusicDownloader.Quality) -> Unit,
 ) {
@@ -785,7 +859,7 @@ private fun FileDownloadQualityDialog(
                 enabled = !inProgress,
                 onClick = { onQualitySelected(selectedQuality) },
             ) {
-                Text(if (inProgress) "下载中" else "开始下载")
+                Text(if (inProgress) "下载中" else confirmText)
             }
         },
         dismissButton = {

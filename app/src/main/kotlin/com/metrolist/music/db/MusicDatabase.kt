@@ -28,6 +28,7 @@ import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.db.entities.Event
 import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.db.entities.LocalMusicEntity
 import com.metrolist.music.db.entities.PlayCountEntity
 import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.PlaylistSongMap
@@ -112,13 +113,14 @@ class MusicDatabase(
         RecognitionHistory::class,
         SpeedDialItem::class,
         PodcastEntity::class,
+        LocalMusicEntity::class,
     ],
     views = [
         SortedSongArtistMap::class,
         SortedSongAlbumMap::class,
         PlaylistSongMapPreview::class,
     ],
-    version = 37,
+    version = 40,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 2, to = 3),
@@ -177,6 +179,10 @@ abstract class InternalDatabase : RoomDatabase() {
                             MIGRATION_21_24,
                             MIGRATION_22_24,
                             MIGRATION_24_25,
+                            MIGRATION_37_38,
+                            MIGRATION_37_39,
+                            MIGRATION_38_39,
+                            MIGRATION_39_40,
                         ).fallbackToDestructiveMigration(dropAllTables = true)
                         .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                         .setTransactionExecutor(
@@ -812,6 +818,111 @@ val MIGRATION_24_25 =
             }
         }
     }
+
+val MIGRATION_38_39 =
+    object : Migration(38, 39) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            var hasSourceTrackId = false
+            db.query("PRAGMA table_info(`recognition_history`)").use { cursor ->
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIndex) == "sourceTrackId") {
+                        hasSourceTrackId = true
+                        break
+                    }
+                }
+            }
+
+            if (!hasSourceTrackId) {
+                db.execSQL("ALTER TABLE `recognition_history` ADD COLUMN `sourceTrackId` TEXT")
+            }
+            createLocalMusicTable(db)
+        }
+    }
+
+val MIGRATION_39_40 =
+    object : Migration(39, 40) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            createLocalMusicPerformanceIndexes(db)
+        }
+    }
+
+val MIGRATION_37_39 =
+    object : Migration(37, 39) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            migrateRecognitionHistorySourceTrackId(db)
+            createLocalMusicTable(db)
+        }
+    }
+
+val MIGRATION_37_38 =
+    object : Migration(37, 38) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            migrateRecognitionHistorySourceTrackId(db)
+            createLocalMusicTable(db)
+        }
+    }
+
+private fun migrateRecognitionHistorySourceTrackId(db: SupportSQLiteDatabase) {
+    var hasSourceTrackId = false
+    var hasYoutubeVideoId = false
+    db.query("PRAGMA table_info(`recognition_history`)").use { cursor ->
+        val nameIndex = cursor.getColumnIndex("name")
+        while (cursor.moveToNext()) {
+            when (cursor.getString(nameIndex)) {
+                "sourceTrackId" -> hasSourceTrackId = true
+                "youtubeVideoId" -> hasYoutubeVideoId = true
+            }
+        }
+    }
+
+    when {
+        hasSourceTrackId -> Unit
+        hasYoutubeVideoId -> db.execSQL("ALTER TABLE `recognition_history` RENAME COLUMN `youtubeVideoId` TO `sourceTrackId`")
+        else -> db.execSQL("ALTER TABLE `recognition_history` ADD COLUMN `sourceTrackId` TEXT")
+    }
+}
+
+private fun createLocalMusicTable(db: SupportSQLiteDatabase) {
+    db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS `local_music` (
+            `songId` TEXT NOT NULL,
+            `contentUri` TEXT NOT NULL,
+            `treeUri` TEXT NOT NULL,
+            `documentId` TEXT NOT NULL,
+            `displayName` TEXT NOT NULL,
+            `mimeType` TEXT,
+            `fileSize` INTEGER,
+            `dateModified` INTEGER,
+            `lastScannedAt` INTEGER NOT NULL,
+            `scanGeneration` INTEGER NOT NULL,
+            `missingSince` INTEGER,
+            `bpm` REAL,
+            `keyName` TEXT,
+            `valence` REAL,
+            `energy` REAL,
+            `danceability` REAL,
+            `acousticness` REAL,
+            `instrumentalness` REAL,
+            `liveness` REAL,
+            `speechiness` REAL,
+            `moodSummary` TEXT,
+            `hasArtwork` INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(`songId`),
+            FOREIGN KEY(`songId`) REFERENCES `song`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+        )
+        """.trimIndent(),
+    )
+    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_local_music_songId` ON `local_music` (`songId`)")
+    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_local_music_treeUri_documentId` ON `local_music` (`treeUri`, `documentId`)")
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_music_missingSince` ON `local_music` (`missingSince`)")
+}
+
+private fun createLocalMusicPerformanceIndexes(db: SupportSQLiteDatabase) {
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_music_missingSince_lastScannedAt` ON `local_music` (`missingSince`, `lastScannedAt`)")
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_local_music_missingSince_bpm_keyName` ON `local_music` (`missingSince`, `bpm`, `keyName`)")
+}
 
 class Migration29To30 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {

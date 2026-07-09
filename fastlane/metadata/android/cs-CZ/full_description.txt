@@ -1,4 +1,4 @@
-Material 3 YouTube Music klient pro Android
+Material 3 SHiNe MUSIC klient pro Android
 
 Funkce:
 
@@ -9,7 +9,7 @@ Funkce:
 - Stahování a ukládání skladeb do mezipaměti pro offline přehrávání
 - Hledání skladeb, alb, umělců, videí a playlistů
 - Živé texty
-- Podpora přihlášení k účtu YouTube Music
+- Podpora přihlášení k účtu SHiNe MUSIC
 - Oboustranná synchronizace skladeb, umělců, alb a playlistů s účtem
 - Přeskočení ticha
 - Import playlistů

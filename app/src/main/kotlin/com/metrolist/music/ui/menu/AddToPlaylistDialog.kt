@@ -30,13 +30,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
 import com.metrolist.music.constants.AddToPlaylistSortDescendingKey
 import com.metrolist.music.constants.AddToPlaylistSortTypeKey
-import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.ListThumbnailSize
 import com.metrolist.music.constants.PlaylistSortType
 import com.metrolist.music.db.entities.Playlist
@@ -74,7 +71,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.FilterChip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.FilterChipDefaults
-import com.metrolist.music.LocalSyncUtils
 
 @Composable
 fun AddToPlaylistDialog(
@@ -87,7 +83,6 @@ fun AddToPlaylistDialog(
     viewModel: PlaylistsViewModel = hiltViewModel()
 ) {
     val database = LocalDatabase.current
-    val syncUtils = LocalSyncUtils.current
     val coroutineScope = rememberCoroutineScope()
     val (sortType, onSortTypeChange) = rememberEnumPreference(
         AddToPlaylistSortTypeKey,
@@ -98,10 +93,6 @@ fun AddToPlaylistDialog(
         false
     )
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    val isLoggedIn = remember(innerTubeCookie) {
-        "SAPISID" in parseCookieString(innerTubeCookie)
-    }
     var showCreatePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -122,18 +113,8 @@ fun AddToPlaylistDialog(
         mutableStateOf<Set<String>>(emptySet())
     }
 
-    suspend fun addSongsAndSync(targetPlaylist: Playlist, ids: List<String>) {
+    suspend fun addSongsToLocalPlaylist(targetPlaylist: Playlist, ids: List<String>) {
         database.addSongsToPlaylist(targetPlaylist, ids.map { it to null }, prepend = true)
-        targetPlaylist.playlist.browseId?.let { plist ->
-            ids.forEach { songId ->
-                syncUtils.registerPendingAdd(plist, songId)
-                try {
-                    YouTube.addToPlaylist(plist, songId)
-                } finally {
-                    syncUtils.unregisterPendingAdd(plist, songId)
-                }
-            }
-        }
     }
 
     LaunchedEffect(isVisible, playlists.isEmpty()) {
@@ -310,7 +291,7 @@ fun AddToPlaylistDialog(
                                 showDuplicateDialog = true
                             } else {
                                 onDismiss()
-                                addSongsAndSync(playlist, songIds!!)
+                                addSongsToLocalPlaylist(playlist, songIds!!)
                             }
                         }
                     }
@@ -337,7 +318,7 @@ fun AddToPlaylistDialog(
                             showDuplicateDialog = false
                             onDismiss()
                             coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(
+                                addSongsToLocalPlaylist(
                                     selectedPlaylist!!,
                                     songIds!!.filter { !duplicates.contains(it) }
                                 )
@@ -352,7 +333,7 @@ fun AddToPlaylistDialog(
                             showDuplicateDialog = false
                             onDismiss()
                             coroutineScope.launch(Dispatchers.IO) {
-                                addSongsAndSync(selectedPlaylist!!, songIds!!)
+                                addSongsToLocalPlaylist(selectedPlaylist!!, songIds!!)
                             }
                         }
                     ) {

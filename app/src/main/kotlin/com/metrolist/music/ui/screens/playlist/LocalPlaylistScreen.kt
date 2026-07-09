@@ -105,14 +105,10 @@ import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.utils.completed
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
-import com.metrolist.music.LocalSyncUtils
 import com.metrolist.music.R
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.PlaylistEditLockKey
@@ -147,10 +143,8 @@ import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
-import com.metrolist.music.utils.reportException
 import com.metrolist.music.viewmodels.LocalPlaylistViewModel
 import com.yalantis.ucrop.UCrop
-import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -194,7 +188,6 @@ fun LocalPlaylistScreen(
     var locked by rememberPreference(PlaylistEditLockKey, defaultValue = true)
 
     val coroutineScope = rememberCoroutineScope()
-    val syncUtils = LocalSyncUtils.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     var isSearching by rememberSaveable { mutableStateOf(false) }
@@ -320,9 +313,6 @@ fun LocalPlaylistScreen(
                             ),
                         )
                     }
-                    viewModel.viewModelScope.launch(Dispatchers.IO) {
-                        playlistEntity.browseId?.let { YouTube.renamePlaylist(it, name) }
-                    }
                 },
             )
         }
@@ -408,9 +398,6 @@ fun LocalPlaylistScreen(
                         database.query {
                             playlist?.let { delete(it.playlist) }
                         }
-                        viewModel.viewModelScope.launch(Dispatchers.IO) {
-                            playlist?.playlist?.browseId?.let { YouTube.deletePlaylist(it) }
-                        }
                         navController.popBackStack()
                     },
                 ) {
@@ -449,22 +436,6 @@ fun LocalPlaylistScreen(
                 viewModel.viewModelScope.launch(Dispatchers.IO) {
                     database.withTransaction {
                         move(viewModel.playlistId, from, to)
-                    }
-
-                    // Sync order with YT Music
-                    val browseId = viewModel.playlist.value?.playlist?.browseId
-                    if (browseId != null) {
-                        val playlistSongMap = database.playlistSongMaps(viewModel.playlistId, 0)
-                        val setVideoId = playlistSongMap.getOrNull(to)?.setVideoId
-                        val successorSetVideoId = playlistSongMap.getOrNull(to + 1)?.setVideoId
-
-                        if (setVideoId != null) {
-                            YouTube.moveSongPlaylist(
-                                browseId,
-                                setVideoId,
-                                successorSetVideoId,
-                            )
-                        }
                     }
                 }
 
@@ -564,33 +535,12 @@ fun LocalPlaylistScreen(
                     val currentItem by rememberUpdatedState(song)
 
                     fun deleteFromPlaylist() {
-                        // Capture values before deletion 鈥?DB entry will be gone afterwards
-                        val browseId = playlist?.playlist?.browseId
-                        val setVideoId = currentItem.map.setVideoId
                         val songId = currentItem.map.songId
                         val playlistId = currentItem.map.playlistId
 
                         database.transaction {
                             move(playlistId, currentItem.map.position, Int.MAX_VALUE)
                             delete(currentItem.map.copy(position = Int.MAX_VALUE))
-                        }
-
-                        if (browseId != null) {
-                            syncUtils.scheduleRemoveFromPlaylist(
-                                browseId,
-                                songId,
-                                playlistId
-                            ) {
-                                var setVideoId: String? = setVideoId  // already captured before deletion
-                                if (setVideoId == null) {
-                                    for (attempt in 0 until 10) {
-                                        setVideoId = database.getSetVideoId(songId)?.setVideoId
-                                        if (setVideoId != null) break
-                                        delay(3_000L)
-                                    }
-                                }
-                                setVideoId
-                            }
                         }
                     }
 
@@ -887,10 +837,8 @@ fun LocalPlaylistHeader(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val menuState = LocalMenuState.current
-    val syncUtils = LocalSyncUtils.current
     val scope = rememberCoroutineScope()
     val editPlaylistCoverStr = stringResource(R.string.edit_playlist_cover)
-    val playlistSyncedStr = stringResource(R.string.playlist_synced)
 
     val playlistLength =
         remember(songs) {
@@ -973,39 +921,11 @@ fun LocalPlaylistHeader(
     LaunchedEffect(result.value) {
         val uri = result.value ?: return@LaunchedEffect
         withContext(Dispatchers.IO) {
-            val isChinaPlaylist = playlist.playlist.browseId?.startsWith("china_") == true
-            when {
-                playlist.playlist.browseId == null || isChinaPlaylist -> {
-                    overrideThumbnail.value = uri.toString()
-                    isCustomThumbnail = true
+            overrideThumbnail.value = uri.toString()
+            isCustomThumbnail = true
 
-                    // Update the database with the new thumbnail
-                    database.query {
-                        update(playlist.playlist.copy(thumbnailUrl = uri.toString()))
-                    }
-                }
-
-                else -> {
-                    val bytes = uriToByteArray(context, uri)
-                    YouTube
-                        .uploadCustomThumbnailLink(
-                            playlist.playlist.browseId,
-                            bytes!!,
-                        ).onSuccess { newThumbnailUrl ->
-                            overrideThumbnail.value = newThumbnailUrl
-                            isCustomThumbnail = true
-
-                            // Update the database with the new thumbnail URL
-                            database.query {
-                                update(playlist.playlist.copy(thumbnailUrl = newThumbnailUrl))
-                            }
-                        }.onFailure {
-                            if (it is ClientRequestException) {
-                                snackbarHostState.showSnackbar("${it.response.status.value} ${it.response.status.description}")
-                            }
-                            reportException(it)
-                        }
-                }
+            database.query {
+                update(playlist.playlist.copy(thumbnailUrl = uri.toString()))
             }
         }
     }
@@ -1131,24 +1051,9 @@ fun LocalPlaylistHeader(
                                                     )
                                                 },
                                                 onRemove = {
-                                                    when {
-                                                        playlist.playlist.browseId == null -> {
-                                                            overrideThumbnail.value = null
-                                                            database.query {
-                                                                update(playlist.playlist.copy(thumbnailUrl = null))
-                                                            }
-                                                        }
-
-                                                        else -> {
-                                                            scope.launch(Dispatchers.IO) {
-                                                                YouTube.removeThumbnailPlaylist(playlist.playlist.browseId).onSuccess { newThumbnailUrl ->
-                                                                    overrideThumbnail.value = newThumbnailUrl
-                                                                    database.query {
-                                                                        update(playlist.playlist.copy(thumbnailUrl = newThumbnailUrl))
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                                                    overrideThumbnail.value = null
+                                                    database.query {
+                                                        update(playlist.playlist.copy(thumbnailUrl = null))
                                                     }
                                                     isCustomThumbnail = false
                                                 },
@@ -1212,24 +1117,9 @@ fun LocalPlaylistHeader(
                                                     )
                                                 },
                                                 onRemove = {
-                                                    when {
-                                                        playlist.playlist.browseId == null -> {
-                                                            overrideThumbnail.value = null
-                                                            database.query {
-                                                                update(playlist.playlist.copy(thumbnailUrl = null))
-                                                            }
-                                                        }
-
-                                                        else -> {
-                                                            scope.launch(Dispatchers.IO) {
-                                                                YouTube.removeThumbnailPlaylist(playlist.playlist.browseId).onSuccess { newThumbnailUrl ->
-                                                                    overrideThumbnail.value = newThumbnailUrl
-                                                                    database.query {
-                                                                        update(playlist.playlist.copy(thumbnailUrl = newThumbnailUrl))
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                                                    overrideThumbnail.value = null
+                                                    database.query {
+                                                        update(playlist.playlist.copy(thumbnailUrl = null))
                                                     }
                                                     isCustomThumbnail = false
                                                 },
@@ -1563,24 +1453,6 @@ fun LocalPlaylistHeader(
                                                 android.widget.Toast.makeText(context, "刷新失败", android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         }
-                                    } else {
-                                        // YouTube playlist sync
-                                        val playlistPage =
-                                            YouTube
-                                                .playlist(browseId)
-                                                .completed()
-                                                .getOrNull() ?: return@launch
-                                        database.transaction {
-                                            clearPlaylist(playlist.id)
-                                            val songIds = playlistPage.songs
-                                                .map(SongItem::toMediaMetadata)
-                                                .onEach(::insert)
-                                                .map { it.id to it.setVideoId }
-                                            addSongsToPlaylist(playlist, songIds)
-                                        }
-                                        withContext(Dispatchers.Main) {
-                                            snackbarHostState.showSnackbar(playlistSyncedStr)
-                                        }
                                     }
                                 }
                             },
@@ -1691,4 +1563,3 @@ fun uriToByteArray(
     } catch (_: SecurityException) {
         null
     }
-

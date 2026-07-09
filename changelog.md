@@ -4,7 +4,7 @@ Metrolist is currently in maintenance mode. This means we will only be fixing bu
 
 # Major changes
 - Fixed random crashes and some memory leaks (@nyxiereal)
-- Fixed issues with uploading songs to YouTube (@kairosci)
+- Fixed issues with uploading songs to SHiNe (@kairosci)
 - Fixed playback for uploaded songs (@punkscience)
 
 ## Notable new features
@@ -32,7 +32,7 @@ Metrolist is currently in maintenance mode. This means we will only be fixing bu
 
 # Major changes
 - Fixed cached songs showing up in the downloads playlist (@nyxiereal)
-- Fixed multiple playback issues and prepared for YouTube's player changes (@mostafaalagamy @nyxiereal)
+- Fixed multiple playback issues and prepared for SHiNe's player changes (@mostafaalagamy @nyxiereal)
 
 ## Notable new features
 - Added the ability to paste URLs to the search to play them directly (@nyxiereal)
@@ -157,7 +157,7 @@ We are working on something big for the future of Metrolist - this is not the en
 **Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.0...v13.2.1
 ---v13.2.0
 # Major changes
-- Fixed playback breaking due to YouTube's February 2026 n-transform changes (@alltechdev)
+- Fixed playback breaking due to SHiNe's February 2026 n-transform changes (@alltechdev)
 - Added full podcast library support (@mostafaalagamy & @alltechdev)
 - Redesigned loading, Changelog, and About screens (@adrielGGmotion)
 - Improved app startup time via parallelized home screen loading (@mostafaalagamy)

@@ -17,7 +17,7 @@
     <string name="cached_playlist">Keşə yüklənmiş</string>
     <string name="sync_playlist">Pleylisti sinxronizasiya et</string>
     <string name="sync_disabled">Sinxronizasiya qeyri-aktivdir</string>
-    <string name="allows_for_sync_witch_youtube">Qeyd: Bu, YouTube Music ilə sinxronizasiya etməyə imkan verir. Bu sonradan dəyişdirilə bilməz.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Şəkil yaradılır…</string>
     <string name="please_wait">Zəhmət olmasa gözləyin</string>
     <string name="cancel">Ləğv et</string>
@@ -64,7 +64,7 @@
     <string name="download_in_progress_desc">Yükləmək dəvam edir</string>
     <string name="share_playlist_desc">Bu playlisti başqalarıyla paylaş</string>
     <string name="delete_playlist_desc">Bu playlisti həmişəlik sil</string>
-    <string name="sync_playlist_desc">Playlisti YouTube Musicnen sinxronla</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="crop_album_art">Albom şəklini kəs</string>
     <string name="player_background_style">Albom şəklini pleyerdə tətbiq loqosu ilə əvəz edin</string>
     <string name="follow_theme">Temanı izlə</string>
@@ -90,7 +90,7 @@
     <string name="lyrics_glow_effect_desc">Liriklərə parıldama ve sıçrama animasiyası əlavə et</string>
     <string name="enable_lrclib_desc">Icma tərəfindən sinxron liriklər databazası</string>
     <string name="enable_kugou_desc">Populyar çinli mahnı platforması, KuGou-dan liriklər götürür</string>
-    <string name="youtube_music_lyrics_note">QEYD: Başqa platformalarda liriklər tapılmasa avtomatik YouTube Music-dən götürür. Adətən belə götürülmüş liriklər avtomatik sinxron olmur.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_better_lyrics">Better Lyrics yandır</string>
     <string name="enable_better_lyrics_desc">Karaoke üçün sinxron olunmuş liriklər</string>
     <string name="enable_lyricsplus">LyricsPlus yandır</string>
@@ -106,10 +106,10 @@
     <string name="show_top_playlist">Ən yüksək pleylistleri göstər</string>
     <string name="show_cached_playlist">Keş olunmuş pleylistleri göstər</string>
     <string name="show_uploaded_playlist">Buluda yüklənmiş pleylistleri göstər</string>
-    <string name="yt_sync">Hesabınız ilə avtomatik sinxronlaşdır</string>
+    <string name="account_auto_sync">Hesabınız ilə avtomatik sinxronlaşdır</string>
     <string name="more_content">Daha çox məzmun</string>
     <string name="edit_playlist_cover">Pleylist şəklini dəyişdir</string>
-    <string name="edit_playlist_cover_note">Qeyd: Sizin hesabının telefon nömrəsinə bağlı, ve YouTube Music-də təsdiqlənməlidirki, siz pleylist şəklini dəyişə biləsiz.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="parsed_from_link">Keçiddən ayrışdırılıb</string>
     <string name="weekly_most_playlist_name">Həftəlik ən məşhurlar</string>
     <string name="monthly_most_playlist_name">Aylıq ən məşhurlar</string>

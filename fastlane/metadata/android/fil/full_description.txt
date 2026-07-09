@@ -1,4 +1,4 @@
-Materyal 3 Youtube Music na kliyente na para sa Android
+Materyal 3 SHiNe MUSIC na kliyente na para sa Android
 
 Mga Katangian:
 
@@ -9,7 +9,7 @@ Mga Katangian:
 - Mag-download at mag-cache ng mga awitin para makapagpatugtog kahit walang internet
 - Maghanap ng mga awitin, mga album, mga artista at mga playlist
 - Sumasabay na Liriko
-- Suporta para sa pag-login sa iyong YouTube Music account
+- Suporta para sa pag-login sa iyong SHiNe MUSIC account
 - Sinisinkronisang mga awitin, artista, album, at playlist mula sa iyong account 
 - Laktawan ang tahimik na parte ng awitin
 - Mag-import ng mga playlist

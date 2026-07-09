@@ -61,19 +61,15 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.metrolist.innertube.models.Artist
-import com.metrolist.innertube.models.WatchEndpoint
-import com.metrolist.innertube.utils.parseCookieString
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.CONTENT_TYPE_ARTIST
-import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.StatPeriod
 import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.models.MediaMetadata.Artist
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.queues.ListQueue
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.ArtistListItem
 import com.metrolist.music.ui.component.ChoiceChipsRow
 import com.metrolist.music.ui.component.EmptyPlaceholder
@@ -174,18 +170,9 @@ fun StatsScreen(
             mostPlayedSongsStats.mapNotNull { statsSong -> songsById[statsSong.id] }
         }
     val mostPeriodPlaylists = listOfNotNull(weeklyMostPlaylist, monthlyMostPlaylist)
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
-    val isLoggedIn =
-        remember(innerTubeCookie) {
-            "SAPISID" in parseCookieString(innerTubeCookie)
-        }
     val visibleStatsPlaylists =
-        remember(mostPeriodPlaylists, recapPlaylists, isLoggedIn) {
-            if (isLoggedIn) {
-                (mostPeriodPlaylists + recapPlaylists).distinctBy { it.id }
-            } else {
-                mostPeriodPlaylists
-            }
+        remember(mostPeriodPlaylists, recapPlaylists) {
+            (mostPeriodPlaylists + recapPlaylists).distinctBy { it.id }
         }
 
     val coroutineScope = rememberCoroutineScope()
@@ -480,10 +467,12 @@ fun StatsScreen(
                                                 } else {
                                                     val targetSong = mostPlayedSongs.find { it.id == song.id }
                                                     if (targetSong != null) {
+                                                        val startIndex = mostPlayedSongs.indexOfFirst { it.id == targetSong.id }
                                                         playerConnection.playQueue(
-                                                            YouTubeQueue(
-                                                                endpoint = WatchEndpoint(song.id),
-                                                                preloadItem = targetSong.toMediaMetadata(),
+                                                            ListQueue(
+                                                                title = context.getString(R.string.stats),
+                                                                items = mostPlayedSongs.map { it.toMediaItem() },
+                                                                startIndex = startIndex.coerceAtLeast(0),
                                                             ),
                                                         )
                                                     }

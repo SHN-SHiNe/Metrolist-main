@@ -1,4 +1,4 @@
-„YouTube Music” grotuvas, naudojantis „Material 3”, skirtas „Android”
+„SHiNe MUSIC” grotuvas, naudojantis „Material 3”, skirtas „Android”
 
 Funkcijos:
 
@@ -9,7 +9,7 @@ Funkcijos:
 - Atsisiųsk arba išsaugok podėlyje dainas klausymui be ryšio
 - Ieškok dainų, albumų, kūrėjų ir grojaraščių
 - Dainų tekstas tiesiogiai.
-- „YouTube Music” paskyros prijungimo palaikymas
+- „SHiNe MUSIC” paskyros prijungimo palaikymas
 - Dainų, albumų, kūrėjų ir grojaraščių sinchronizacija iš ir į tavo paskyrą
 - Tylos praleidimas.
 - Grojaraščių įkėlimas.

@@ -154,8 +154,6 @@ fun ContentSettings(
             "LrcLib" to "LrcLib",
             "KuGou" to "KuGou",
             "LyricsPlus" to "LyricsPlus",
-            "YouTubeSubtitle" to "YouTube Subtitles",
-            "YouTube" to "YouTube",
         )
 
     var showProxyConfigurationDialog by rememberSaveable {
@@ -499,13 +497,6 @@ fun ContentSettings(
                                     modifier = Modifier.size(SwitchDefaults.IconSize)
                                 )
                             }
-                        )
-                    }
-                    Column(modifier = Modifier.padding(2.dp)) {
-                        Text(
-                            text = stringResource(R.string.youtube_music_lyrics_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

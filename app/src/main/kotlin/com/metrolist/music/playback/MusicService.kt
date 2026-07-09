@@ -14,6 +14,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -54,9 +55,11 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
 import androidx.media3.datasource.cache.SimpleCache
@@ -70,6 +73,7 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import androidx.media3.exoplayer.source.UnrecognizedInputFormatException
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
@@ -84,9 +88,6 @@ import androidx.media3.session.SessionToken
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.MoreExecutors
 import com.metrolist.chinamusic.ChinaMusicUtils
-import com.metrolist.innertube.YouTube
-import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.lastfm.LastFM
 import com.metrolist.music.MainActivity
 import com.metrolist.music.R
@@ -125,6 +126,7 @@ import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.constants.HistoryDuration
 import com.metrolist.music.constants.LastFMUseNowPlaying
+import com.metrolist.music.constants.LocalSimilarAutoplayKey
 import com.metrolist.music.constants.MediaSessionConstants
 import com.metrolist.music.constants.MediaSessionConstants.CommandAddToTargetPlaylist
 import com.metrolist.music.constants.MediaSessionConstants.CommandToggleLike
@@ -146,7 +148,6 @@ import com.metrolist.music.constants.ScrobbleMinSongDurationKey
 import com.metrolist.music.constants.ShowLyricsKey
 import com.metrolist.music.constants.ShuffleModeKey
 import com.metrolist.music.constants.ShufflePlaylistFirstKey
-import com.metrolist.music.constants.SimilarContent
 import com.metrolist.music.constants.SkipSilenceInstantKey
 import com.metrolist.music.constants.SkipSilenceKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
@@ -155,7 +156,6 @@ import com.metrolist.music.db.entities.Event
 import com.metrolist.music.db.entities.FormatEntity
 import com.metrolist.music.db.entities.LyricsEntity
 import com.metrolist.music.db.entities.PlaylistEntity
-import com.metrolist.music.db.entities.RelatedSongMap
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
@@ -174,6 +174,13 @@ import com.metrolist.music.extensions.toEnum
 import com.metrolist.music.extensions.toMediaItem
 import com.metrolist.music.extensions.toPersistQueue
 import com.metrolist.music.extensions.toQueue
+import com.metrolist.music.localmusic.LocalSimilarPlaybackBufferItem
+import com.metrolist.music.localmusic.LocalSimilarPlaybackBufferPlan
+import com.metrolist.music.localmusic.LocalSimilarPlaybackBufferPlanner
+import com.metrolist.music.localmusic.LocalSimilarPlaybackBufferUpdateStrategy
+import com.metrolist.music.localmusic.LocalSimilarPlaybackHistory
+import com.metrolist.music.localmusic.LocalSimilarSongSelector
+import com.metrolist.music.localmusic.toLocalSimilarSongAnalysis
 import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
@@ -184,7 +191,6 @@ import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.Queue
-import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.filterExplicit
 import com.metrolist.music.playback.queues.filterVideoSongs
 import com.metrolist.music.constants.LoudnessLevel
@@ -194,7 +200,6 @@ import com.metrolist.music.utils.DiscordRPC
 import com.metrolist.music.utils.NetworkConnectivityObserver
 import com.metrolist.music.utils.ScrobbleManager
 import com.metrolist.music.utils.SyncUtils
-import com.metrolist.music.utils.YTPlayerUtils
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import com.metrolist.music.utils.reportException
@@ -412,6 +417,9 @@ class MusicService :
     private var scrobbleManager: ScrobbleManager? = null
 
     val automixItems = MutableStateFlow<List<MediaItem>>(emptyList())
+
+    private val _localSimilarNextState = MutableStateFlow(LocalSimilarNextState.IDLE)
+    val localSimilarNextState = _localSimilarNextState.asStateFlow()
 
     // Tracks the original queue size to distinguish original items from auto-added ones
     private var originalQueueSize: Int = 0
@@ -1363,24 +1371,16 @@ class MusicService :
         )
     }
 
-    private suspend fun recoverSong(
-        mediaId: String,
-        playbackData: YTPlayerUtils.PlaybackData? = null,
-    ) {
-        val song = database.song(mediaId).first()
+    private suspend fun recoverSong(mediaId: String) {
         val mediaMetadata =
             withContext(Dispatchers.Main) {
                 player.findNextMediaItemById(mediaId)?.metadata
             } ?: return
+        if (mediaMetadata.isLocal || mediaMetadata.playbackUri != null) return
+        val song = database.song(mediaId).first()
         val duration =
             song?.song?.duration?.takeIf { it != -1 }
                 ?: mediaMetadata.duration.takeIf { it != -1 }
-                ?: (
-                    playbackData?.videoDetails ?: YTPlayerUtils
-                        .playerResponseForMetadata(mediaId)
-                        .getOrNull()
-                        ?.videoDetails
-                )?.lengthSeconds?.toInt()
                 ?: -1
         database.query {
             if (song == null) {
@@ -1399,24 +1399,40 @@ class MusicService :
                 }
             }
         }
-        if (!database.hasRelatedSongs(mediaId)) {
-            val relatedEndpoint =
-                YouTube.next(WatchEndpoint(videoId = mediaId)).getOrNull()?.relatedEndpoint
-                    ?: return
-            val relatedPage = YouTube.related(relatedEndpoint).getOrNull() ?: return
-            database.query {
-                relatedPage.songs
-                    .map(SongItem::toMediaMetadata)
-                    .onEach(::insert)
-                    .map {
-                        RelatedSongMap(
-                            songId = mediaId,
-                            relatedSongId = it.id,
-                        )
-                    }.forEach(::insert)
-            }
+    }
+
+    private suspend fun preferLocalPlayback(items: List<MediaItem>): List<MediaItem> {
+        val songIds =
+            items
+                .map { it.mediaId }
+                .filter { it.isNotBlank() }
+                .distinct()
+        if (songIds.isEmpty()) return items
+
+        val localFilesBySongId =
+            songIds
+                .chunked(SQLITE_MAX_VARIABLES)
+                .flatMap { database.activeLocalMusicBySongIds(it) }
+                .associateBy { it.songId }
+        if (localFilesBySongId.isEmpty()) return items
+
+        return items.map { item ->
+            val localFile = localFilesBySongId[item.mediaId] ?: return@map item
+            val metadata = item.metadata ?: return@map item
+            metadata
+                .copy(
+                    isLocal = true,
+                    playbackUri = localFile.contentUri,
+                ).toMediaItem()
         }
     }
+
+    private suspend fun activeLocalMusicContentUri(mediaId: String): String? =
+        database
+            .localMusic(mediaId)
+            .first()
+            ?.takeIf { it.missingSince == null }
+            ?.contentUri
 
     fun playQueue(
         queue: Queue,
@@ -1434,6 +1450,7 @@ class MusicService :
 
         currentQueue = queue
         queueTitle = null
+        localSimilarPlaybackBufferActive = false
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         val previousShuffleEnabled = player.shuffleModeEnabled
         if (!persistShuffleAcrossQueues) {
@@ -1453,6 +1470,7 @@ class MusicService :
                         .getInitialStatus()
                         .filterExplicit(dataStore.get(HideExplicitKey, false))
                         .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                        .let { it.copy(items = preferLocalPlayback(it.items)) }
                 }
             if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
             if (initialStatus.title != null) {
@@ -1497,184 +1515,15 @@ class MusicService :
     }
 
     fun startRadioSeamlessly() {
-        // Safety Check: Ensure Player is initilized
-        if (!playerInitialized.value) {
-            Timber.tag(TAG).w("startRadioSeamlessly called before player initialization")
-            return
-        }
-
-        val currentMediaMetadata = player.currentMetadata ?: return
-
-        val currentIndex = player.currentMediaItemIndex
-        val currentMediaId = currentMediaMetadata.id
-
-        scope.launch(SilentHandler) {
-            // Use simple videoId to let YouTube personalize recommendations
-            val radioQueue =
-                YouTubeQueue(
-                    endpoint =
-                        WatchEndpoint(
-                            videoId = currentMediaId,
-                        ),
-                )
-
-            try {
-                val initialStatus =
-                    withContext(Dispatchers.IO) {
-                        radioQueue
-                            .getInitialStatus()
-                            .filterExplicit(dataStore.get(HideExplicitKey, false))
-                            .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
-                    }
-
-                if (initialStatus.title != null) {
-                    queueTitle = initialStatus.title
-                }
-
-                // Filter radio items to exclude current media item
-                val radioItems =
-                    initialStatus.items.filter { item ->
-                        item.mediaId != currentMediaId
-                    }
-
-                if (radioItems.isNotEmpty()) {
-                    val itemCount = player.mediaItemCount
-
-                    if (itemCount > currentIndex + 1) {
-                        player.removeMediaItems(currentIndex + 1, itemCount)
-                    }
-
-                    player.addMediaItems(currentIndex + 1, radioItems)
-                    if (player.shuffleModeEnabled) {
-                        val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-                        applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
-                    }
-                }
-
-                currentQueue = radioQueue
-            } catch (e: Exception) {
-                // Fallback: try with related endpoint
-                try {
-                    val nextResult =
-                        withContext(Dispatchers.IO) {
-                            YouTube.next(WatchEndpoint(videoId = currentMediaId)).getOrNull()
-                        }
-                    nextResult?.relatedEndpoint?.let { relatedEndpoint ->
-                        val relatedPage =
-                            withContext(Dispatchers.IO) {
-                                YouTube.related(relatedEndpoint).getOrNull()
-                            }
-                        relatedPage?.songs?.let { songs ->
-                            val radioItems =
-                                songs
-                                    .filter { it.id != currentMediaId }
-                                    .map { it.toMediaItem() }
-                                    .filterExplicit(dataStore.get(HideExplicitKey, false))
-                                    .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
-
-                            if (radioItems.isNotEmpty()) {
-                                val itemCount = player.mediaItemCount
-                                if (itemCount > currentIndex + 1) {
-                                    player.removeMediaItems(currentIndex + 1, itemCount)
-                                }
-                                player.addMediaItems(currentIndex + 1, radioItems)
-                                if (player.shuffleModeEnabled) {
-                                    val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
-                                    applyShuffleOrder(
-                                        player.currentMediaItemIndex,
-                                        player.mediaItemCount,
-                                        shufflePlaylistFirst,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } catch (_: Exception) {
-                    // Silent fail
-                }
-            }
-        }
+        automixItems.value = emptyList()
     }
 
     fun getAutomixAlbum(albumId: String) {
-        scope.launch(SilentHandler) {
-            YouTube
-                .album(albumId)
-                .onSuccess {
-                    getAutomix(it.album.playlistId)
-                }
-        }
+        automixItems.value = emptyList()
     }
 
     fun getAutomix(playlistId: String) {
-        if (dataStore.get(SimilarContent, true) &&
-            !(dataStore.get(DisableLoadMoreWhenRepeatAllKey, false) && player.repeatMode == REPEAT_MODE_ALL)
-        ) {
-            scope.launch(SilentHandler) {
-                try {
-                    // Try primary method
-                    YouTube
-                        .next(WatchEndpoint(playlistId = playlistId))
-                        .onSuccess { firstResult ->
-                            YouTube
-                                .next(WatchEndpoint(playlistId = firstResult.endpoint.playlistId))
-                                .onSuccess { secondResult ->
-                                    automixItems.value =
-                                        secondResult.items.map { song ->
-                                            song.toMediaItem()
-                                        }
-                                }.onFailure {
-                                    // Fallback: use first result items
-                                    if (firstResult.items.isNotEmpty()) {
-                                        automixItems.value =
-                                            firstResult.items.map { song ->
-                                                song.toMediaItem()
-                                            }
-                                    }
-                                }
-                        }.onFailure {
-                            // Fallback: try with radio format
-                            val currentSong = player.currentMetadata
-                            if (currentSong != null) {
-                                // Use simple videoId for better personalized recommendations
-                                YouTube
-                                    .next(
-                                        WatchEndpoint(
-                                            videoId = currentSong.id,
-                                        ),
-                                    ).onSuccess { radioResult ->
-                                        val filteredItems =
-                                            radioResult.items
-                                                .filter { it.id != currentSong.id }
-                                                .map { it.toMediaItem() }
-                                        if (filteredItems.isNotEmpty()) {
-                                            automixItems.value = filteredItems
-                                        }
-                                    }.onFailure {
-                                        // Final fallback: try related endpoint
-                                        YouTube
-                                            .next(WatchEndpoint(videoId = currentSong.id))
-                                            .getOrNull()
-                                            ?.relatedEndpoint
-                                            ?.let { relatedEndpoint ->
-                                                YouTube.related(relatedEndpoint).onSuccess { relatedPage ->
-                                                    val relatedItems =
-                                                        relatedPage.songs
-                                                            .filter { it.id != currentSong.id }
-                                                            .map { it.toMediaItem() }
-                                                    if (relatedItems.isNotEmpty()) {
-                                                        automixItems.value = relatedItems
-                                                    }
-                                                }
-                                            }
-                                    }
-                            }
-                        }
-                } catch (_: Exception) {
-                    // Silent fail
-                }
-            }
-        }
+        automixItems.value = emptyList()
     }
 
     fun addToQueueAutomix(
@@ -1920,7 +1769,6 @@ class MusicService :
 
     private suspend fun toggleEpisodeSaveForLater(songEntity: com.metrolist.music.db.entities.SongEntity) {
         val isCurrentlySaved = songEntity.inLibrary != null
-        val shouldBeSaved = !isCurrentlySaved
 
         // Update database first (optimistic update)
         // Also ensure isEpisode = true so it appears in saved episodes list
@@ -1934,9 +1782,6 @@ class MusicService :
         }
         currentMediaMetadata.value = player.currentMetadata
 
-        // Sync with YouTube (handles login check internally)
-        val setVideoId = if (isCurrentlySaved) database.getSetVideoId(songEntity.id)?.setVideoId else null
-        syncUtils.saveEpisode(songEntity.id, shouldBeSaved, setVideoId)
     }
 
     fun toggleStartRadio() {
@@ -2187,6 +2032,17 @@ class MusicService :
     private var previousMediaItemIndex = C.INDEX_UNSET
     private var previousEpisodeId: String? = null
     private var previousEpisodePosition: Long = 0L
+    private val recentLocalPlaybackSongIds = ArrayDeque<String>()
+    private val localSimilarPlaybackHistory = LocalSimilarPlaybackHistory(RECENT_LOCAL_RECOMMENDATION_HISTORY_SIZE)
+    private var preparedLocalSimilarSong: PreparedLocalSimilarSong? = null
+    private var preparingLocalSimilarSourceSongId: String? = null
+    private var localSimilarSwitchJob: Job? = null
+    private var localSimilarPlaybackBufferActive = false
+
+    private data class PreparedLocalSimilarSong(
+        val sourceSongId: String,
+        val mediaItem: MediaItem,
+    )
 
     /**
      * Save podcast episode playback position to database.
@@ -2237,6 +2093,30 @@ class MusicService :
 
         // Check if new item is an episode and restore its position
         val newMetadata = mediaItem?.metadata
+        if (newMetadata?.isLocal == true) {
+            rememberRecentLocalPlayback(newMetadata.id)
+            if (isLocalSimilarAutoplayActive(newMetadata)) {
+                localSimilarPlaybackHistory.recordVisible(newMetadata.id)
+                preparedLocalSimilarSong = preparedLocalSimilarSong?.takeIf { it.sourceSongId == newMetadata.id }
+                _localSimilarNextState.value =
+                    if (preparedLocalSimilarSong?.sourceSongId == newMetadata.id && player.hasNextMediaItem()) {
+                        LocalSimilarNextState.READY
+                    } else {
+                        LocalSimilarNextState.LOADING
+                    }
+                schedulePrepareNextLocalSimilarSong(newMetadata.id)
+            } else {
+                preparedLocalSimilarSong = null
+                localSimilarPlaybackBufferActive = false
+                localSimilarPlaybackHistory.clear()
+                _localSimilarNextState.value = LocalSimilarNextState.IDLE
+            }
+        } else {
+            preparedLocalSimilarSong = null
+            localSimilarPlaybackBufferActive = false
+            localSimilarPlaybackHistory.clear()
+            _localSimilarNextState.value = LocalSimilarNextState.IDLE
+        }
         if (newMetadata?.isEpisode == true) {
             previousEpisodeId = newMetadata.id
             // Delay restoration to let playback start
@@ -2301,6 +2181,7 @@ class MusicService :
                             .nextPage()
                             .filterExplicit(dataStore.get(HideExplicitKey, false))
                             .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
+                            .let { preferLocalPlayback(it) }
                     }
                 if (player.playbackState != STATE_IDLE && mediaItems.isNotEmpty()) {
                     player.addMediaItems(mediaItems)
@@ -2328,6 +2209,19 @@ class MusicService :
                 return
             }
 
+            player.currentMediaItem?.metadata
+                ?.takeIf { isLocalSimilarAutoplayActive(it) }
+                ?.let { metadata ->
+                    scope.launch(SilentHandler) {
+                        playRecommendedLocalSong(
+                            currentSongId = metadata.id,
+                            allowRecentFallback = true,
+                            usePrepared = true,
+                        )
+                    }
+                    return
+                }
+
             val repeatMode = runBlocking { dataStore.get(RepeatModeKey, REPEAT_MODE_OFF) }
 
             // Handle Repeat All mode
@@ -2354,6 +2248,14 @@ class MusicService :
                 if (castConnectionHandler?.isCasting?.value != true) {
                     player.play()
                 }
+            } else if (autoplay) {
+                player.currentMediaItem?.metadata
+                    ?.takeIf { it.isLocal }
+                    ?.let { metadata ->
+                        scope.launch(SilentHandler) {
+                            playNextLocalSongInSameFolder(metadata.id)
+                        }
+                    }
             }
         }
 
@@ -2414,6 +2316,366 @@ class MusicService :
             applyCachedLoudnessEnhancerNow()
         }
     }
+
+    private suspend fun playNextLocalSongInSameFolder(currentSongId: String) {
+        val nextItem =
+            withContext(Dispatchers.IO) {
+                val localSongs = database.localSongs().first()
+                val current = localSongs.firstOrNull { it.localMusic.songId == currentSongId } ?: return@withContext null
+                val currentParent = current.localMusic.documentId.parentDocumentId()
+                val siblings =
+                    localSongs
+                        .asSequence()
+                        .filter { it.localMusic.treeUri == current.localMusic.treeUri }
+                        .filter { it.localMusic.documentId.parentDocumentId() == currentParent }
+                        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.localMusic.displayName })
+                        .toList()
+                val currentIndex = siblings.indexOfFirst { it.localMusic.songId == currentSongId }
+                val next = siblings.getOrNull(currentIndex + 1) ?: return@withContext null
+                next.song.toMediaItem(next.localMusic.contentUri)
+            } ?: return
+
+        if (player.playbackState == Player.STATE_ENDED && !player.hasNextMediaItem()) {
+            player.setMediaItem(nextItem)
+            player.prepare()
+            if (castConnectionHandler?.isCasting?.value != true) {
+                player.play()
+            }
+        }
+    }
+
+    fun tryPlayNextLocalSimilarFromCurrent(): Boolean {
+        val metadata = player.currentMediaItem?.metadata ?: return false
+        if (!isLocalSimilarAutoplayActive(metadata)) return false
+
+        launchLocalSimilarSwitch {
+            val played =
+                playRecommendedLocalSong(
+                    currentSongId = metadata.id,
+                    allowRecentFallback = true,
+                    usePrepared = true,
+                )
+            if (!played) {
+                Timber.tag(TAG).d("No local similar song available for ${metadata.id}")
+            }
+        }
+        return true
+    }
+
+    fun tryPlayPreviousLocalSimilarFromHistory(): Boolean {
+        val metadata = player.currentMediaItem?.metadata ?: return false
+        if (!isLocalSimilarAutoplayActive(metadata)) return false
+
+        launchLocalSimilarSwitch {
+            playPreviousLocalSimilarFromHistory()
+        }
+        return true
+    }
+
+    fun prepareLocalSimilarNextFromCurrent() {
+        val metadata = player.currentMediaItem?.metadata ?: return
+        if (!metadata.isLocal) return
+
+        localSimilarPlaybackHistory.recordVisible(metadata.id)
+        _localSimilarNextState.value = LocalSimilarNextState.LOADING
+        scope.launch(SilentHandler) {
+            syncLocalSimilarPlaybackBuffer(metadata.id)
+        }
+        schedulePrepareNextLocalSimilarSong(metadata.id)
+    }
+
+    private fun isLocalSimilarAutoplayActive(metadata: com.metrolist.music.models.MediaMetadata): Boolean =
+        metadata.isLocal &&
+            dataStore.get(LocalSimilarAutoplayKey, false) &&
+            castConnectionHandler?.isCasting?.value != true
+
+    private fun launchLocalSimilarSwitch(block: suspend () -> Unit) {
+        if (localSimilarSwitchJob?.isActive == true) return
+        localSimilarSwitchJob =
+            scope.launch(SilentHandler) {
+                block()
+            }
+    }
+
+    private fun schedulePrepareNextLocalSimilarSong(currentSongId: String) {
+        if (preparedLocalSimilarSong?.sourceSongId == currentSongId) {
+            _localSimilarNextState.value = LocalSimilarNextState.LOADING
+            scope.launch(SilentHandler) {
+                syncLocalSimilarPlaybackBuffer(currentSongId)
+            }
+            return
+        }
+        if (preparingLocalSimilarSourceSongId == currentSongId) {
+            _localSimilarNextState.value = LocalSimilarNextState.LOADING
+            return
+        }
+
+        _localSimilarNextState.value = LocalSimilarNextState.LOADING
+        preparingLocalSimilarSourceSongId = currentSongId
+        scope.launch(SilentHandler) {
+            try {
+                val prepared =
+                    findRecommendedLocalSong(
+                        currentSongId = currentSongId,
+                        recentSongIds = recentLocalSimilarRecommendationSongIds(),
+                        allowRecentFallback = true,
+                    )
+
+                if (player.currentMediaItem?.metadata?.id == currentSongId) {
+                    preparedLocalSimilarSong = prepared
+                    _localSimilarNextState.value =
+                        if (prepared != null) {
+                            LocalSimilarNextState.LOADING
+                        } else {
+                            LocalSimilarNextState.UNAVAILABLE
+                        }
+                    syncLocalSimilarPlaybackBuffer(currentSongId)
+                }
+            } finally {
+                if (preparingLocalSimilarSourceSongId == currentSongId) {
+                    preparingLocalSimilarSourceSongId = null
+                }
+            }
+        }
+    }
+
+    private suspend fun playRecommendedLocalSong(
+        currentSongId: String,
+        allowRecentFallback: Boolean,
+        usePrepared: Boolean,
+    ): Boolean {
+        val prepared =
+            preparedLocalSimilarSong
+                ?.takeIf { usePrepared && it.sourceSongId == currentSongId }
+        val next =
+            prepared
+                ?: findRecommendedLocalSong(
+                    currentSongId = currentSongId,
+                    recentSongIds = recentLocalSimilarRecommendationSongIds(),
+                    allowRecentFallback = allowRecentFallback,
+                )
+                ?: return false
+
+        playLocalSimilarItem(
+            item = next.mediaItem,
+            previousItem = player.currentMediaItem,
+            nextItem = null,
+        )
+        return true
+    }
+
+    private suspend fun findRecommendedLocalSong(
+        currentSongId: String,
+        recentSongIds: List<String>,
+        allowRecentFallback: Boolean,
+    ): PreparedLocalSimilarSong? =
+        withContext(Dispatchers.IO) {
+            val localSongs = database.localSongs().first()
+            val current = localSongs.firstOrNull { it.localMusic.songId == currentSongId } ?: return@withContext null
+            val localSongsById = localSongs.associateBy { it.localMusic.songId }
+            val selected =
+                LocalSimilarSongSelector.selectBest(
+                    current = current.localMusic.toLocalSimilarSongAnalysis(),
+                    candidates = localSongs.map { it.localMusic.toLocalSimilarSongAnalysis() },
+                    recentSongIds = recentSongIds,
+                    allowRecentFallback = allowRecentFallback,
+                ) ?: return@withContext null
+
+            localSongsById[selected.song.songId]
+                ?.let { localSong ->
+                    PreparedLocalSimilarSong(
+                        sourceSongId = currentSongId,
+                        mediaItem = localSong.song.toMediaItem(localSong.localMusic.contentUri),
+                    )
+                }
+        }
+
+    private suspend fun playPreviousLocalSimilarFromHistory(): Boolean {
+        val previousSongIds = localSimilarPlaybackHistory.previousSongIds(LOCAL_SIMILAR_PREVIOUS_BUFFER_SIZE)
+        val previousSongId = previousSongIds.lastOrNull()
+        val previousItem = previousSongId?.let { localMediaItemBySongId(it) }
+        if (previousItem != null) {
+            playLocalSimilarItem(
+                item = previousItem,
+                previousItems = localMediaItemsBySongIds(previousSongIds.dropLast(1)),
+                nextItem = null,
+            )
+            return true
+        }
+
+        player.seekTo(0)
+        if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
+            player.prepare()
+        }
+        player.playWhenReady = true
+        return true
+    }
+
+    private suspend fun localMediaItemBySongId(songId: String): MediaItem? =
+        localMediaItemsBySongIds(listOf(songId)).firstOrNull()
+
+    private suspend fun localMediaItemsBySongIds(songIds: List<String>): List<MediaItem> {
+        if (songIds.isEmpty()) return emptyList()
+        return withContext(Dispatchers.IO) {
+            val localSongsById =
+                database.localSongs().first()
+                    .associateBy { it.localMusic.songId }
+            songIds.mapNotNull { songId ->
+                localSongsById[songId]
+                    ?.let { it.song.toMediaItem(it.localMusic.contentUri) }
+            }
+        }
+    }
+
+    private suspend fun syncLocalSimilarPlaybackBuffer(currentSongId: String) {
+        val currentItem = player.currentMediaItem ?: return
+        if (currentItem.mediaId != currentSongId) return
+        val metadata = currentItem.metadata ?: return
+        if (!isLocalSimilarAutoplayActive(metadata)) return
+
+        val previousItems =
+            localMediaItemsBySongIds(
+                localSimilarPlaybackHistory.previousSongIds(LOCAL_SIMILAR_PREVIOUS_BUFFER_SIZE),
+            )
+        val nextItem =
+            preparedLocalSimilarSong
+                ?.takeIf { it.sourceSongId == currentSongId }
+                ?.mediaItem
+
+        applyLocalSimilarPlaybackBuffer(
+            currentItem = currentItem,
+            previousItems = previousItems,
+            nextItem = nextItem,
+            startPosition = player.currentPosition,
+            playWhenReady = player.playWhenReady,
+        )
+        _localSimilarNextState.value =
+            when {
+                nextItem != null && player.hasNextMediaItem() -> LocalSimilarNextState.READY
+                nextItem != null || preparingLocalSimilarSourceSongId == currentSongId -> LocalSimilarNextState.LOADING
+                else -> LocalSimilarNextState.UNAVAILABLE
+            }
+    }
+
+    private fun playLocalSimilarItem(
+        item: MediaItem,
+        previousItem: MediaItem?,
+        nextItem: MediaItem?,
+    ) {
+        playLocalSimilarItem(
+            item = item,
+            previousItems = listOfNotNull(previousItem),
+            nextItem = nextItem,
+        )
+    }
+
+    private fun playLocalSimilarItem(
+        item: MediaItem,
+        previousItems: List<MediaItem>,
+        nextItem: MediaItem?,
+    ) {
+        preparedLocalSimilarSong = null
+        _localSimilarNextState.value = LocalSimilarNextState.LOADING
+        applyLocalSimilarPlaybackBuffer(
+            currentItem = item,
+            previousItems = previousItems,
+            nextItem = nextItem,
+            startPosition = 0L,
+            playWhenReady = true,
+        )
+    }
+
+    private fun applyLocalSimilarPlaybackBuffer(
+        currentItem: MediaItem,
+        previousItems: List<MediaItem>,
+        nextItem: MediaItem?,
+        startPosition: Long,
+        playWhenReady: Boolean,
+    ) {
+        val plan =
+            LocalSimilarPlaybackBufferPlanner.plan(
+                current = currentItem.toLocalSimilarBufferItem(),
+                previousItems = previousItems.map { it.toLocalSimilarBufferItem() },
+                next = nextItem?.toLocalSimilarBufferItem(),
+            )
+        val plannedIds = plan.items.map { it.mediaId }
+        val currentIds = player.mediaItems.map { it.mediaId }
+        if (localSimilarPlaybackBufferActive &&
+            currentIds == plannedIds &&
+            player.currentMediaItemIndex == plan.currentIndex
+        ) {
+            return
+        }
+
+        currentQueue = EmptyQueue
+        queueTitle = null
+        automixItems.value = emptyList()
+        localSimilarPlaybackBufferActive = true
+        when (
+            LocalSimilarPlaybackBufferPlanner.updateStrategy(
+                currentPlayerIds = currentIds,
+                currentPlayerIndex = player.currentMediaItemIndex,
+                plannedIds = plannedIds,
+                plannedCurrentIndex = plan.currentIndex,
+            )
+        ) {
+            LocalSimilarPlaybackBufferUpdateStrategy.PRESERVE_CURRENT_ITEM -> {
+                updateLocalSimilarSurroundingItems(plan)
+            }
+
+            LocalSimilarPlaybackBufferUpdateStrategy.REPLACE_TIMELINE -> {
+                player.setMediaItems(plan.items, plan.currentIndex, startPosition.coerceAtLeast(0L))
+                player.prepare()
+                if (castConnectionHandler?.isCasting?.value != true) {
+                    player.playWhenReady = playWhenReady
+                }
+            }
+        }
+    }
+
+    private fun MediaItem.toLocalSimilarBufferItem(): LocalSimilarPlaybackBufferItem<MediaItem> =
+        LocalSimilarPlaybackBufferItem(
+            id = mediaId,
+            value = this,
+        )
+
+    private fun updateLocalSimilarSurroundingItems(plan: LocalSimilarPlaybackBufferPlan<MediaItem>) {
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex == C.INDEX_UNSET) return
+
+        if (player.mediaItemCount > currentIndex + 1) {
+            player.removeMediaItems(currentIndex + 1, player.mediaItemCount)
+        }
+        if (currentIndex > 0) {
+            player.removeMediaItems(0, currentIndex)
+        }
+
+        val previousItems = plan.items.take(plan.currentIndex)
+        val nextItems = plan.items.drop(plan.currentIndex + 1)
+        if (previousItems.isNotEmpty()) {
+            player.addMediaItems(0, previousItems)
+        }
+        if (nextItems.isNotEmpty()) {
+            player.addMediaItems(previousItems.size + 1, nextItems)
+        }
+    }
+
+    private fun rememberRecentLocalPlayback(songId: String) {
+        recentLocalPlaybackSongIds.remove(songId)
+        recentLocalPlaybackSongIds.addFirst(songId)
+        while (recentLocalPlaybackSongIds.size > RECENT_LOCAL_RECOMMENDATION_HISTORY_SIZE) {
+            recentLocalPlaybackSongIds.removeLast()
+        }
+    }
+
+    private fun recentLocalSimilarRecommendationSongIds(): List<String> =
+        (
+            localSimilarPlaybackHistory.recentSongIds(RECENT_LOCAL_RECOMMENDATION_HISTORY_SIZE) +
+                recentLocalPlaybackSongIds
+            ).distinct().take(RECENT_LOCAL_RECOMMENDATION_HISTORY_SIZE)
+
+    private fun String.parentDocumentId(): String =
+        substringBeforeLast('/', missingDelimiterValue = "")
 
     override fun onEvents(
         player: Player,
@@ -2606,7 +2868,6 @@ class MusicService :
 
     /**
      * Checks if the error is caused by an expired/forbidden URL (HTTP 403).
-     * This typically happens when a YouTube stream URL expires.
      */
     private fun isExpiredUrlError(error: PlaybackException): Boolean {
         val responseCode = getHttpResponseCode(error)
@@ -2624,7 +2885,6 @@ class MusicService :
 
     /**
      * Checks if the error is a "page needs to be reloaded" error.
-     * This is a YouTube-specific error that requires refreshing the stream.
      */
     private fun isPageReloadError(error: PlaybackException): Boolean {
         val errorMessage = error.message?.lowercase() ?: ""
@@ -2689,6 +2949,29 @@ class MusicService :
         error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
             (error.cause as? PlaybackException)?.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND
 
+    private fun isUnrecognizedInputFormatError(error: PlaybackException): Boolean {
+        var cause: Throwable? = error
+        while (cause != null) {
+            if (cause is UnrecognizedInputFormatException) return true
+            cause = cause.cause
+        }
+        return false
+    }
+
+    private fun isLocalPlaybackItem(mediaId: String?): Boolean {
+        val metadata = player.currentMediaItem?.metadata
+        return mediaId?.startsWith("local_") == true ||
+            metadata?.isLocal == true ||
+            metadata
+                ?.playbackUri
+                ?.takeIf { it.isNotBlank() }
+                ?.toUri()
+                ?.isLocalPlaybackScheme() == true
+    }
+
+    private fun isUnsupportedLocalPlaybackError(mediaId: String?, error: PlaybackException): Boolean =
+        isLocalPlaybackItem(mediaId) && isUnrecognizedInputFormatError(error)
+
     override fun onPlayerError(error: PlaybackException) {
         super.onPlayerError(error)
 
@@ -2703,6 +2986,12 @@ class MusicService :
             .tag(TAG)
             .w(error, "Player error occurred for $mediaId: errorCode=${error.errorCode}, message=${error.message}")
         reportException(error)
+
+        if (isUnsupportedLocalPlaybackError(mediaId, error)) {
+            Timber.tag(TAG).w("Unsupported local playback format for $mediaId; disabling this local file")
+            handleUnsupportedLocalPlaybackError(mediaId)
+            return
+        }
 
         // Check if this song has failed too many times
         if (mediaId != null && hasExceededRetryLimit(mediaId)) {
@@ -2777,7 +3066,6 @@ class MusicService :
 
     /**
      * Performs aggressive cache clearing for a media item.
-     * Clears both player cache and download cache, plus URL cache.
      */
     private fun performAggressiveCacheClear(mediaId: String) {
         Timber.tag(TAG).d("Performing aggressive cache clear for $mediaId")
@@ -2791,14 +3079,6 @@ class MusicService :
             Timber.tag(TAG).d("Cleared player cache for $mediaId")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to clear player cache for $mediaId")
-        }
-
-        // Clear decryption caches
-        try {
-            YTPlayerUtils.forceRefreshForVideo(mediaId)
-            Timber.tag(TAG).d("Cleared decryption caches for $mediaId")
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to clear decryption caches for $mediaId")
         }
     }
 
@@ -2842,6 +3122,72 @@ class MusicService :
                 recentlyFailedSongs.clear()
                 Timber.tag(TAG).d("Cleared recently failed songs list")
             }
+    }
+
+    private fun handleUnsupportedLocalPlaybackError(mediaId: String?) {
+        if (mediaId == null) {
+            handleFinalFailure()
+            return
+        }
+
+        val metadata = player.currentMediaItem?.metadata
+        val fallbackToNetwork =
+            metadata
+                ?.takeIf { !mediaId.startsWith("local_") }
+                ?.takeIf { it.playbackUri?.isNotBlank() == true || it.isLocal }
+                ?.copy(isLocal = false, playbackUri = null)
+                ?.toMediaItem()
+
+        markSongAsFailed(mediaId)
+        retryJob?.cancel()
+        retryJob =
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    database.markMissingLocalMusicBySongIds(listOf(mediaId), System.currentTimeMillis())
+                }
+
+                if (fallbackToNetwork != null && playerInitialized.value) {
+                    val currentIndex = player.currentMediaItemIndex
+                    if (currentIndex != C.INDEX_UNSET) {
+                        val currentPosition = player.currentPosition.coerceAtLeast(0L)
+                        songUrlCache.remove(mediaId)
+                        player.replaceMediaItem(currentIndex, fallbackToNetwork)
+                        player.seekTo(currentIndex, currentPosition)
+                        player.prepare()
+                        Timber.tag(TAG).d("Disabled bad local file and retried $mediaId through online source")
+                        return@launch
+                    }
+                }
+
+                if (!removeUnsupportedLocalItemFromQueue(mediaId)) {
+                    handleFinalFailure()
+                }
+            }
+    }
+
+    private fun removeUnsupportedLocalItemFromQueue(mediaId: String): Boolean {
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex == C.INDEX_UNSET || player.mediaItemCount == 0) return false
+
+        val shouldResume = player.playWhenReady && castConnectionHandler?.isCasting?.value != true
+        if (player.mediaItemCount == 1) {
+            player.pause()
+            player.clearMediaItems()
+            clearPersistedQueueFiles()
+            Timber.tag(TAG).d("Removed unsupported local item $mediaId and cleared persisted queue")
+            return true
+        }
+
+        player.removeMediaItem(currentIndex)
+        player.prepare()
+        if (shouldResume) {
+            player.play()
+        }
+        if (dataStore.get(PersistentQueueKey, true)) {
+            saveQueueToDisk()
+        }
+        Timber.tag(TAG).d("Removed unsupported local item $mediaId from queue")
+        return true
     }
 
     /**
@@ -2981,13 +3327,6 @@ class MusicService :
         songUrlCache.remove(mediaId)
         Timber.tag(TAG).d("Cleared cached URL for $mediaId")
 
-        // Clear decryption caches
-        try {
-            YTPlayerUtils.forceRefreshForVideo(mediaId)
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to clear decryption caches")
-        }
-
         retryJob?.cancel()
         retryJob =
             scope.launch {
@@ -3124,15 +3463,7 @@ class MusicService :
                             OkHttpDataSource.Factory(
                                 OkHttpClient
                                     .Builder()
-                                    .proxy(YouTube.proxy)
-                                    .proxyAuthenticator { _, response ->
-                                        YouTube.proxyAuth?.let { auth ->
-                                            response.request
-                                                .newBuilder()
-                                                .header("Proxy-Authorization", auth)
-                                                .build()
-                                        } ?: response.request
-                                    }.build(),
+                                    .build(),
                             ),
                         ),
                     ).setFlags(FLAG_IGNORE_CACHE_ON_ERROR),
@@ -3233,7 +3564,7 @@ class MusicService :
     }
 
     private fun createDataSourceFactory(): DataSource.Factory {
-        return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
+        val remoteFactory = ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
 
             // Check if we need to bypass cache for quality change
@@ -3316,93 +3647,93 @@ class MusicService :
                 return@Factory dataSpec.withUri(chinaUrl.toUri())
             }
 
-            Timber.tag("MusicService").i("FETCHING STREAM: $mediaId | quality=$audioQuality")
-            val playbackData =
-                runBlocking(Dispatchers.IO) {
-                    YTPlayerUtils.playerResponseForPlayback(
-                        mediaId,
-                        audioQuality = audioQuality,
-                        connectivityManager = connectivityManager,
-                    )
-                }.getOrElse { throwable ->
-                    when (throwable) {
-                        is PlaybackException -> {
-                            throw throwable
-                        }
-
-                        is java.net.ConnectException, is java.net.UnknownHostException -> {
-                            throw PlaybackException(
-                                getString(R.string.error_no_internet),
-                                throwable,
-                                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-                            )
-                        }
-
-                        is java.net.SocketTimeoutException -> {
-                            throw PlaybackException(
-                                getString(R.string.error_timeout),
-                                throwable,
-                                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-                            )
-                        }
-
-                        else -> {
-                            throw PlaybackException(
-                                getString(R.string.error_unknown),
-                                throwable,
-                                PlaybackException.ERROR_CODE_REMOTE_ERROR,
-                            )
-                        }
-                    }
-                }
-
-            val nonNullPlayback =
-                requireNotNull(playbackData) {
-                    getString(R.string.error_unknown)
-                }
-            run {
-                val format = nonNullPlayback.format
-                val loudnessDb = nonNullPlayback.audioConfig?.loudnessDb
-                val perceptualLoudnessDb = nonNullPlayback.audioConfig?.perceptualLoudnessDb
-
-                Timber
-                    .tag(TAG)
-                    .d("Storing format for $mediaId with loudnessDb: $loudnessDb, perceptualLoudnessDb: $perceptualLoudnessDb")
-                if (loudnessDb == null && perceptualLoudnessDb == null) {
-                    Timber.tag(TAG).w("No loudness data available from YouTube for video: $mediaId")
-                }
-
-                database.query {
-                    upsert(
-                        FormatEntity(
-                            id = mediaId,
-                            itag = format.itag,
-                            mimeType = format.mimeType.split(";")[0],
-                            codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
-                            bitrate = format.bitrate,
-                            sampleRate = format.audioSampleRate,
-                            contentLength = format.contentLength!!,
-                            loudnessDb = loudnessDb,
-                            perceptualLoudnessDb = perceptualLoudnessDb,
-                            playbackUrl = nonNullPlayback.playbackTracking?.videostatsPlaybackUrl?.baseUrl,
-                        ),
-                    )
-                }
-                scope.launch(Dispatchers.IO) { recoverSong(mediaId, nonNullPlayback) }
-
-                // Clear bypass flag now that we've fetched fresh stream
-                if (bypassCacheForQualityChange.remove(mediaId)) {
-                    Timber.tag("MusicService").d("Cleared bypass cache flag for $mediaId after fresh fetch")
-                }
-
-                val streamUrl = nonNullPlayback.streamUrl
-
-                songUrlCache[mediaId] =
-                    streamUrl to System.currentTimeMillis() + (nonNullPlayback.streamExpiresInSeconds * 1000L)
-                return@Factory dataSpec.withUri(streamUrl.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
-            }
+            throw PlaybackException(
+                getString(R.string.error_no_stream),
+                null,
+                PlaybackException.ERROR_CODE_REMOTE_ERROR,
+            )
+        }
+        val localFactory = DefaultDataSource.Factory(this)
+        return DataSource.Factory {
+            LocalAwareDataSource(
+                remoteDataSource = remoteFactory.createDataSource(),
+                localDataSource = localFactory.createDataSource(),
+            )
         }
     }
+
+    private inner class LocalAwareDataSource(
+        private val remoteDataSource: DataSource,
+        private val localDataSource: DataSource,
+    ) : DataSource {
+        private var activeDataSource: DataSource? = null
+
+        override fun addTransferListener(transferListener: TransferListener) {
+            remoteDataSource.addTransferListener(transferListener)
+            localDataSource.addTransferListener(transferListener)
+        }
+
+        override fun open(dataSpec: DataSpec): Long {
+            val localUri = resolveLocalPlaybackUri(dataSpec)
+            activeDataSource =
+                if (localUri != null) {
+                    localDataSource
+                } else {
+                    remoteDataSource
+                }
+            val resolvedSpec = localUri?.let { dataSpec.withUri(it) } ?: dataSpec
+            return activeDataSource!!.open(resolvedSpec)
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+            activeDataSource!!.read(buffer, offset, length)
+
+        override fun getUri() = activeDataSource?.uri
+
+        override fun getResponseHeaders(): Map<String, List<String>> =
+            activeDataSource?.responseHeaders ?: emptyMap()
+
+        override fun close() {
+            activeDataSource?.close()
+            activeDataSource = null
+        }
+    }
+
+    private fun resolveLocalPlaybackUri(dataSpec: DataSpec): android.net.Uri? {
+        val requestedUri = dataSpec.uri.toString()
+        if (dataSpec.uri.isLocalPlaybackScheme()) return dataSpec.uri
+        val mediaId = dataSpec.key ?: dataSpec.uri.toString()
+        val mediaItem =
+            runBlocking(Dispatchers.Main.immediate) {
+                player.currentMediaItem?.takeIf { it.mediaId == mediaId }
+                    ?: player.mediaItems.firstOrNull { it.mediaId == mediaId }
+            }
+        val metadata = mediaItem?.metadata
+        val metadataPlaybackUri =
+            LocalPlaybackUriResolver.resolve(
+                requestedUri = requestedUri,
+                metadata = metadata,
+                localContentUri = null,
+                isLocalPlaybackUri = { it.toUri().isLocalPlaybackScheme() },
+            )
+        if (metadataPlaybackUri != null) return metadataPlaybackUri.toUri()
+
+        val localContentUri =
+            runBlocking(Dispatchers.IO) {
+                activeLocalMusicContentUri(mediaId)
+            }
+
+        return LocalPlaybackUriResolver
+            .resolve(
+                requestedUri = requestedUri,
+                metadata = metadata,
+                localContentUri = localContentUri,
+                isLocalPlaybackUri = { it.toUri().isLocalPlaybackScheme() },
+            )?.toUri()
+    }
+
+    private fun android.net.Uri.isLocalPlaybackScheme(): Boolean =
+        scheme == ContentResolver.SCHEME_CONTENT || scheme == ContentResolver.SCHEME_FILE
 
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
@@ -3460,25 +3791,6 @@ class MusicService :
             }
         }
 
-        if (playbackStats.totalPlayTimeMs >= historyDurationMs) {
-            CoroutineScope(Dispatchers.IO).launch {
-                val playbackUrl =
-                    database.format(mediaItem.mediaId).first()?.playbackUrl
-                        ?: YTPlayerUtils
-                            .playerResponseForMetadata(mediaItem.mediaId, null)
-                            .getOrNull()
-                            ?.playbackTracking
-                            ?.videostatsPlaybackUrl
-                            ?.baseUrl
-                playbackUrl?.let {
-                    YouTube
-                        .registerPlayback(null, playbackUrl)
-                        .onFailure {
-                            reportException(it)
-                        }
-                }
-            }
-        }
     }
 
     private fun saveQueueToDisk() {
@@ -3786,12 +4098,16 @@ class MusicService :
             }
 
             MusicWidgetReceiver.ACTION_NEXT -> {
-                player.seekToNext()
+                if (!tryPlayNextLocalSimilarFromCurrent()) {
+                    player.seekToNext()
+                }
                 updateWidgetUI(player.isPlaying)
             }
 
             MusicWidgetReceiver.ACTION_PREVIOUS -> {
-                player.seekToPrevious()
+                if (!tryPlayPreviousLocalSimilarFromHistory()) {
+                    player.seekToPrevious()
+                }
                 updateWidgetUI(player.isPlaying)
             }
 
@@ -3975,12 +4291,14 @@ class MusicService :
 
     private fun shareSong() {
         val songData = currentSong.value
-        val songId = songData?.song?.id ?: return
+        val song = songData?.song ?: return
+        val artists = songData.artists.joinToString(", ") { it.name }
+        val shareText = listOf(song.title, artists).filter { it.isNotBlank() }.joinToString(" - ")
 
         val shareIntent =
             Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=$songId")
+                putExtra(Intent.EXTRA_TEXT, shareText)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         startActivity(
@@ -3996,19 +4314,7 @@ class MusicService :
      */
     suspend fun getStreamUrl(mediaId: String): String? =
         withContext(Dispatchers.IO) {
-            try {
-                val playbackData =
-                    YTPlayerUtils
-                        .playerResponseForPlayback(
-                            videoId = mediaId,
-                            audioQuality = audioQuality,
-                            connectivityManager = connectivityManager,
-                        ).getOrNull()
-                playbackData?.streamUrl
-            } catch (e: Exception) {
-                timber.log.Timber.e(e, "Failed to get stream URL for Cast")
-                null
-            }
+            activeLocalMusicContentUri(mediaId)
         }
 
     /**
@@ -4291,7 +4597,6 @@ class MusicService :
         const val ARTIST = "artist"
         const val ALBUM = "album"
         const val PLAYLIST = "playlist"
-        const val YOUTUBE_PLAYLIST = "youtube_playlist"
         const val SEARCH = "search"
         const val SHUFFLE_ACTION = "__shuffle__"
 
@@ -4304,6 +4609,9 @@ class MusicService :
         const val PERSISTENT_PLAYER_STATE_FILE = "persistent_player_state.data"
         const val MAX_CONSECUTIVE_ERR = 5
         const val MAX_RETRY_COUNT = 10
+        private const val LOCAL_SIMILAR_PREVIOUS_BUFFER_SIZE = 10
+        private const val RECENT_LOCAL_RECOMMENDATION_HISTORY_SIZE = 12
+        private const val SQLITE_MAX_VARIABLES = 900
 
         // Constants for audio normalization
         private const val MAX_GAIN_MB = 300 // Maximum gain in millibels (3 dB)

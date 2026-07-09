@@ -17,7 +17,7 @@
     <string name="cached_playlist">Em cache</string>
     <string name="sync_playlist">Sincronizar lista de reprodução</string>
     <string name="sync_disabled">Sincronização desativada</string>
-    <string name="allows_for_sync_witch_youtube">OBSERVAÇÃO: Isto permite a sincronização com o YouTube Music. Isto NÃO pode ser alterado mais tarde.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">A gerar imagem…</string>
     <string name="please_wait">Por favor, aguarde</string>
     <string name="cancel">Cancelar</string>
@@ -69,8 +69,8 @@
     <string name="advanced_login">Iniciar sessão com um \"Token\"</string>
     <string name="token_hidden">Toque para mostrar o token</string>
     <string name="token_shown">Toque novamente para copiar ou editar</string>
-    <string name="token_adv_login_description">Este é um método avançado de login. Como uma alternativa ao portal web, pode digitar ou atualizar o seu token diretamente por aqui. Como exemplo, isto pode fazer com que fazer login em vários dispositivos rapidamente. \nAVISO: Qualquer formato inválido do token ou que a app não consiga interpretar não será aceitado!</string>
-    <string name="yt_sync">Sincronização automática com a conta</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Sincronização automática com a conta</string>
     <string name="more_content">Mais conteúdo</string>
     <string name="general">Geral</string>
     <string name="proxy">Proxy</string>
@@ -92,7 +92,7 @@
     <string name="clear_image_cache_dialog">Tem certeza que quer apagar todas as imagens em cache?</string>
     <string name="clear_downloads_dialog">Tem certeza que quer limpar todas as descargas?</string>
     <string name="disable">Desativar</string>
-    <string name="not_logged_in_youtube">Não conectado ao YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Abrir ligações suportadas</string>
     <string name="open_app_settings_error">Não foi possível a app de definições</string>
     <string name="release_notes">Registo de mudanças</string>
@@ -132,7 +132,7 @@
     <string name="download_in_progress_desc">Download em progresso</string>
     <string name="share_playlist_desc">Partilhar esta lista de reprodução com os outros</string>
     <string name="delete_playlist_desc">Remover esta lista de reprodução permanentemente</string>
-    <string name="sync_playlist_desc">Sincronize esta lista de reprodução com o YouTube Music.</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="starting_radio">A ligar o rádio…</string>
     <string name="primary_color_style">Cor primária</string>
     <string name="swipe_song_to_remove">Deslize para remover a música da lista de reprodução</string>
@@ -142,7 +142,7 @@
     <string name="auto_scroll">Re-sincronizar</string>
     <string name="show_uploaded_playlist">Mostrar lista de reprodução Carregada</string>
     <string name="edit_playlist_cover">Editar capa da lista de reprodução</string>
-    <string name="edit_playlist_cover_note">Nota: A tua conta tem de estar ligada a um número de telefone e verificada no YouTube Music para mudar a capa desta lista de reprodução.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Depois de selecionar a imagem, por favor espera um momento para a nova capa aparecer na tua lista de reprodução.</string>
     <string name="choose_from_library">Escolher da biblioteca</string>
     <string name="remove_custom_image">Remover imagem personalizada</string>
@@ -245,7 +245,7 @@
     <string name="add_to_library_desc">Guardar na sua biblioteca</string>
     <string name="download_desc">Disponibilizar para reprodução \"offline\"</string>
     <string name="add_to_playlist_desc">Adicionar a uma das suas listas de reprodução</string>
-    <string name="refetch_desc">Obter os metadados mais recentes do YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Partilhar um \"link\" para este item</string>
     <string name="delete_desc">Remover este item permanentemente</string>
     <string name="advanced_desc">Alterar o tempo e o tom da música</string>
@@ -339,7 +339,7 @@
     <string name="density_restart_message">A alteração da densidade do ecrã entrará em vigor após a reinicialização da aplicação. Reiniciar agora?</string>
     <string name="enable_lrclib_desc">Base de dados de letras sincronizadas e impulsionadas pela comunidade</string>
     <string name="enable_kugou_desc">Extrai letras de músicas do KuGou, uma plataforma popular de música chinesa</string>
-    <string name="youtube_music_lyrics_note">NOTA: As letras das músicas no YouTube serão automaticamente apresentadas quando não estiver disponível qualquer outra fonte. Geralmente, não são sincronizadas</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Ativar LyricPlus</string>
     <string name="enable_lyricsplus_desc">Letras sincronizadas de múltiplas fontes</string>
     <string name="lyrics_provider_selection">Seleção de fornecedor</string>

@@ -19,7 +19,7 @@
     <string name="filter_uploaded">Oppladde</string>
     <string name="sync_playlist">Synkroniser speleliste</string>
     <string name="sync_disabled">Synkronisering deaktivert</string>
-    <string name="allows_for_sync_witch_youtube">Obs! Dette tillèt synkronisering med YouTube Music og kan IKKJE brigdast seinare.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Skapar bilete</string>
     <string name="please_wait">Venlegast vent</string>
     <string name="cancel">Bryt av</string>
@@ -79,11 +79,11 @@
     <string name="advanced_login">Logg inn med lykel</string>
     <string name="token_hidden">Trykk for å syna lykelen</string>
     <string name="token_shown">Trykk att for å kopiera eller brigda</string>
-    <string name="token_adv_login_description">Dette er ein AVANSERT innloggingsmetode. Som alternativ til nettportalen, kan du direkte leggja inn eller oppdatera innloggingslykelen din (innloggings-«token») her. Dette kan t.d. gjera det å logga inn på fleire einingar snøggare. NB: Ugilde lykelformat som appen ikkje lukkast i å tolka, kjem ikkje til å verta godtekne</string>
-    <string name="yt_sync">Automatisk synkronisering med konto</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
+    <string name="account_auto_sync">Automatisk synkronisering med konto</string>
     <string name="more_content">Meir innhald</string>
     <string name="edit_playlist_cover">Brigd spelelisteomslag</string>
-    <string name="edit_playlist_cover_note">NB: Kontoen din lyt vera lenkt til eit telefonnummer og stadfest på YouTube Music for å brigda spelelisteomslaget.</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Etter at du vel eit bilete, dukkar det nye omslaget på spelelista opp om eit bel. Venlegast vent imedan dette hender.</string>
     <string name="choose_from_library">Vel frå samling</string>
     <string name="remove_custom_image">Fjern eigendefinert bilete</string>
@@ -109,7 +109,7 @@
     <string name="download_in_progress_desc">Nedlading er i gang</string>
     <string name="share_playlist_desc">Del denne spelelista med andre</string>
     <string name="delete_playlist_desc">Slett denne spelelista for æve</string>
-    <string name="sync_playlist_desc">Synkroniser spelelista med YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="primary_color_style">Hovudlet</string>
     <string name="tertiary_color_style">Tredjelet</string>
     <string name="lyrics_glow_effect">Glødande songtekster</string>
@@ -129,7 +129,7 @@
     <string name="clear_image_cache_dialog">Er du viss på at du vil reinsa alle hurtiglagra bilete?</string>
     <string name="clear_downloads_dialog">Er du viss på at du vil reinsa alle nedladingar?</string>
     <string name="disable">Slå av</string>
-    <string name="not_logged_in_youtube">Ikkje logga på YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Opna stødde lenkjer</string>
     <string name="open_app_settings_error">Klarte ikkje å opna applikasjonsinnstillingar</string>
     <string name="release_notes">Sleppsnotat</string>
@@ -223,7 +223,7 @@
     <string name="add_to_library_desc">Lagra i biblioteket ditt</string>
     <string name="download_desc">Gjer tilgjengeleg for fråkopla avspeling</string>
     <string name="add_to_playlist_desc">Legg til i ei av dine spelelister</string>
-    <string name="refetch_desc">Henta dei siste metadataa frå YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Del ei lenkje til denne songen</string>
     <string name="delete_desc">Tak bort denne songen permanent</string>
     <string name="advanced_desc">Brigd snøggleiken og tonehøgd på songen</string>

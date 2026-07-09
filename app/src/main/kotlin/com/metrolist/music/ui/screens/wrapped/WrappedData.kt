@@ -32,7 +32,7 @@ object WrappedRepository {
         MessagePair(40000L..Long.MAX_VALUE, "Are you... okay?", "You literally lived here for **%d minutes**."),
         MessagePair(40000L..Long.MAX_VALUE, "We are worried about your eardrums.", "Top 1% behavior. **%d minutes** is legendary."),
         MessagePair(40000L..Long.MAX_VALUE, "Silence scares you, doesn't it?", "A wall of sound, all year long, for **%d minutes**."),
-        MessagePair(40000L..Long.MAX_VALUE, "Certified Stress Tester.", "You made those extractors work overtime for **%d minutes**.")
+        MessagePair(40000L..Long.MAX_VALUE, "Certified Stress Tester.", "You kept the playlist spinning overtime for **%d minutes**.")
     )
 
     fun getMessage(minutes: Long): MessagePair {

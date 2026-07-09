@@ -115,11 +115,13 @@ fun ChinaSearchInline(
     LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize()) {
         // Source selector chips
         item {
-            ChipsRow(
-                chips = MusicSource.entries.map { it to it.displayName },
-                currentValue = currentSource,
-                onValueUpdate = { viewModel.setSource(it) },
-            )
+            SearchControlPanel(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                ChipsRow(
+                    chips = MusicSource.entries.map { it to it.displayName },
+                    currentValue = currentSource,
+                    onValueUpdate = { viewModel.setSource(it) },
+                )
+            }
         }
 
         // Error display

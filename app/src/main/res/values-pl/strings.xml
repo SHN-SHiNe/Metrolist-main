@@ -26,7 +26,7 @@
     <string name="most_played_artists">Najczęściej słuchani artyści</string>
     <string name="most_played_albums">Najczęściej słuchane albumy</string>
     <string name="search">Szukaj</string>
-    <string name="search_yt_music">Szukaj w YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Szukaj w bibliotece…</string>
     <string name="filter_library">Biblioteka</string>
     <string name="filter_liked">Polubione</string>
@@ -255,7 +255,7 @@
     <string name="default_">Domyślny</string>
     <string name="remove_from_playlist">Usuń z playlisty</string>
     <string name="remove_all_from_library">Usuń wszystko z biblioteki</string>
-    <string name="your_youtube_playlists">Twoje playlisty YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="enable_discord_rpc">Włącz Rich Presence</string>
     <string name="remove_from_queue">Usuń z kolejki</string>
     <string name="login_failed">Błąd logowania</string>
@@ -295,6 +295,6 @@
     <string name="preview">Podgląd</string>
     <string name="action_logout">Wyloguj</string>
     <string name="use_login_for_browse">Zaloguj się, aby przeglądać treści</string>
-    <string name="use_login_for_browse_desc">Może mieć wpływ na to, jakie treści widzisz i np. pokazuje albumy tylko premium, jeśli jesteś zalogowany na konto Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Zaloguj</string>
 </resources>

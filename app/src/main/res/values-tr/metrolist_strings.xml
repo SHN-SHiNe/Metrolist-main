@@ -17,7 +17,7 @@
     <string name="cached_playlist">Önbelleğe Alınanlar</string>
     <string name="sync_playlist">Oynatma listesini eşitle</string>
     <string name="sync_disabled">Eşitleme devre dışı</string>
-    <string name="allows_for_sync_witch_youtube">NOT: Bu seçenek YouTube Music ile eşitlemeyi etkinleştirir ve daha sonra DEĞİŞTİRİLEMEZ</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="remove_from_cache">Önbellekten kaldır</string>
     <string name="copy_link">Bağlantıyı kopyala</string>
     <string name="select">Tümünü seç</string>
@@ -51,7 +51,7 @@
     <string name="advanced_login">Token ile giriş yap</string>
     <string name="token_hidden">Tokeni görmek için dokunun</string>
     <string name="token_shown">Kopyalamak veya düzenlemek için tekrar dokunun</string>
-    <string name="token_adv_login_description">Bu GELİŞMİŞ bir giriş yöntemidir. Giriş tokeninizi doğrudan girebilirsiniz. Birden fazla cihazda hızlı giriş için kullanışlıdır. Geçersiz formatlı tokenler reddedilir</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="general">Genel</string>
     <string name="proxy">Proxy</string>
     <string name="default_lib_chips">Varsayılan kitaplık çipini değiştir</string>
@@ -63,7 +63,7 @@
     <string name="percentage_format">%d%%</string>
     <string name="clear_song_cache_dialog">Tüm önbelleğe alınmış şarkıları temizlemek istediğinize emin misiniz?</string>
     <string name="clear_downloads_dialog">Tüm indirmeleri temizlemek istediğinize emin misiniz?</string>
-    <string name="not_logged_in_youtube">YouTube girişi yapılmadı</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="default_links">Desteklenen bağlantıları aç</string>
     <string name="open_app_settings_error">Uygulama ayarları açılamadı</string>
     <string name="release_notes">Sürüm notları</string>
@@ -98,7 +98,7 @@
     <string name="lyrics_auto_scroll">Şarkı sözlerini otomatik kaydır</string>
     <string name="lyrics_romanize_japanese">Japonca sözleri Latinleştir</string>
     <string name="lyrics_romanize_korean">Korece sözleri Latinleştir</string>
-    <string name="yt_sync">Hesapla otomatik eşitle</string>
+    <string name="account_auto_sync">Hesapla otomatik eşitle</string>
     <string name="more_content">Daha fazla içerik</string>
     <string name="import_online">Bir M3U listesi içe aktar</string>
     <string name="import_csv">Bir CSV listesi içe aktar</string>
@@ -130,7 +130,7 @@
     <string name="settings_section_system">Sistem ve Hakkında</string>
     <string name="starting_radio">Radyo başlatılıyor…</string>
     <string name="edit_playlist_cover">Oynatma listesi kapağını düzenle</string>
-    <string name="edit_playlist_cover_note">NOT: Kapak değiştirmek için hesabınızın bir telefon numarasına bağlı ve YouTube Music\'te doğrulanmış olması gerekir</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Resmi seçtikten sonra yeni kapağın görünmesi için lütfen biraz bekleyin</string>
     <string name="choose_from_library">Kitaplıktan seç</string>
     <string name="remove_custom_image">Özel görseli kaldır</string>
@@ -193,7 +193,7 @@
     <string name="add_to_library_desc">Kitaplığınıza kaydedin</string>
     <string name="download_desc">Çevrimdışı oynatma için indir</string>
     <string name="add_to_playlist_desc">Bir çalma listesine ekle</string>
-    <string name="refetch_desc">Meta verileri YouTube Music\'ten yenile</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Bu öğenin bağlantısını paylaşın</string>
     <string name="delete_desc">Bu öğeyi kalıcı olarak kaldır</string>
     <string name="advanced_desc">Şarkının temposunu ve perdesini ayarla</string>
@@ -211,7 +211,7 @@
     <string name="download_in_progress_desc">İndirme işlemi devam ediyor</string>
     <string name="share_playlist_desc">Bu oynatma listesini başkalarıyla paylaş</string>
     <string name="delete_playlist_desc">Bu oynatma listesini kalıcı olarak sil</string>
-    <string name="sync_playlist_desc">Bu oynatma listesini YouTube Music ile eşitle</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="enable_better_lyrics">Better Lyrics\'i Etkinleştir</string>
     <string name="enable_better_lyrics_desc">Herhangi bir şarkı için hece senkronizasyonlu sözler, karaoke için ideal</string>
     <string name="lyrics_animation_style">Şarkı sözü animasyon stili</string>
@@ -466,7 +466,7 @@
     <string name="ai_error_translation_failed">Çeviri başarısız</string>
     <string name="play_all">Tümünü oynat</string>
     <string name="recognize_music">Müziği tanımla</string>
-    <string name="youtube_url_column">YouTube URL sütunu (isteğe bağlı)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="re_listen">Yeniden dinle</string>
     <string name="clear_recognition_history_confirm">Tüm tanımlama geçmişini silmek istediğinize emin misiniz?</string>
     <string name="no_match_found">Eşleşme bulunamadı</string>
@@ -498,7 +498,7 @@
     <string name="crossfade_beta_title">Beta özelliği!</string>
     <string name="crossfade_beta_message">Çapraz geçiş yeni bir özelliktir ve hatalar içerebilir. Sorun yaşarsanız lütfen bildirin.\n\nNOT: Bu özellik teknik kısıtlamalar nedeniyle ses offload özelliğini devre dışı bırakır</string>
     <string name="audio_offload_disabled_by_crossfade">Çapraz geçiş etkin olduğu için devre dışı bırakıldı</string>
-    <string name="hide_youtube_shorts">YouTube Shorts\'u gizle</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_in_top_bar">Üst çubuktan Başkaları İle Dinle</string>
     <string name="listen_together_in_top_bar_desc">Birlikte Dinle özelliğini gezinti çubuğu yerine üst uygulama çubuğunda göster</string>
     <string name="prevent_duplicate_tracks_in_queue">Sıradaki yinelenenleri önle</string>
@@ -553,7 +553,7 @@
     <string name="density_restart_message">Ekran yoğunluğu değişikliği, uygulama yeniden başlatıldıktan sonra geçerli olacaktır. Şimdi yeniden başlatılsın mı?</string>
     <string name="enable_lrclib_desc">Topluluk odaklı senkronize şarkı sözü veritabanı</string>
     <string name="enable_kugou_desc">Şarkı sözlerini popüler Çin müzik platformu KuGou\'dan çeker</string>
-    <string name="youtube_music_lyrics_note">NOT: Başka kaynak bulunmadığında YouTube Music sözleri otomatik gösterilir. Genellikle senkronize değildir</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">LyricsPlus\'ı Etkinleştir</string>
     <string name="enable_lyricsplus_desc">Birden fazla kaynaktan senkronize edilmiş şarkı sözleri</string>
     <string name="lyrics_provider_selection">Sağlayıcı seçimi</string>
@@ -731,8 +731,8 @@
     <string name="android_auto_target_playlist_auto">Ayarlanmadı</string>
     <string name="android_auto_target_playlist_desc">Android Auto\'da hızlı ekleme düğmesi kullanılırken şarkıların kaydedileceği çalma listesini seçin</string>
     <string name="android_auto_target_playlist">Hızlı ekleme hedefi</string>
-    <string name="android_auto_youtube_playlists_desc">Android Auto ile göz atarken çalma listeleri bölümünde YouTube Music önerilen çalma listelerini göster</string>
-    <string name="android_auto_youtube_playlists">YouTube\'un önerdiği oynatma listelerini göster</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
     <string name="android_auto_reorder_hint">Bir bölümü etkinleştirmek veya devre dışı bırakmak için o bölüme dokunun.\nSıralamayı değiştirmek için sürükleme tutamacına uzun süre basın. Varsayılan olarak ilk bölüm gösterilecektir</string>
     <string name="android_auto_visible_sections">Görünür bölümler</string>
     <string name="android_auto">Android Auto</string>

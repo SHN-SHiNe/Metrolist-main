@@ -6,7 +6,7 @@
     <string name="quick_picks_empty">Escucha canciones para generar tus selecciones rápidas</string>
     <string name="forgotten_favorites">Favoritos olvidados</string>
     <string name="keep_listening">Sigue escuchando</string>
-    <string name="your_youtube_playlists">Tus listas de reproducción de YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Similar a</string>
     <string name="new_release_albums">Nuevos álbumes de lanzamiento</string>
     <string name="media_id">ID multimedia</string>
@@ -30,7 +30,7 @@
     <string name="most_played_artists">Artistas más reproducidos</string>
     <string name="most_played_albums">Álbumes más reproducidos</string>
     <string name="search">Buscar</string>
-    <string name="search_yt_music">Buscar música en YouTube…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Buscar biblioteca…</string>
     <string name="filter_library">Biblioteca</string>
     <string name="filter_liked">Favoritos</string>
@@ -262,7 +262,7 @@
     <string name="clear_search_history">Borrar historial de búsqueda</string>
     <string name="clear_search_history_confirm">¿Estás seguro de que quieres borrar todo el historial de búsqueda?</string>
     <string name="use_login_for_browse">Utiliza el inicio de sesión para navegar por el contenido</string>
-    <string name="use_login_for_browse_desc">Esto puede influir en el contenido que ves y, por ejemplo, muestra álbumes exclusivos para usuarios Premium si has iniciado sesión con una cuenta Premium</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="disable_screenshot">Desactivar captura de pantalla</string>
     <string name="disable_screenshot_desc">Cuando esta opción está activada, las capturas de pantalla y la vista de la aplicación en Recientes están desactivadas.</string>
     <string name="enable_lrclib">Activitar proveedor de letras LrcLib</string>

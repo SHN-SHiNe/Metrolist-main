@@ -1,4 +1,4 @@
-Material 3 YouTube Music client for Android
+Material 3 SHiNe MUSIC client for Android
 
 Features:
 
@@ -9,7 +9,7 @@ Features:
 - Download and cache songs for offline playback
 - Search for songs, albums, artists, videos and playlists
 - Live lyrics 
-- YouTube Music account login support
+- SHiNe MUSIC account login support
 - Syncing of songs, artists, albums and playlists, from and to your account
 - Skip silence 
 - Import playlists 

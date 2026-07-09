@@ -10,7 +10,7 @@
         <item quantity="other">%d തിരഞ്ഞെടുത്തു</item>
     </plurals>
     <string name="search">തിരയുക</string>
-    <string name="search_yt_music">യൂട്യൂബ് സംഗീതം തിരയുക…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">ലൈബ്രറിയിൽ തിരയുക…</string>
     <string name="filter_all">എല്ലാം</string>
     <string name="filter_songs">പാട്ടുകൾ</string>
@@ -120,10 +120,10 @@
     <string name="restore_failed">ബാക്കപ്പ് പുനഃസ്ഥാപിക്കാൻ കഴിഞ്ഞില്ല</string>
     <string name="about">കുറിച്ച്</string>
     <string name="app_version">അപ്ലിക്കേഷൻ പതിപ്പ്</string>
-    <string name="use_login_for_browse_desc">ഇത് നിങ്ങൾ കാണുന്ന ഉള്ളടക്കത്തെ സ്വാധീനിക്കും, ഉദാഹരണത്തിന് നിങ്ങൾ ഒരു പ്രീമിയം അക്കൗണ്ട് ഉപയോഗിച്ച് ലോഗിൻ ചെയ്തിട്ടുണ്ടെങ്കിൽ പ്രീമിയം-മാത്രം ആൽബങ്ങൾ കാണിക്കുന്നു</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="forgotten_favorites">മറന്നുപോയ പ്രിയപ്പെട്ടവ</string>
     <string name="keep_listening">കേള്‍ക്കുന്നത് തുടരൂ</string>
-    <string name="your_youtube_playlists">നിങ്ങളുടെ യൂട്യൂബ് പ്ലേലിസ്റ്റുകൾ</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="action_remove_like_all">Like എല്ലാം നീക്കം ചെയ്യുക</string>
     <string name="player">മ്യൂസിക് പ്ലെയർ</string>
     <string name="auto_load_more_desc">സാധ്യമെങ്കിൽ, ക്യൂവിന്റെ അവസാനം എത്തുമ്പോൾ കൂടുതൽ പാട്ടുകൾ യാന്ത്രികമായി ചേർക്കുക</string>

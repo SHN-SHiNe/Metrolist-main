@@ -2,20 +2,19 @@ package com.metrolist.music.download
 
 import android.content.ContentValues
 import android.content.Context
-import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.core.content.getSystemService
+import androidx.datastore.preferences.core.edit
 import androidx.documentfile.provider.DocumentFile
 import com.metrolist.chinamusic.ChinaMusicUtils
 import com.metrolist.chinamusic.model.AudioQuality as ChinaAudioQuality
-import com.metrolist.music.constants.AudioQuality
 import com.metrolist.music.constants.FileDownloadDirectoryUriKey
+import com.metrolist.music.constants.FileDownloadTotalBytesKey
+import com.metrolist.music.localmusic.LocalMusicSourceTrackId
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
-import com.metrolist.music.utils.YTPlayerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -25,17 +24,17 @@ import java.io.ByteArrayOutputStream
 import java.text.Normalizer
 
 object FileMusicDownloader {
-    enum class Quality(val label: String, val ytQuality: AudioQuality, val chinaQuality: ChinaAudioQuality) {
-        LOW("标准音质", AudioQuality.LOW, ChinaAudioQuality.LOW),
-        HIGH("高音质", AudioQuality.HIGH, ChinaAudioQuality.HIGH),
-        LOSSLESS("无损优先", AudioQuality.VERY_HIGH, ChinaAudioQuality.LOSSLESS),
+    enum class Quality(val label: String, val chinaQuality: ChinaAudioQuality) {
+        LOW("标准音质", ChinaAudioQuality.LOW),
+        HIGH("高音质", ChinaAudioQuality.HIGH),
+        LOSSLESS("无损优先", ChinaAudioQuality.LOSSLESS),
     }
 
     suspend fun download(
         context: Context,
         mediaMetadata: MediaMetadata,
         quality: Quality,
-    ): Result<String> = withContext(Dispatchers.IO) {
+    ): Result<FileMusicDownloadResult> = withContext(Dispatchers.IO) {
         runCatching {
             val stream = resolveStream(context, mediaMetadata, quality)
             val extension = extensionFromMime(stream.mimeType)
@@ -47,36 +46,67 @@ object FileMusicDownloader {
                 coverBytes = downloadCover(mediaMetadata.thumbnailUrl),
             ) ?: stream.bytes
             val customDirectoryUri = context.dataStore.get(FileDownloadDirectoryUriKey, "")
-            if (customDirectoryUri.isNotBlank()) {
-                writeToCustomDirectory(context, customDirectoryUri, fileName, stream.mimeType, audioBytes)
-                return@runCatching fileName
+            val location = FileDownloadLocation.fromDirectoryUri(customDirectoryUri)
+            val result =
+                if (customDirectoryUri.isNotBlank() && hasPersistedWritePermission(context, customDirectoryUri)) {
+                    writeToCustomDirectoryOrNull(context, customDirectoryUri, fileName, stream.mimeType, audioBytes, location.displayPath)
+                        ?: run {
+                            clearStaleCustomDirectory(context, customDirectoryUri)
+                            writeToDefaultMusicDirectory(context, mediaMetadata, fileName, stream.mimeType, audioBytes)
+                        }
+                } else {
+                    if (customDirectoryUri.isNotBlank()) {
+                        clearStaleCustomDirectory(context, customDirectoryUri)
+                    }
+                    writeToDefaultMusicDirectory(context, mediaMetadata, fileName, stream.mimeType, audioBytes)
+                }
+            context.dataStore.edit { preferences ->
+                preferences[FileDownloadTotalBytesKey] = (preferences[FileDownloadTotalBytesKey] ?: 0L) + result.byteCount
             }
-            val resolver = context.contentResolver
-            val values = ContentValues().apply {
-                put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Audio.Media.MIME_TYPE, stream.mimeType)
-                put(MediaStore.Audio.Media.TITLE, mediaMetadata.title)
-                put(MediaStore.Audio.Media.ARTIST, mediaMetadata.artists.joinToString(", ") { it.name })
-                put(MediaStore.Audio.Media.ALBUM, mediaMetadata.album?.title.orEmpty())
-                put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/SHiNe MUSIC")
-                put(MediaStore.Audio.Media.IS_PENDING, 1)
-            }
-            val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-                ?: error("无法创建下载文件")
-            try {
-                resolver.openOutputStream(uri)?.use { output ->
-                    output.write(audioBytes)
-                } ?: error("无法打开下载文件")
-                values.clear()
-                values.put(MediaStore.Audio.Media.IS_PENDING, 0)
-                resolver.update(uri, values, null, null)
-                fileName
-            } catch (throwable: Throwable) {
-                resolver.delete(uri, null, null)
-                throw throwable
-            }
+            result
         }.onFailure {
             Timber.tag("FileMusicDownloader").e(it, "File download failed")
+        }
+    }
+
+    private fun writeToDefaultMusicDirectory(
+        context: Context,
+        mediaMetadata: MediaMetadata,
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray,
+    ): FileMusicDownloadResult {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+            put(MediaStore.Audio.Media.TITLE, mediaMetadata.title)
+            put(MediaStore.Audio.Media.ARTIST, mediaMetadata.artists.joinToString(", ") { it.name })
+            put(MediaStore.Audio.Media.ALBUM, mediaMetadata.album?.title.orEmpty())
+            put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/SHiNe MUSIC")
+            put(MediaStore.Audio.Media.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+            ?: error("无法创建下载文件")
+        try {
+            resolver.openOutputStream(uri)?.use { output ->
+                output.write(bytes)
+            } ?: error("无法打开下载文件")
+            values.clear()
+            values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            return FileMusicDownloadResult(
+                fileName = fileName,
+                contentUri = uri.toString(),
+                treeUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.toString(),
+                documentId = uri.toString(),
+                mimeType = mimeType,
+                byteCount = bytes.size.toLong(),
+                displayPath = "${FileDownloadLocation.DEFAULT_DISPLAY_PATH}/$fileName",
+            )
+        } catch (throwable: Throwable) {
+            resolver.delete(uri, null, null)
+            throw throwable
         }
     }
 
@@ -95,13 +125,7 @@ object FileMusicDownloader {
             ).getOrThrow()
             return downloadBytes(url, guessMimeTypeFromUrl(url))
         }
-        val connectivityManager = context.getSystemService<ConnectivityManager>() ?: error("网络服务不可用")
-        val playbackData = YTPlayerUtils.playerResponseForPlayback(
-            videoId = mediaMetadata.id,
-            audioQuality = quality.ytQuality,
-            connectivityManager = connectivityManager,
-        ).getOrThrow()
-        return downloadBytes(playbackData.streamUrl, playbackData.format.mimeType.substringBefore(';'))
+        error("当前歌曲来源不支持文件下载")
     }
 
     private fun downloadBytes(url: String, mimeType: String): StreamData {
@@ -119,15 +143,57 @@ object FileMusicDownloader {
         fileName: String,
         mimeType: String,
         bytes: ByteArray,
-    ) {
+        displayDirectory: String,
+    ): FileMusicDownloadResult {
         val directory = DocumentFile.fromTreeUri(context, Uri.parse(directoryUri))
             ?: error("无法打开自定义下载目录")
+        if (!directory.canWrite()) {
+            error("自定义下载目录不可写")
+        }
         directory.findFile(fileName)?.delete()
         val file = directory.createFile(mimeType, fileName)
             ?: error("无法在自定义目录创建文件")
         context.contentResolver.openOutputStream(file.uri)?.use { output ->
             output.write(bytes)
         } ?: error("无法写入自定义目录文件")
+        return FileMusicDownloadResult(
+            fileName = fileName,
+            contentUri = file.uri.toString(),
+            treeUri = directoryUri,
+            documentId = file.uri.toString(),
+            mimeType = mimeType,
+            byteCount = bytes.size.toLong(),
+            displayPath = "$displayDirectory/$fileName",
+        )
+    }
+
+    private fun writeToCustomDirectoryOrNull(
+        context: Context,
+        directoryUri: String,
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray,
+        displayDirectory: String,
+    ): FileMusicDownloadResult? =
+        runCatching {
+            writeToCustomDirectory(context, directoryUri, fileName, mimeType, bytes, displayDirectory)
+        }.onFailure {
+            Timber.tag("FileMusicDownloader").w(it, "Custom download directory is not writable; falling back to default directory")
+        }.getOrNull()
+
+    private fun hasPersistedWritePermission(context: Context, directoryUri: String): Boolean {
+        val uri = runCatching { Uri.parse(directoryUri) }.getOrNull() ?: return false
+        return context.contentResolver.persistedUriPermissions.any { permission ->
+            permission.uri == uri && permission.isWritePermission
+        }
+    }
+
+    private suspend fun clearStaleCustomDirectory(context: Context, directoryUri: String) {
+        context.dataStore.edit { preferences ->
+            if (preferences[FileDownloadDirectoryUriKey] == directoryUri) {
+                preferences.remove(FileDownloadDirectoryUriKey)
+            }
+        }
     }
 
     private fun buildTaggedAudio(
@@ -150,6 +216,7 @@ object FileMusicDownloader {
         frames.writeTextFrame("TIT2", mediaMetadata.title)
         frames.writeTextFrame("TPE1", mediaMetadata.artists.joinToString("/") { it.name })
         mediaMetadata.album?.title?.takeIf { it.isNotBlank() }?.let { frames.writeTextFrame("TALB", it) }
+        frames.writeUserTextFrame(LocalMusicSourceTrackId.ID3_DESCRIPTION, mediaMetadata.id)
         coverBytes?.let { frames.writeCoverFrame(it) }
         val frameBytes = frames.toByteArray()
         return ByteArrayOutputStream(10 + frameBytes.size).use { output ->
@@ -163,6 +230,20 @@ object FileMusicDownloader {
     private fun ByteArrayOutputStream.writeTextFrame(id: String, value: String) {
         if (value.isBlank()) return
         val payload = byteArrayOf(3) + value.toByteArray(Charsets.UTF_8)
+        writeFrame(id, payload)
+    }
+
+    private fun ByteArrayOutputStream.writeUserTextFrame(description: String, value: String) {
+        if (description.isBlank() || value.isBlank()) return
+        val payload =
+            byteArrayOf(3) +
+                description.toByteArray(Charsets.UTF_8) +
+                byteArrayOf(0) +
+                value.toByteArray(Charsets.UTF_8)
+        writeFrame("TXXX", payload)
+    }
+
+    private fun ByteArrayOutputStream.writeFrame(id: String, payload: ByteArray) {
         write(id.toByteArray(Charsets.ISO_8859_1))
         write(byteArrayOf(
             ((payload.size ushr 24) and 0xFF).toByte(),
@@ -240,3 +321,13 @@ object FileMusicDownloader {
 
     private data class StreamData(val bytes: ByteArray, val mimeType: String)
 }
+
+data class FileMusicDownloadResult(
+    val fileName: String,
+    val contentUri: String,
+    val treeUri: String,
+    val documentId: String,
+    val mimeType: String?,
+    val byteCount: Long,
+    val displayPath: String,
+)

@@ -83,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboard
@@ -101,9 +102,11 @@ import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.navigation.NavController
 import com.metrolist.music.LocalListenTogetherManager
+import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.ListItemHeight
+import com.metrolist.music.constants.LocalSimilarAutoplayKey
 import com.metrolist.music.constants.PlayerBackgroundStyle
 import com.metrolist.music.constants.QueueEditLockKey
 import com.metrolist.music.constants.UseNewPlayerDesignKey
@@ -176,11 +179,20 @@ fun Queue(
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isEffectivelyPlaying.collectAsStateWithLifecycle()
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val (localSimilarAutoplay, onLocalSimilarAutoplayChange) = rememberPreference(LocalSimilarAutoplayKey, false)
 
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsStateWithLifecycle()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsStateWithLifecycle()
+    val database = LocalDatabase.current
+    val currentLocalMusic by database.localMusic(mediaMetadata?.id ?: "").collectAsStateWithLifecycle(initialValue = null)
 
     val currentFormat by playerConnection.currentFormat.collectAsStateWithLifecycle(initialValue = null)
+    val localSimilarAutoplayActive = localSimilarAutoplay && mediaMetadata?.isLocal == true
+    val localSimilarAutoplayPulse =
+        rememberLocalSimilarAutoplayPulse(
+            enabled = localSimilarAutoplayActive,
+            bpm = currentLocalMusic?.bpm,
+        )
 
     val selectedSongs = remember { mutableStateListOf<MediaMetadata>() }
     val selectedItems = remember { mutableStateListOf<Timeline.Window>() }
@@ -309,26 +321,37 @@ fun Queue(
                         playerBackground = playerBackground,
                     )
 
-                    PlayerQueueButton(
-                        icon = R.drawable.bedtime,
-                        onClick = {
-                            if (sleepTimerEnabled) {
-                                playerConnection.service.sleepTimer.clear()
-                            } else {
-                                showSleepTimerDialog = true
-                            }
-                        },
-                        isActive = sleepTimerEnabled,
-                        enabled = !isListenTogetherGuest,
-                        shape = middleShape,
-                        modifier = Modifier.size(buttonSize),
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
-                        text = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else null,
-                        iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
-                    )
+                    if (mediaMetadata?.isLocal == true) {
+                        PlayerQueueButton(
+                            icon = null,
+                            onClick = {
+                                val enabled = !localSimilarAutoplay
+                                onLocalSimilarAutoplayChange(enabled)
+                                if (enabled) {
+                                    playerConnection.service.prepareLocalSimilarNextFromCurrent()
+                                }
+                            },
+                            isActive = localSimilarAutoplay,
+                            enabled = !isListenTogetherGuest,
+                            shape = middleShape,
+                            modifier = Modifier.size(buttonSize),
+                            textButtonColor = textButtonColor,
+                            iconButtonColor = iconButtonColor,
+                            iconSize = iconSize,
+                            textBackgroundColor = TextBackgroundColor,
+                            playerBackground = playerBackground,
+                            activePulse = localSimilarAutoplayPulse,
+                            iconContent = { tint ->
+                                LocalSimilarAutoplayIcon(
+                                    enabled = localSimilarAutoplay,
+                                    tint = tint,
+                                    bpm = currentLocalMusic?.bpm,
+                                    pulse = localSimilarAutoplayPulse,
+                                    modifier = Modifier.size(iconSize),
+                                )
+                            },
+                        )
+                    }
 
                     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
                     PlayerQueueButton(
@@ -457,54 +480,51 @@ fun Queue(
                         }
                     }
 
-                    TextButton(
-                        enabled = !isListenTogetherGuest,
-                        onClick = {
-                            if (!isListenTogetherGuest) {
-                                if (sleepTimerEnabled) {
-                                    playerConnection.service.sleepTimer.clear()
-                                } else {
-                                    showSleepTimerDialog = true
-                                }
-                            }
-                        },
-                        modifier = Modifier.weight(1.2f),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.bedtime),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = TextBackgroundColor,
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            AnimatedContent(
-                                label = "sleepTimer",
-                                targetState = sleepTimerEnabled,
-                            ) { enabled ->
+                    if (mediaMetadata?.isLocal == true) {
+                        TextButton(
+                            enabled = !isListenTogetherGuest,
+                            onClick = {
+                                val enabled = !localSimilarAutoplay
+                                onLocalSimilarAutoplayChange(enabled)
                                 if (enabled) {
-                                    Text(
-                                        text = makeTimeString(sleepTimerTimeLeft),
-                                        color = TextBackgroundColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.basicMarquee(),
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(id = R.string.sleep_timer),
-                                        color = TextBackgroundColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.basicMarquee(),
-                                    )
+                                    playerConnection.service.prepareLocalSimilarNextFromCurrent()
                                 }
+                            },
+                            modifier =
+                                Modifier
+                                    .weight(1.2f)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(
+                                        if (localSimilarAutoplayActive) {
+                                            TextBackgroundColor.copy(
+                                                alpha = 0.10f + 0.22f * localSimilarAutoplayPulse,
+                                            )
+                                        } else {
+                                            Color.Transparent
+                                        },
+                                    ),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                LocalSimilarAutoplayIcon(
+                                    enabled = localSimilarAutoplay,
+                                    tint = TextBackgroundColor,
+                                    bpm = currentLocalMusic?.bpm,
+                                    pulse = localSimilarAutoplayPulse,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(id = R.string.local_similar_autoplay),
+                                    color = TextBackgroundColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.basicMarquee(),
+                                )
                             }
                         }
                     }
@@ -1204,28 +1224,67 @@ fun Queue(
                             .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
                     ).padding(12.dp),
         ) {
-            IconButton(
-                enabled = !isListenTogetherGuest,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.align(Alignment.CenterStart),
-                onClick = {
-                    coroutineScope
-                        .launch {
-                            lazyListState.animateScrollToItem(
-                                if (playerConnection.player.shuffleModeEnabled) playerConnection.player.currentMediaItemIndex else 0,
-                            )
-                        }.invokeOnCompletion {
-                            playerConnection.player.shuffleModeEnabled =
-                                !playerConnection.player.shuffleModeEnabled
-                        }
-                },
             ) {
-                val baseAlpha = if (shuffleModeEnabled) 1f else 0.5f
-                val finalAlpha = if (!isListenTogetherGuest) baseAlpha else 0.3f
-                Icon(
-                    painter = painterResource(R.drawable.shuffle),
-                    contentDescription = null,
-                    modifier = Modifier.alpha(finalAlpha),
-                )
+                IconButton(
+                    enabled = !isListenTogetherGuest,
+                    onClick = {
+                        coroutineScope
+                            .launch {
+                                lazyListState.animateScrollToItem(
+                                    if (playerConnection.player.shuffleModeEnabled) playerConnection.player.currentMediaItemIndex else 0,
+                                )
+                            }.invokeOnCompletion {
+                                playerConnection.player.shuffleModeEnabled =
+                                    !playerConnection.player.shuffleModeEnabled
+                            }
+                    },
+                ) {
+                    val baseAlpha = if (shuffleModeEnabled) 1f else 0.5f
+                    val finalAlpha = if (!isListenTogetherGuest) baseAlpha else 0.3f
+                    Icon(
+                        painter = painterResource(R.drawable.shuffle),
+                        contentDescription = null,
+                        modifier = Modifier.alpha(finalAlpha),
+                    )
+                }
+
+                if (mediaMetadata?.isLocal == true) {
+                    IconButton(
+                        enabled = !isListenTogetherGuest,
+                        modifier =
+                            Modifier
+                                .clip(CircleShape)
+                                .background(
+                                    if (localSimilarAutoplayActive) {
+                                        textButtonColor.copy(alpha = 0.12f + 0.22f * localSimilarAutoplayPulse)
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                ),
+                        onClick = {
+                            val enabled = !localSimilarAutoplay
+                            onLocalSimilarAutoplayChange(enabled)
+                            if (enabled) {
+                                playerConnection.service.prepareLocalSimilarNextFromCurrent()
+                            }
+                        },
+                    ) {
+                        val baseAlpha = if (localSimilarAutoplay) 1f else 0.5f
+                        val finalAlpha = if (!isListenTogetherGuest) baseAlpha else 0.3f
+                        LocalSimilarAutoplayIcon(
+                            enabled = localSimilarAutoplay,
+                            bpm = currentLocalMusic?.bpm,
+                            pulse = localSimilarAutoplayPulse,
+                            modifier =
+                                Modifier
+                                    .size(24.dp)
+                                    .alpha(finalAlpha / baseAlpha),
+                        )
+                    }
+                }
             }
 
             Icon(
@@ -1273,7 +1332,7 @@ fun Queue(
 
 @Composable
 private fun PlayerQueueButton(
-    icon: Int,
+    icon: Int?,
     onClick: () -> Unit,
     isActive: Boolean,
     enabled: Boolean = true,
@@ -1285,6 +1344,8 @@ private fun PlayerQueueButton(
     iconSize: androidx.compose.ui.unit.Dp,
     textBackgroundColor: Color,
     playerBackground: PlayerBackgroundStyle,
+    activePulse: Float = 0f,
+    iconContent: (@Composable (Color) -> Unit)? = null,
 ) {
     val buttonModifier =
         Modifier
@@ -1295,7 +1356,13 @@ private fun PlayerQueueButton(
 
     val appliedModifier =
         if (isActive) {
-            modifier.then(buttonModifier.background(textButtonColor)).alpha(alphaFactor)
+            val activeBackground =
+                lerp(
+                    textButtonColor,
+                    iconButtonColor,
+                    0.20f * activePulse.coerceIn(0f, 1f),
+                )
+            modifier.then(buttonModifier.background(activeBackground)).alpha(alphaFactor)
         } else {
             modifier
                 .then(
@@ -1340,12 +1407,16 @@ private fun PlayerQueueButton(
                     }
                 }
             val finalTint = if (enabled) baseTint else baseTint.copy(alpha = 0.5f)
-            Icon(
-                painter = painterResource(id = icon),
-                contentDescription = null,
-                modifier = Modifier.size(iconSize),
-                tint = finalTint,
-            )
+            if (iconContent != null) {
+                iconContent(finalTint)
+            } else if (icon != null) {
+                Icon(
+                    painter = painterResource(id = icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize),
+                    tint = finalTint,
+                )
+            }
         }
     }
 }

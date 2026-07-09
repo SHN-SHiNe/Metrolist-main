@@ -100,8 +100,6 @@ val ProxyUrlKey = stringPreferencesKey("proxyUrl")
 val ProxyTypeKey = stringPreferencesKey("proxyType")
 val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
 val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
-val YtmSyncKey = booleanPreferencesKey("ytmSync")
-val SelectedYtmPlaylistsKey = stringPreferencesKey("selectedYtmPlaylists")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 val LastUpdateCheckTimeKey = longPreferencesKey("lastUpdateCheckTime")
@@ -144,6 +142,7 @@ val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val DisableLoadMoreWhenRepeatAllKey = booleanPreferencesKey("disableLoadMoreWhenRepeatAll")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
 val SimilarContent = booleanPreferencesKey("similarContent")
+val LocalSimilarAutoplayKey = booleanPreferencesKey("localSimilarAutoplay")
 val AutoSkipNextOnErrorKey = booleanPreferencesKey("autoSkipNextOnError")
 val AutoplayKey = booleanPreferencesKey("autoplay")
 val StopMusicOnTaskClearKey = booleanPreferencesKey("stopMusicOnTaskClear")
@@ -217,6 +216,11 @@ val ScrobbleDelaySecondsKey = intPreferencesKey("scrobbleDelaySeconds")
 val ChipSortTypeKey = stringPreferencesKey("chipSortType")
 val SongSortTypeKey = stringPreferencesKey("songSortType")
 val SongSortDescendingKey = booleanPreferencesKey("songSortDescending")
+val LocalMusicFolderUriKey = stringPreferencesKey("localMusicFolderUri")
+val LocalMusicFolderUrisKey = stringPreferencesKey("localMusicFolderUris")
+val LocalMusicSortTypeKey = stringPreferencesKey("localMusicSortType")
+val LocalMusicSortDescendingKey = booleanPreferencesKey("localMusicSortDescending")
+val LocalMusicMinDurationSecondsKey = intPreferencesKey("localMusicMinDurationSeconds")
 val PlaylistSongSortTypeKey = stringPreferencesKey("playlistSongSortType")
 val PlaylistSongSortDescendingKey = booleanPreferencesKey("playlistSongSortDescending")
 val AutoPlaylistSongSortTypeKey = stringPreferencesKey("autoPlaylistSongSortType")
@@ -248,7 +252,6 @@ val LastFullSyncKey = longPreferencesKey("last_full_sync")
 val LastWeeklyMostPlaylistSyncKey = longPreferencesKey("last_weekly_most_playlist_sync")
 val LastMonthlyMostPlaylistSyncKey = longPreferencesKey("last_monthly_most_playlist_sync")
 val ShowMostStatsPlaylistsKey = booleanPreferencesKey("show_most_stats_playlists")
-val YouTubeSyncCleanedUpKey = booleanPreferencesKey("youtube_sync_cleaned_up")
 
 // Sync cooldown in seconds (30 minutes)
 const val SYNC_COOLDOWN = 30 * 60L
@@ -315,6 +318,15 @@ enum class SongSortType {
     NAME,
     ARTIST,
     PLAY_TIME,
+}
+
+enum class LocalMusicSortType {
+    CREATE_DATE,
+    NAME,
+    ARTIST,
+    BPM,
+    KEY,
+    ENERGY,
 }
 
 enum class PlaylistSongSortType {
@@ -518,31 +530,30 @@ val SleepTimerCustomDaysKey = stringPreferencesKey("sleepTimerCustomDays")
 val SleepTimerDayTimesKey = stringPreferencesKey("sleepTimerDayTimes")
 
 enum class SearchSource {
-    LOCAL,
+    LIBRARY,
     ONLINE,
     CHINA,
     CHINA_SONGLIST,
+    ADVANCED,
     ;
 
-    fun toggle() =
-        when (this) {
-            CHINA -> CHINA_SONGLIST
-            CHINA_SONGLIST -> LOCAL
-            LOCAL -> CHINA
-            ONLINE -> CHINA
+    companion object {
+        fun fromPreference(value: String?): SearchSource =
+            when (value) {
+                "LOCAL" -> LIBRARY
+                "ONLINE" -> CHINA
+                "LIBRARY" -> LIBRARY
+                "CHINA" -> CHINA
+                "CHINA_SONGLIST" -> CHINA_SONGLIST
+                "ADVANCED" -> ADVANCED
+                else -> CHINA
+            }
         }
 }
 
-val VisitorDataKey = stringPreferencesKey("visitorData")
-val DataSyncIdKey = stringPreferencesKey("dataSyncId")
-val AndroidAutoYouTubePlaylistsKey = booleanPreferencesKey("androidAutoYoutubePlaylists")
 val AndroidAutoSectionsOrderKey = stringPreferencesKey("androidAutoSectionsOrder")
 val AndroidAutoTargetPlaylistKey = stringPreferencesKey("androidAutoTargetPlaylist")
 val InnerTubeCookieKey = stringPreferencesKey("innerTubeCookie")
-val AccountNameKey = stringPreferencesKey("accountName")
-val AccountEmailKey = stringPreferencesKey("accountEmail")
-val AccountChannelHandleKey = stringPreferencesKey("accountChannelHandle")
-val UseLoginForBrowse = booleanPreferencesKey("useLoginForBrowse")
 val ChinaHomeLastTagIdKey = stringPreferencesKey("chinaHomeLastTagId")
 val ChinaHomeLastTagNameKey = stringPreferencesKey("chinaHomeLastTagName")
 val ChinaHomeLastGenreTagIdKey = stringPreferencesKey("chinaHomeLastGenreTagId")

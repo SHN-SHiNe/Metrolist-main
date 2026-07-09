@@ -1,4 +1,4 @@
-Material 3 põhine YouTube Musicu klient Androidile
+Material 3 põhine SHiNe MUSICu klient Androidile
 
 Funktsionaalsused:
 
@@ -9,7 +9,7 @@ Funktsionaalsused:
 - Laadi lugusid alla hilisemaks esitamiseks ilma võrguühendust kasutamata
 - Otsi lugusid, albumeid, esitajaid, videoid ja esitusloendeid
 - Laulusõnad kuulamise ajal 
-- YouTube Musicu kasutajakonto pruukimise võimalus
+- SHiNe MUSICu kasutajakonto pruukimise võimalus
 - Lugude, esitajate, albumite ja esitusloendite sünkroonimine sinu kasutajakontoga
 - Vaikuse vahelejätmine 
 - Esitusloendite import 

@@ -36,7 +36,7 @@
     <string name="past_week">Senaste veckan</string>
     <string name="import_csv">Importera \"csv\" spellista</string>
     <string name="clear_song_cache_dialog">Är du säker på att du vill rensa alla cachade låtar?</string>
-    <string name="token_adv_login_description">Detta är en AVANCERAD inloggningsmetod. Som ett alternativ till webbportalen kan du ange eller uppdatera din inloggningstoken här. Detta kan till exempel göra det snabbare att logga in på flera enheter. Observera att ogiltiga token-format som appen inte kan tolka kommer att nekas</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="playlist_add_local_to_synced_note">Obs! Att lägga till lokala låtar i synkade/fjärrspellistor stöds inte. Alla andra kombinationer fungerar</string>
     <string name="past_month">Senaste månaden</string>
     <string name="past_year">Senaste året</string>
@@ -56,7 +56,7 @@
     <string name="cached_playlist">Cachade</string>
     <string name="sync_playlist">Synka spellista</string>
     <string name="sync_disabled">Synkning inaktiverad</string>
-    <string name="allows_for_sync_witch_youtube">Obs! Det här möjliggör synkronisering med YouTube Music. Det går INTE att ångra i efterhand.</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="generating_image">Skapar bild</string>
     <string name="please_wait">Vänligen vänta</string>
     <string name="cancel">Avbryt</string>
@@ -99,7 +99,7 @@
     <string name="token_hidden">Tryck för att visa token</string>
     <string name="default_links">Öppna supporterade länkar</string>
     <string name="clear_downloads_dialog">Är du säker på att du vill rensa alla nedladdningar?</string>
-    <string name="not_logged_in_youtube">Inte inloggad på YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="release_notes">Versionsinfo</string>
     <string name="new_player_design">Ny spelardesign</string>
     <string name="new_mini_player_design">Ny mini spelardesign</string>
@@ -117,7 +117,7 @@
     <string name="download_in_progress_desc">Hämtningen pågår</string>
     <string name="share_playlist_desc">Dela den här spellista med andra</string>
     <string name="delete_playlist_desc">Radera den här spellista för alltid</string>
-    <string name="sync_playlist_desc">Synka spellistan med YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="starting_radio">Börjar spela radio</string>
     <string name="now_playing">Spelar nu</string>
     <string name="close">Stäng</string>
@@ -148,5 +148,5 @@
     <string name="restart_required">Omstart krävs</string>
     <string name="enable_lrclib_desc">Communitydriven synkroniserad databas för låttexter</string>
     <string name="enable_kugou_desc">Hämtar låttexter från KoGou, en populär Kinesisk musikplattform</string>
-    <string name="youtube_music_lyrics_note">OBS: Låttexter från YouTube Music kommer användas när andra låttexttjänster inte är tillgängliga. Låttexter från YTM är oftast inte synkroniserade.</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
 </resources>

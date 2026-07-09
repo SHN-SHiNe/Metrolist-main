@@ -19,7 +19,7 @@
     <string name="quick_picks_empty">Послушайте несколько песен, чтобы создать ваш быстрый выбор</string>
     <string name="forgotten_favorites">Забытые избранные</string>
     <string name="keep_listening">Продолжайте слушать</string>
-    <string name="your_youtube_playlists">Ваши плейлисты YouTube</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Похожие на</string>
     <string name="new_release_albums">Новые релизы альбомов</string>
     <string name="today">Сегодня</string>
@@ -30,7 +30,7 @@
     <string name="most_played_artists">Самые прослушиваемые исполнители</string>
     <string name="most_played_albums">Самые прослушиваемые альбомы</string>
     <string name="search">Поиск</string>
-    <string name="search_yt_music">Поиск в YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Поиск в библиотеке…</string>
     <string name="filter_library">Библиотека</string>
     <string name="filter_liked">Понравившиеся</string>
@@ -295,6 +295,6 @@
     <string name="translation_models">Модели перевода</string>
     <string name="clear_translation_models">Очистить модели перевода</string>
     <string name="use_login_for_browse">Авторизуйтесь для просмотра контента</string>
-    <string name="use_login_for_browse_desc">Это влияет на отображение контента и, в частности, открывает доступ к премиум-альбомам при входе с премиум-учётной записью</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Войти</string>
 </resources>

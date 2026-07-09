@@ -111,6 +111,7 @@ import com.metrolist.music.db.entities.Artist
 import com.metrolist.music.db.entities.Playlist
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.localmusic.analysis.availableAnalysisLabels
 import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.playback.queues.LocalAlbumRadio
 import com.metrolist.music.ui.utils.resize
@@ -392,6 +393,7 @@ fun SongListItem(
                 .collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state)
         }
+        LocalMusicAnalysisBadges(song.id)
     },
     isSelected: Boolean = false,
     isActive: Boolean = false,
@@ -457,9 +459,13 @@ fun SongGridItem(
             val download by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
             Icon.Download(download?.state)
         }
+        LocalMusicAnalysisBadges(song.id)
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
+    showCoverPlayButton: Boolean = true,
+    showPlaybackStateOverlay: Boolean = true,
+    showPausedPlaybackIcon: Boolean = true,
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = {
@@ -492,9 +498,11 @@ fun SongGridItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = RoundedCornerShape(ThumbnailCornerRadius),
-            modifier = Modifier.size(gridHeight)
+            modifier = Modifier.size(gridHeight),
+            showPlaybackStateOverlay = showPlaybackStateOverlay,
+            showPausedPlaybackIcon = showPausedPlaybackIcon,
         )
-        if (!isActive) {
+        if (showCoverPlayButton && !isActive) {
             OverlayPlayButton(
                 visible = true
             )
@@ -680,6 +688,9 @@ fun AlbumGridItem(
     },
     isActive: Boolean = false,
     isPlaying: Boolean = false,
+    showAlbumPlayButton: Boolean = true,
+    showPlaybackStateOverlay: Boolean = true,
+    showPausedPlaybackIcon: Boolean = true,
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = {
@@ -712,10 +723,12 @@ fun AlbumGridItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = RoundedCornerShape(ThumbnailCornerRadius),
+            showPlaybackStateOverlay = showPlaybackStateOverlay,
+            showPausedPlaybackIcon = showPausedPlaybackIcon,
         )
 
         AlbumPlayButton(
-            visible = !isActive,
+            visible = showAlbumPlayButton && !isActive,
             onClick = {
                 scope.launch {
                     val albumWithSongs = withContext(Dispatchers.IO) {
@@ -925,7 +938,10 @@ fun MediaMetadataListItem(
     isSelected: Boolean = false,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
-    badges: @Composable RowScope.() -> Unit = { if (mediaMetadata.explicit) Icon.Explicit() },
+    badges: @Composable RowScope.() -> Unit = {
+        if (mediaMetadata.explicit) Icon.Explicit()
+        LocalMusicAnalysisBadges(mediaMetadata.id)
+    },
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     ListItem(
@@ -998,6 +1014,7 @@ fun YouTubeListItem(
         if (item is SongItem) {
             val download by LocalDownloadUtil.current.getDownload(item.id).collectAsStateWithLifecycle(null)
             Icon.Download(download?.state)
+            LocalMusicAnalysisBadges(item.id)
         }
     },
 ) {
@@ -1068,11 +1085,16 @@ fun YouTubeGridItem(
         if (item is SongItem) {
             val download by LocalDownloadUtil.current.getDownload(item.id).collectAsStateWithLifecycle(null)
             Icon.Download(download?.state)
+            LocalMusicAnalysisBadges(item.id)
         }
     },
     thumbnailRatio: Float = if (item is SongItem) 16f / 9 else 1f,
     isActive: Boolean = false,
     isPlaying: Boolean = false,
+    showCoverPlayButton: Boolean = true,
+    showAlbumPlayButton: Boolean = true,
+    showPlaybackStateOverlay: Boolean = true,
+    showPausedPlaybackIcon: Boolean = true,
     fillMaxWidth: Boolean = false,
 ) = GridItem(
     title = {
@@ -1116,16 +1138,18 @@ fun YouTubeGridItem(
             isActive = isActive,
             isPlaying = isPlaying,
             shape = if (item is ArtistItem) CircleShape else RoundedCornerShape(ThumbnailCornerRadius),
+            showPlaybackStateOverlay = showPlaybackStateOverlay,
+            showPausedPlaybackIcon = showPausedPlaybackIcon,
         )
 
-        if (item is SongItem && !isActive) {
+        if (showCoverPlayButton && item is SongItem && !isActive) {
             OverlayPlayButton(
                 visible = true
             )
         }
 
         AlbumPlayButton(
-            visible = item is AlbumItem && !isActive,
+            visible = showAlbumPlayButton && item is AlbumItem && !isActive,
             onClick = {
                 scope.launch(Dispatchers.IO) {
                     var albumWithSongs = database.albumWithSongs(item.id).first()
@@ -1284,9 +1308,18 @@ fun ItemThumbnail(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     isSelected: Boolean = false,
-    thumbnailRatio: Float = 1f
+    thumbnailRatio: Float = 1f,
+    showPlaybackStateOverlay: Boolean = true,
+    showPausedPlaybackIcon: Boolean = true
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val playbackIndicatorState =
+        coverPlaybackIndicatorState(
+            isActive = isActive,
+            isPlaying = isPlaying,
+            showPlaybackStateOverlay = showPlaybackStateOverlay,
+            showPausedPlaybackIcon = showPausedPlaybackIcon,
+        )
     
     Box(
         contentAlignment = Alignment.Center,
@@ -1340,20 +1373,22 @@ fun ItemThumbnail(
             }
         }
 
-        PlayingIndicatorBox(
-            isActive = isActive,
-            playWhenReady = isPlaying,
-            color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    color = if (albumIndex != null)
-                        Color.Transparent
-                    else
-                        Color.Black.copy(alpha = ActiveBoxAlpha),
-                    shape = shape
-                )
-        )
+        if (playbackIndicatorState != CoverPlaybackIndicatorState.HIDDEN) {
+            PlayingIndicatorBox(
+                isActive = true,
+                playWhenReady = playbackIndicatorState == CoverPlaybackIndicatorState.PLAYING,
+                color = if (albumIndex != null) MaterialTheme.colorScheme.onBackground else Color.White,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        color = if (albumIndex != null)
+                            Color.Transparent
+                        else
+                            Color.Black.copy(alpha = ActiveBoxAlpha),
+                        shape = shape
+                    )
+            )
+        }
     }
 }
 
@@ -1729,6 +1764,35 @@ data class Quadruple<A, B, C, D>(
     val third: C,
     val fourth: D
 )
+
+@Composable
+private fun LocalMusicAnalysisBadges(songId: String) {
+    val database = LocalDatabase.current
+    val localMusic by database.localMusic(songId).collectAsStateWithLifecycle(initialValue = null)
+    localMusic
+        ?.availableAnalysisLabels()
+        .orEmpty()
+        .forEach { label ->
+            AnalysisBadge(label)
+        }
+}
+
+@Composable
+private fun AnalysisBadge(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+            Modifier
+                .padding(end = 3.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(horizontal = 4.dp, vertical = 1.dp),
+    )
+}
 
 object Icon {
     @Composable

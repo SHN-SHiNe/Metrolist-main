@@ -1,4 +1,4 @@
-Cliente em Material 3 do YouTube Music para Android
+Cliente em Material 3 do SHiNe MUSIC para Android
 
 Recursos:
 
@@ -9,7 +9,7 @@ Recursos:
 - Download e cache de músicas para reprodução off-line
 - Pesquise por músicas, álbuns, artistas, vídeos e playlists
 - Letra sincronizada
-- Suporte a login com a conta do YouTube Music
+- Suporte a login com a conta do SHiNe MUSIC
 - Sincronização de músicas, artistas, álbuns, e playlists, de e para a sua conta
 - Pular silêncio
 - Importar playlists

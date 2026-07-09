@@ -13,7 +13,7 @@
     <string name="mood_and_genres">Stemning og sjangrer</string>
     <string name="quick_picks">Hurtigvalg</string>
     <string name="quick_picks_empty">Hør på sanger for å generere hurtigvalgene dine</string>
-    <string name="your_youtube_playlists">YouTube-spillelistene dine</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="similar_to">Ligner på</string>
     <string name="new_release_albums">Nylig slupne album</string>
     <string name="today">I dag</string>
@@ -24,7 +24,7 @@
     <string name="most_played_artists">Mest spilte artister</string>
     <string name="most_played_albums">Mest spilte album</string>
     <string name="search">Søk</string>
-    <string name="search_yt_music">Søk gjennom YouTube Music …</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Søk gjennom biblioteket …</string>
     <string name="filter_library">Bibliotek</string>
     <string name="filter_liked">Likte</string>

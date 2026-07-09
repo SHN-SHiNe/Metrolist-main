@@ -25,7 +25,7 @@
     <string name="most_played_artists">Nejčastěji přehrávaní umělci</string>
     <string name="most_played_albums">Nejčastěji přehrávaná alba</string>
     <string name="search">Vyhledávání</string>
-    <string name="search_yt_music">Hledat v YouTube Music…</string>
+    <string name="search_music">Search music...</string>
     <string name="search_library">Hledat v knihovně…</string>
     <string name="filter_library">Knihovna</string>
     <string name="filter_liked">Oblíbené</string>
@@ -253,7 +253,7 @@
     <string name="other_versions">Další verze</string>
     <string name="queue">Fronta</string>
     <string name="forgotten_favorites">Zapomenuté oblíbené</string>
-    <string name="your_youtube_playlists">Vaše YouTube playlisty</string>
+    <string name="your_playlists">Your playlists</string>
     <string name="library_artist_empty">Zde se zobrazí umělci v knihovně</string>
     <string name="library_album_empty">Zde se zobrazí alba v knihovně</string>
     <string name="library_playlist_empty">Zde se zobrazí vaše playlisty</string>
@@ -286,6 +286,6 @@
     <string name="enable_discord_rpc">Povolit stav na Discordu</string>
     <string name="action_logout">Odhlásit se</string>
     <string name="use_login_for_browse">Použít účet pro procházení obsahu</string>
-    <string name="use_login_for_browse_desc">Může ovlivnit obsah, který se vám zobrazí – při přihlášení například mohou být zobrazena například alba, která jsou dostupná pouze s Premium účtem</string>
+    <string name="use_login_for_browse_desc">This may affect which online content is shown while browsing.</string>
     <string name="action_login">Přihlásit se</string>
 </resources>

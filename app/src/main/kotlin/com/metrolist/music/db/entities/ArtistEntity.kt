@@ -26,12 +26,6 @@ data class ArtistEntity(
     @ColumnInfo(name = "isPodcastChannel", defaultValue = false.toString())
     val isPodcastChannel: Boolean = false
 ) {
-    val isYouTubeArtist: Boolean
-        get() = id.startsWith("UC") || id.startsWith("FEmusic_library_privately_owned_artist")
-
-    val isPrivatelyOwnedArtist: Boolean
-        get() = id.startsWith("FEmusic_library_privately_owned_artist")
-
     fun localToggleLike() = copy(
         bookmarkedAt = if (bookmarkedAt != null) null else LocalDateTime.now(),
     )

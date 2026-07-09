@@ -51,9 +51,9 @@
     </plurals>
     <string name="local_history">Local</string>
     <string name="cached_playlist">Em cache</string>
-    <string name="token_adv_login_description">Este é um método AVANÇADO de login. Em vez de usar o portal web, você pode entrarou atualizar o seu token de login diretamente. Isto pode ser útil para conectar-se através de múltiplos dispositivos rapidamente. Tokens em um formato não reconheço serão rejeitados</string>
+    <string name="token_adv_login_description">Advanced token sign-in lets you paste or update an access token directly. Invalid token formats will be rejected.</string>
     <string name="information">Informações</string>
-    <string name="allows_for_sync_witch_youtube">OBSERVAÇÃO: Está opção ativa a sincronização com o YouTube Music e NÃO pode ser alterado depois</string>
+    <string name="playlist_sync_unavailable">Playlist sync is unavailable.</string>
     <string name="swipe_song_to_add">Deslizar na música para a esquerda para adicionar a fila ou para a direita para tocá-la em seguida</string>
     <string name="show_top_playlist">Mostrar playlist do Top</string>
     <string name="show_cached_playlist">Mostrar playlist das Em cache</string>
@@ -80,7 +80,7 @@
     <string name="percentage_format">%d%%</string>
     <string name="clear_song_cache_dialog">Você tem certeza que quer limpar todas as músicas em cache?</string>
     <string name="clear_downloads_dialog">Você tem certeza que você quer limpar todos os downloads?</string>
-    <string name="not_logged_in_youtube">Não conectado ao YouTube</string>
+    <string name="not_signed_in">Not signed in</string>
     <string name="description">Descrição</string>
     <string name="views">Visualizações</string>
     <string name="likes">Curtidos</string>
@@ -105,7 +105,7 @@
     <string name="playlist_add_local_to_synced_note">OBSERVAÇÃO: Adicionar músicas locais as playlist sincronizadas ou remotas não é suportado. Qualquer outra combinação é valida</string>
     <string name="lyrics_romanize_japanese">Romanizar letras em Japonês</string>
     <string name="lyrics_romanize_korean">Romanizar letras em Coreano</string>
-    <string name="yt_sync">Sincronizar automaticamente com a conta</string>
+    <string name="account_auto_sync">Sincronizar automaticamente com a conta</string>
     <string name="more_content">Mais conteúdo</string>
     <string name="new_player_design">Novo design do tocador</string>
     <string name="swipe_sensitivity">Sensibilidade ao deslizar no mini tocador</string>
@@ -132,7 +132,7 @@
     <string name="settings_section_system">Sistema e informações</string>
     <string name="seek_seconds_addup">Avançar/retroceder progressivo</string>
     <string name="edit_playlist_cover">Editar capa da playlist</string>
-    <string name="edit_playlist_cover_note">OBSERVAÇÃO: A sua conta deve estar vinculada a um número de telefone e verificada no YouTube Music para alterar a capa da playlist</string>
+    <string name="edit_playlist_cover_note">Playlist covers are managed locally.</string>
     <string name="edit_playlist_cover_note_wait">Após selecionar uma imagem, aguarde um momento para que a nova capa apareça na sua playlist</string>
     <string name="config_proxy">Configurar proxy</string>
     <string name="proxy_username">Nome do usuário da proxy</string>
@@ -197,7 +197,7 @@
     <string name="add_to_library_desc">Salvar na sua biblioteca</string>
     <string name="download_desc">Baixar para reprodução offline</string>
     <string name="add_to_playlist_desc">Adicionar à uma playlist</string>
-    <string name="refetch_desc">Atualizar os metadados do YouTube Music</string>
+    <string name="refetch_desc">Refresh metadata</string>
     <string name="share_desc">Compartilhar o link deste item</string>
     <string name="delete_desc">Remover permanentemente este item</string>
     <string name="advanced_desc">Ajustar o ritmo e tom da música</string>
@@ -213,7 +213,7 @@
     <string name="download_in_progress_desc">Um download está em andamento</string>
     <string name="share_playlist_desc">Compartilhe esta playlist com outras pessoas</string>
     <string name="delete_playlist_desc">Remover esta playlist permanentemente</string>
-    <string name="sync_playlist_desc">Sincronizar esta playlist com o YouTube Music</string>
+    <string name="sync_playlist_desc">Refresh this playlist</string>
     <string name="lyrics_glow_effect">Ativar o efeito de letras brilhantes</string>
     <string name="lyrics_glow_effect_desc">Adiciona uma animação de brilho e efeito de salto para a linha de letras ativas</string>
     <string name="enable_better_lyrics">Ativar Better Lyrics</string>
@@ -384,7 +384,7 @@
     <string name="listen_together_background_disconnect_note">OBSERVAÇÃO: Quando você estiver conectado, mas não estiver em uma sala, o \"Ouvir juntos\" se desconecta após 30 minutos em segundo plano para economizar bateria</string>
     <string name="listen_together_not_configured">Ouvir Juntos não está configurado. Por favor configure o URL do servidor em: Ouvir Juntos &gt; Configurações &gt; URL do servidor</string>
     <string name="listen_together_room_created">Sala criada: %s</string>
-    <string name="hide_youtube_shorts">Ocultar Shorts do YouTube</string>
+    <string name="hide_short_videos">Hide short videos</string>
     <string name="listen_together_view_logs_desc">Depurar eventos de conexão e mensagens</string>
     <string name="listen_together_no_logs">Sem registros ainda</string>
     <string name="listen_together_suggestion_received">%1$s sugerido %2$s</string>
@@ -498,7 +498,7 @@
     <string name="first_row_is_header">A primeira linha é o cabeçalho</string>
     <string name="artist_name_column">Coluna com o nome do artista</string>
     <string name="song_title_column">Coluna com o título da música</string>
-    <string name="youtube_url_column">Coluna com URL do YouTube (Opcional)</string>
+    <string name="source_url_column">Source URL column (optional)</string>
     <string name="continue_action">Continuar</string>
     <string name="importing_csv">Importando CSV…</string>
     <string name="recently_converted">Convertido Recentemente</string>
@@ -553,7 +553,7 @@
     <string name="lyrics_romanize_as_main">Mostrar letras romanizadas como principal</string>
     <string name="enable_lrclib_desc">Biblioteca de letras sincronizadas feitos pela comunidade</string>
     <string name="enable_kugou_desc">Pega as letras do KuGou, uma plataforma chinesa popular de música</string>
-    <string name="youtube_music_lyrics_note">OBSERVAÇÃO: Letras do YouTube Music serão mostradas automaticamente quando não houver outras fontes disponíveis. As letras do YTM geralmente não são sincronizadas</string>
+    <string name="lyrics_provider_note">Lyrics are shown from the enabled providers when available.</string>
     <string name="enable_lyricsplus">Ativar LyricsPlus</string>
     <string name="enable_lyricsplus_desc">Letras sincronizadas de diversas fontes</string>
     <string name="lyrics_provider_selection">Fonte das letras</string>
@@ -774,8 +774,8 @@
     <string name="android_auto">Android Auto</string>
     <string name="android_auto_visible_sections">Seções visíveis</string>
     <string name="android_auto_reorder_hint">Toque em uma seção para ativar ou desativá-la.\nPressione e segure o botão de arrastar para reordenar. A primeira seção será mostrada como padrão</string>
-    <string name="android_auto_youtube_playlists">Mostrar playlists sugeridas do YouTube</string>
-    <string name="android_auto_youtube_playlists_desc">Exibe playlists recomendadas do Youtube Music na seção de playlists quando navegando com o Android Auto</string>
+    <string name="android_auto_suggested_playlists">Show suggested playlists</string>
+    <string name="android_auto_suggested_playlists_desc">Show recommended playlists in Android Auto</string>
     <string name="android_auto_target_playlist">Adição rápida de destino</string>
     <string name="android_auto_target_playlist_desc">Escolha a playlist onde as músicas são salvas quando usando o botão Adicionar Rápido no Android Auto</string>
     <string name="android_auto_target_playlist_auto">Não definido</string>
