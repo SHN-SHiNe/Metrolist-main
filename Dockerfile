@@ -14,6 +14,8 @@ COPY --from=web-build /workspace/web/dist web/dist
 RUN gradle -p server installDist --no-daemon
 
 FROM golang:1.24-alpine AS sendspin-build
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
 RUN apk add --no-cache gcc musl-dev opus-dev pkgconf
 WORKDIR /workspace/sendspin-bridge
 COPY sendspin-bridge/go.mod sendspin-bridge/go.sum ./

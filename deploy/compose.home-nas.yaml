@@ -4,6 +4,8 @@ services:
       context: .
       platforms:
         - linux/amd64
+      args:
+        GOPROXY: ${SHINE_GOPROXY:-https://goproxy.cn,direct}
     volumes:
       - /vol1/1000/shine-music/data:/data
       - /vol1/1000/2.Music:/music
