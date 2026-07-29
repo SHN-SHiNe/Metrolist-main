@@ -14,7 +14,7 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 
 - Kotlin/JVM 21 + Ktor 单实例服务，SQLite/WAL 持久化共享数据。
 - React + TypeScript 响应式 Web：手机端底部导航与全屏播放，PC 端左侧导航、内容区、右侧队列和底部播放器。
-- NAS 本地曲库扫描、HTTP Range 流媒体、在线歌曲直放与后台下载入库。
+- 多音频库扫描，可管理 NAS 本地目录、USB 设备和网络挂载；支持 HTTP Range 流媒体、在线歌曲直放与后台下载入库。
 - 共享收藏、歌单与历史；访客免登录，因此局域网内所有用户均有修改权限。
 - 多个命名同步房间，以 [Sendspin](https://www.sendspin-audio.com/) 协议、官方 Go 服务端与官方 Web SDK 为同步底座；SHiNe 只负责房间、队列和曲库编排。
 - 浅色、深色、纯黑主题，键盘焦点、44px 触控目标和减少动态效果支持。
@@ -27,7 +27,7 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 
 ```bash
 cp .env.example .env
-# 编辑 .env，将三个 SHINE_*_PATH 改成 NAS 上的绝对路径
+# 编辑 .env，将 SHINE_*_PATH 改成 NAS 上的绝对路径
 docker compose up -d --build
 docker compose ps
 curl http://127.0.0.1:8767/api/health
@@ -39,7 +39,24 @@ curl http://127.0.0.1:8767/api/health
 http://192.168.31.142:8767
 ```
 
-首次启动会扫描音乐目录。数据库、配置、回收区与每日备份位于 `SHINE_DATA_PATH`；下载临时文件与封面缓存位于 `SHINE_CACHE_PATH`。删除音乐时先移动至 `data/trash`，默认保留 30 天。
+首次启动会扫描旧的 `/music` 默认音频库。数据库、配置、回收区与每日备份位于 `SHINE_DATA_PATH`；下载临时文件与封面缓存位于 `SHINE_CACHE_PATH`。删除音乐时先移动至 `data/trash`，默认保留 30 天。
+
+### 多路径与多设备音频库
+
+设置页的“音频库”可添加、改名、停用、单独扫描和选择唯一的下载目标。新增库的容器路径必须位于 `/libraries/<名称>` 下，这个边界防止页面任意读取 NAS 其他文件。
+
+若所有音乐都在一个宿主机父目录下，将 `SHINE_LIBRARIES_PATH` 指向该父目录即可。若音乐分散在不同设备或挂载点，在 `compose.override.yaml` 中逐个映射：
+
+```yaml
+services:
+  shine-music:
+    volumes:
+      - /vol1/1000/2.Music:/libraries/nas-main
+      - /mnt/usb1/Music:/libraries/usb-1:ro
+      - /mnt/media-server/Music:/libraries/media-server:ro
+```
+
+重建容器后，在设置页分别添加 `/libraries/nas-main`、`/libraries/usb-1` 和 `/libraries/media-server`。外置或网络设备建议使用 `:ro` 和页面的“只读保护”。库路径失联或挂载意外变空时，SHiNe 会标记“设备离线”并保留原索引；不会把整库曲目当成已删除。如果确实是主动删空了整个目录，再在设置页点击“确认已清空”。
 
 ### 环境变量
 
@@ -48,6 +65,7 @@ http://192.168.31.142:8767
 | `SHINE_HOST_PORT` | `8767` | NAS 对外端口 |
 | `SHINE_DATA_PATH` | `./nas-data` | SQLite、配置、备份与回收区 |
 | `SHINE_MUSIC_PATH` | `./nas-music` | 音乐文件目录 |
+| `SHINE_LIBRARIES_PATH` | `./nas-libraries` | 新增多音频库的宿主机父目录 |
 | `SHINE_CACHE_PATH` | `./nas-cache` | 封面、下载临时文件与缓存 |
 | `SHINE_TRASH_RETENTION_DAYS` | `30` | 回收区保留天数 |
 | `SHINE_SCAN_ON_START` | `true` | 启动时是否增量扫描 |
@@ -69,7 +87,7 @@ Sendspin 当前仍标注为 Public Preview。SHiNe 将它封装在独立桥接�
 
 主要接口位于：
 
-- `/api/library`、`/api/search`、`/api/media/{trackId}/stream`
+- `/api/library`、`/api/libraries`、`/api/search`、`/api/media/{trackId}/stream`
 - `/api/playlists`、`/api/favorites`、`/api/history`
 - `/api/downloads`、`/api/scans`、`/api/settings/sources`
 - `/api/rooms`、`/api/rooms/{roomId}/state`、`/api/rooms/{roomId}/sendspin`、`/api/health`

@@ -55,3 +55,34 @@ test('large library loads pages while keeping the rendered row count bounded', a
   await page.waitForTimeout(500)
   await expect(page.getByText('歌曲 450')).toBeVisible()
 })
+
+test('music libraries are visible in settings and filter the NAS catalog', async ({ page }) => {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/libraries') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify([
+        { id: 'default', name: 'NAS 音乐', path: '/music', deviceType: 'local', readOnly: false, enabled: true, downloadTarget: true, status: 'online', trackCount: 1, createdAt: 1, updatedAt: 1 },
+        { id: 'usb', name: '随身硬盘', path: '/libraries/usb', deviceType: 'usb', readOnly: true, enabled: true, downloadTarget: false, status: 'offline', trackCount: 1, lastError: 'path_unavailable', createdAt: 2, updatedAt: 2 },
+      ]) })
+    }
+    if (url.pathname === '/api/library') {
+      const all = [
+        { id: 'local', title: '本地歌曲', artist: '歌手', album: '', durationMs: 1000, libraryId: 'default' },
+        { id: 'portable', title: '移动歌曲', artist: '歌手', album: '', durationMs: 1000, libraryId: 'usb' },
+      ]
+      const libraryId = url.searchParams.get('libraryId')
+      const items = libraryId ? all.filter((track) => track.libraryId === libraryId) : all
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items, total: items.length, offset: 0, limit: 200, revision: 1 }) })
+    }
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#settings')
+  await expect(page.getByRole('heading', { name: '音频库' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: '随身硬盘 的名称' })).toHaveValue('随身硬盘')
+  await expect(page.getByText('设备离线')).toBeVisible()
+
+  await page.goto('/#library')
+  await page.getByLabel('按音频库筛选').selectOption('usb')
+  await expect(page.getByText('移动歌曲')).toBeVisible()
+  await expect(page.getByText('本地歌曲')).not.toBeVisible()
+})

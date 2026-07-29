@@ -14,6 +14,7 @@ services:
       SHINE_HTTP_PORT: 8767
       SHINE_DATA_DIR: /data
       SHINE_MUSIC_DIR: /music
+      SHINE_LIBRARY_DIR: /libraries
       SHINE_CACHE_DIR: /cache
       SHINE_TRASH_RETENTION_DAYS: ${SHINE_TRASH_RETENTION_DAYS:-30}
       SHINE_SCAN_ON_START: ${SHINE_SCAN_ON_START:-true}
@@ -21,6 +22,7 @@ services:
     volumes:
       - ${SHINE_DATA_PATH:-./nas-data}:/data
       - ${SHINE_MUSIC_PATH:-./nas-music}:/music
+      - ${SHINE_LIBRARIES_PATH:-./nas-libraries}:/libraries
       - ${SHINE_CACHE_PATH:-./nas-cache}:/cache
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8767/api/health"]

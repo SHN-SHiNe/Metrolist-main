@@ -56,13 +56,14 @@ fun Application.shineModule(
 ) {
     config.dataDir.createDirectories()
     config.musicDir.createDirectories()
+    config.libraryDir.createDirectories()
     config.cacheDir.createDirectories()
     config.trashDir.createDirectories()
 
     val store = openStoreWithRecovery(config, clock())
-    val scanner = LibraryScanner(config.musicDir, store, config.cacheDir, clock)
+    val libraries = MusicLibraryManager(config, store, clock)
     val catalog = OnlineCatalog(store)
-    val downloads = DownloadManager(config, store, scanner, catalog, clock)
+    val downloads = DownloadManager(store, libraries, catalog, clock)
     val rooms = RoomHub(store, catalog, sendspinBridge, clock)
     val maintenance = Maintenance(config, store, clock)
     val jsonCodec = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -78,6 +79,9 @@ fun Application.shineModule(
         exception<IllegalArgumentException> { call, cause ->
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to (cause.message ?: "bad_request")))
         }
+        exception<NoSuchElementException> { call, cause ->
+            call.respond(HttpStatusCode.NotFound, mapOf("error" to (cause.message ?: "not_found")))
+        }
         exception<Throwable> { call, cause ->
             if (cause is CancellationException) throw cause
             call.application.environment.log.error("Unhandled request failure", cause)
@@ -89,7 +93,7 @@ fun Application.shineModule(
         store.close()
     }
 
-    if (config.scanOnStart) launch(Dispatchers.IO) { runCatching { scanner.scan() } }
+    if (config.scanOnStart) launch(Dispatchers.IO) { runCatching { libraries.scanAll() } }
     launch(Dispatchers.IO) {
         while (isActive) {
             val restored = runCatching { rooms.restore() }
@@ -115,13 +119,27 @@ fun Application.shineModule(
             val offset = call.request.queryParameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
             val sort = call.request.queryParameters["sort"]?.takeIf { it in setOf("title", "artist", "album") } ?: "artist"
-            call.respond(store.listTracks(query, offset, limit, sort))
+            val libraryId = call.request.queryParameters["libraryId"]?.takeIf(String::isNotBlank)
+            call.respond(store.listTracks(query, offset, limit, sort, libraryId))
         }
         get("/api/scans") { call.respond(store.scans()) }
-        post("/api/scans") { call.respond(withContext(Dispatchers.IO) { scanner.scan() }) }
+        post("/api/scans") { call.respond(withContext(Dispatchers.IO) { libraries.scanAll() }) }
+        get("/api/libraries") { call.respond(libraries.list()) }
+        post("/api/libraries") {
+            call.respond(HttpStatusCode.Created, libraries.create(call.receive()))
+        }
+        put("/api/libraries/{libraryId}") {
+            val id = call.parameters["libraryId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
+            call.respond(libraries.update(id, call.receive()))
+        }
+        post("/api/libraries/{libraryId}/scan") {
+            val id = call.parameters["libraryId"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val allowEmpty = call.request.queryParameters["allowEmpty"]?.toBooleanStrictOrNull() ?: false
+            call.respond(withContext(Dispatchers.IO) { libraries.scan(id, allowEmpty) })
+        }
         delete("/api/library/{trackId}") {
             val id = call.parameters["trackId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
-            val moved = withContext(Dispatchers.IO) { scanner.moveToTrash(id, config.trashDir, clock()) }
+            val moved = withContext(Dispatchers.IO) { libraries.moveTrackToTrash(id) }
             if (!moved) return@delete call.respond(HttpStatusCode.NotFound)
             call.respond(MessageResponse("moved_to_trash"))
         }

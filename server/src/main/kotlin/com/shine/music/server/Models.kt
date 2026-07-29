@@ -21,6 +21,7 @@ data class Track(
     val modifiedAt: Long,
     val artworkUrl: String? = null,
     val favorite: Boolean = false,
+    val libraryId: String = DEFAULT_LIBRARY_ID,
 )
 
 @Serializable
@@ -41,6 +42,36 @@ data class ScanResult(
     val removed: Int,
     val startedAt: Long,
     val completedAt: Long,
+    val libraryId: String? = null,
+)
+
+const val DEFAULT_LIBRARY_ID = "default"
+
+@Serializable
+data class MusicLibraryRequest(
+    val name: String,
+    val path: String,
+    val deviceType: String = "local",
+    val readOnly: Boolean = true,
+    val enabled: Boolean = true,
+    val downloadTarget: Boolean = false,
+)
+
+@Serializable
+data class MusicLibraryView(
+    val id: String,
+    val name: String,
+    val path: String,
+    val deviceType: String,
+    val readOnly: Boolean,
+    val enabled: Boolean,
+    val downloadTarget: Boolean,
+    val status: String,
+    val trackCount: Int,
+    val lastScanAt: Long? = null,
+    val lastError: String? = null,
+    val createdAt: Long,
+    val updatedAt: Long,
 )
 
 @Serializable

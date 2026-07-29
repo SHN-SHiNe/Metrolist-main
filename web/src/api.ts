@@ -1,4 +1,4 @@
-import type { DownloadJob, HistoryEntry, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SourceConfig, Track, TrackPage } from './types'
+import type { DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SourceConfig, Track, TrackPage } from './types'
 import { LIBRARY_PAGE_SIZE } from './libraryPaging'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -14,7 +14,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  library: (offset = 0, q = '', sort: 'title' | 'artist' | 'album' = 'artist') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}`),
+  library: (offset = 0, q = '', sort: 'title' | 'artist' | 'album' = 'artist', libraryId = '') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}&libraryId=${encodeURIComponent(libraryId)}`),
+  libraries: () => request<MusicLibrary[]>('/api/libraries'),
+  createLibrary: (value: MusicLibraryInput) => request<MusicLibrary>('/api/libraries', { method: 'POST', body: JSON.stringify(value) }),
+  updateLibrary: (id: string, value: MusicLibraryInput) => request<MusicLibrary>(`/api/libraries/${id}`, { method: 'PUT', body: JSON.stringify(value) }),
+  scanLibrary: (id: string, allowEmpty = false) => request(`/api/libraries/${id}/scan?allowEmpty=${allowEmpty}`, { method: 'POST' }),
   scan: () => request('/api/scans', { method: 'POST' }),
   deleteTrack: (id: string) => request(`/api/library/${id}`, { method: 'DELETE' }),
   search: (q: string, source = 'all') => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}&source=${source}`),

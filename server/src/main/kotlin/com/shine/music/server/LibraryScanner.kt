@@ -26,6 +26,7 @@ data class ScannedFile(
     val mimeType: String,
     val size: Long,
     val modifiedAt: Long,
+    val libraryId: String = DEFAULT_LIBRARY_ID,
 )
 
 data class AudioMetadata(
@@ -42,21 +43,24 @@ class LibraryScanner(
     private val store: MusicStore,
     private val cacheRoot: Path = root.resolve(".shine-cache"),
     private val clock: () -> Long = System::currentTimeMillis,
+    private val libraryId: String = DEFAULT_LIBRARY_ID,
     private val metadataReader: (Path) -> AudioMetadata = ::readAudioMetadata,
 ) {
     private val scanLock = ReentrantLock()
+    private val realRoot by lazy { root.toRealPath() }
 
-    fun scan(): ScanResult = scanLock.withLock {
+    fun scan(allowEmpty: Boolean = false): ScanResult = scanLock.withLock {
         Files.createDirectories(root)
         val scanId = UUID.randomUUID().toString()
         val startedAt = clock()
-        store.startScan(scanId, startedAt)
+        store.startScan(scanId, startedAt, libraryId)
         var discovered = 0
         var updated = 0
+        var seen = 0
         val changed = ArrayList<ScannedFile>(SCAN_BATCH_SIZE)
         val unchanged = ArrayList<String>(SCAN_BATCH_SIZE)
         try {
-            store.scanSession().use { session ->
+            store.scanSession(libraryId).use { session ->
                 fun flush() {
                     if (changed.isEmpty() && unchanged.isEmpty()) return
                     session.applyBatch(scanId, changed, unchanged)
@@ -65,6 +69,7 @@ class LibraryScanner(
                 }
                 Files.walk(root).use { paths ->
                     paths.filter { it.isRegularFile() && it.extension.lowercase() in SUPPORTED_EXTENSIONS }.forEach { path ->
+                        seen++
                         val snapshot = snapshot(path)
                         val previous = session.fingerprint(snapshot.id)
                         if (previous != null && previous.size == snapshot.size && previous.modifiedAt == snapshot.modifiedAt) {
@@ -79,11 +84,14 @@ class LibraryScanner(
                 flush()
             }
         } catch (error: Throwable) {
-            store.finishScanJob(ScanResult(scanId, "failed", discovered, updated, 0, startedAt, clock()))
+            store.finishScanJob(ScanResult(scanId, "failed", discovered, updated, 0, startedAt, clock(), libraryId))
             throw error
         }
-        val removed = store.finishScan(scanId)
-        return ScanResult(scanId, "completed", discovered, updated, removed, startedAt, clock()).also(store::finishScanJob)
+        if (!allowEmpty && seen == 0 && store.activeTrackCount(libraryId) > 0) {
+            return ScanResult(scanId, "offline", discovered, updated, 0, startedAt, clock(), libraryId).also(store::finishScanJob)
+        }
+        val removed = store.finishScan(scanId, libraryId)
+        return ScanResult(scanId, "completed", discovered, updated, removed, startedAt, clock(), libraryId).also(store::finishScanJob)
     }
 
     fun index(path: Path): ScanChange = scanLock.withLock {
@@ -99,6 +107,7 @@ class LibraryScanner(
         val normalizedRoot = root.toAbsolutePath().normalize()
         val normalized = source.toAbsolutePath().normalize()
         require(normalized.startsWith(normalizedRoot)) { "track_outside_music_directory" }
+        require(normalized.toRealPath().startsWith(realRoot)) { "track_outside_music_directory" }
         trashRoot.createDirectories()
         Files.move(normalized, trashRoot.resolve("$now-${normalized.fileName}"), StandardCopyOption.REPLACE_EXISTING)
         store.markTrackDeleted(trackId, now)
@@ -106,6 +115,7 @@ class LibraryScanner(
 
     private fun snapshot(path: Path): FileSnapshot {
         val normalized = path.toAbsolutePath().normalize()
+        require(normalized.toRealPath().startsWith(realRoot)) { "track_outside_music_directory" }
         val id = MessageDigest.getInstance("SHA-256").digest(normalized.toString().toByteArray()).take(16).joinToString("") { "%02x".format(it) }
         return FileSnapshot(id, normalized, normalized.fileSize(), normalized.getLastModifiedTime().toMillis())
     }
@@ -127,7 +137,7 @@ class LibraryScanner(
             Files.write(covers.resolve("${snapshot.id}.$extension"), bytes)
         }
         return ScannedFile(
-            snapshot.id, path, title, artist, album, duration, mimeFor(path.extension), snapshot.size, snapshot.modifiedAt,
+            snapshot.id, path, title, artist, album, duration, mimeFor(path.extension), snapshot.size, snapshot.modifiedAt, libraryId,
         )
     }
 

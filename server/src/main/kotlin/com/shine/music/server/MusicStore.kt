@@ -53,7 +53,27 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                         file_size INTEGER NOT NULL,
                         modified_at INTEGER NOT NULL,
                         last_seen_scan TEXT NOT NULL,
-                        deleted_at INTEGER
+                        deleted_at INTEGER,
+                        library_id TEXT NOT NULL DEFAULT 'default'
+                    )
+                    """.trimIndent(),
+                )
+                runCatching { statement.execute("ALTER TABLE tracks ADD COLUMN library_id TEXT NOT NULL DEFAULT 'default'") }
+                statement.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS music_libraries (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        path TEXT NOT NULL UNIQUE,
+                        device_type TEXT NOT NULL,
+                        read_only INTEGER NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        download_target INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        last_scan_at INTEGER,
+                        last_error TEXT,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
                     )
                     """.trimIndent(),
                 )
@@ -112,10 +132,11 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                     CREATE TABLE IF NOT EXISTS scan_jobs (
                         id TEXT PRIMARY KEY, status TEXT NOT NULL, discovered INTEGER NOT NULL,
                         updated INTEGER NOT NULL, removed INTEGER NOT NULL, started_at INTEGER NOT NULL,
-                        completed_at INTEGER
+                        completed_at INTEGER, library_id TEXT
                     )
                     """.trimIndent(),
                 )
+                runCatching { statement.execute("ALTER TABLE scan_jobs ADD COLUMN library_id TEXT") }
                 statement.execute("CREATE TABLE IF NOT EXISTS library_revision (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL)")
                 statement.execute("INSERT OR IGNORE INTO library_revision(id,revision) VALUES(1,0)")
                 statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_revision_insert AFTER INSERT ON tracks BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END")
@@ -128,6 +149,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                       OR OLD.duration_ms IS NOT NEW.duration_ms OR OLD.mime_type IS NOT NEW.mime_type
                       OR OLD.file_path IS NOT NEW.file_path OR OLD.file_size IS NOT NEW.file_size
                       OR OLD.modified_at IS NOT NEW.modified_at OR OLD.deleted_at IS NOT NEW.deleted_at
+                      OR OLD.library_id IS NOT NEW.library_id
                     BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END
                     """.trimIndent(),
                 )
@@ -135,6 +157,11 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_title_sort ON tracks(deleted_at, title COLLATE NOCASE, artist COLLATE NOCASE)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_album_sort ON tracks(deleted_at, album COLLATE NOCASE, artist COLLATE NOCASE, title COLLATE NOCASE)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_scan ON tracks(last_seen_scan, deleted_at)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library ON tracks(library_id, deleted_at)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_title_sort ON tracks(library_id, deleted_at, title COLLATE NOCASE, artist COLLATE NOCASE, album COLLATE NOCASE, id)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_artist_sort ON tracks(library_id, deleted_at, artist COLLATE NOCASE, album COLLATE NOCASE, title COLLATE NOCASE, id)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_album_sort ON tracks(library_id, deleted_at, album COLLATE NOCASE, artist COLLATE NOCASE, title COLLATE NOCASE, id)")
+                statement.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_music_libraries_download_target ON music_libraries(download_target) WHERE download_target=1")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_history_played_at ON history(played_at DESC)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_playlist_items_track ON playlist_items(track_id)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_download_jobs_created_at ON download_jobs(created_at DESC)")
@@ -175,13 +202,14 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         }
     }
 
-    fun scanSession() = ScanSession(connection())
+    fun scanSession(libraryId: String = DEFAULT_LIBRARY_ID) = ScanSession(connection(), libraryId)
 
-    inner class ScanSession internal constructor(private val db: Connection) : AutoCloseable {
-        private val fingerprint = db.prepareStatement("SELECT file_size,modified_at FROM tracks WHERE id=? AND deleted_at IS NULL")
+    inner class ScanSession internal constructor(private val db: Connection, private val libraryId: String) : AutoCloseable {
+        private val fingerprint = db.prepareStatement("SELECT file_size,modified_at FROM tracks WHERE id=? AND library_id=? AND deleted_at IS NULL")
 
         fun fingerprint(id: String): TrackFingerprint? {
             fingerprint.setString(1, id)
+            fingerprint.setString(2, libraryId)
             return fingerprint.executeQuery().use { row ->
                 if (row.next()) TrackFingerprint(row.getLong("file_size"), row.getLong("modified_at")) else null
             }
@@ -217,9 +245,9 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         }
     }
 
-    fun startScan(id: String, startedAt: Long) = connection().use { db ->
-        db.prepareStatement("INSERT INTO scan_jobs(id,status,discovered,updated,removed,started_at,completed_at) VALUES(?,'running',0,0,0,?,NULL)").use {
-            it.setString(1, id); it.setLong(2, startedAt); it.executeUpdate()
+    fun startScan(id: String, startedAt: Long, libraryId: String? = null) = connection().use { db ->
+        db.prepareStatement("INSERT INTO scan_jobs(id,status,discovered,updated,removed,started_at,completed_at,library_id) VALUES(?,'running',0,0,0,?,NULL,?)").use {
+            it.setString(1, id); it.setLong(2, startedAt); it.setString(3, libraryId); it.executeUpdate()
         }
     }
 
@@ -234,27 +262,29 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         db.prepareStatement("SELECT * FROM scan_jobs ORDER BY started_at DESC LIMIT ?").use { statement ->
             statement.setInt(1, limit)
             statement.executeQuery().use { rows -> buildList {
-                while (rows.next()) add(ScanResult(rows.getString("id"), rows.getString("status"), rows.getInt("discovered"), rows.getInt("updated"), rows.getInt("removed"), rows.getLong("started_at"), rows.getLong("completed_at")))
+                while (rows.next()) add(ScanResult(rows.getString("id"), rows.getString("status"), rows.getInt("discovered"), rows.getInt("updated"), rows.getInt("removed"), rows.getLong("started_at"), rows.getLong("completed_at"), rows.getString("library_id")))
             } }
         }
     }
 
-    fun finishScan(scanId: String): Int = connection().use { db ->
-        db.prepareStatement("UPDATE tracks SET deleted_at = ? WHERE last_seen_scan <> ? AND deleted_at IS NULL").use { statement ->
+    fun finishScan(scanId: String, libraryId: String = DEFAULT_LIBRARY_ID): Int = connection().use { db ->
+        db.prepareStatement("UPDATE tracks SET deleted_at = ? WHERE library_id=? AND last_seen_scan <> ? AND deleted_at IS NULL").use { statement ->
             statement.setLong(1, System.currentTimeMillis())
-            statement.setString(2, scanId)
+            statement.setString(2, libraryId)
+            statement.setString(3, scanId)
             statement.executeUpdate()
         }
     }
 
-    fun listTracks(query: String?, offset: Int, limit: Int, sort: String = "artist"): TrackPage = connection().use { db ->
+    fun listTracks(query: String?, offset: Int, limit: Int, sort: String = "artist", libraryId: String? = null): TrackPage = connection().use { db ->
         val filter = query?.trim().orEmpty()
         val useFullTextSearch = fullTextSearchEnabled && filter.length >= 3
         val from = if (useFullTextSearch) "tracks t JOIN tracks_fts ON tracks_fts.id=t.id" else "tracks t"
+        val libraryWhere = if (libraryId == null) "" else " AND t.library_id=?"
         val where = when {
-            filter.isBlank() -> "t.deleted_at IS NULL"
-            useFullTextSearch -> "t.deleted_at IS NULL AND tracks_fts MATCH ?"
-            else -> "t.deleted_at IS NULL AND (t.title LIKE ? ESCAPE '\\' OR t.artist LIKE ? ESCAPE '\\' OR t.album LIKE ? ESCAPE '\\')"
+            filter.isBlank() -> "t.deleted_at IS NULL$libraryWhere"
+            useFullTextSearch -> "t.deleted_at IS NULL AND tracks_fts MATCH ?$libraryWhere"
+            else -> "t.deleted_at IS NULL AND (t.title LIKE ? ESCAPE '\\' OR t.artist LIKE ? ESCAPE '\\' OR t.album LIKE ? ESCAPE '\\')$libraryWhere"
         }
         val orderBy = when (sort) {
             "title" -> "t.title COLLATE NOCASE, t.artist COLLATE NOCASE, t.album COLLATE NOCASE, t.id"
@@ -265,7 +295,8 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         try {
             val revision = db.createStatement().use { statement -> statement.executeQuery("SELECT revision FROM library_revision WHERE id=1").use { it.next(); it.getLong(1) } }
             val total = db.prepareStatement("SELECT COUNT(*) FROM $from WHERE $where").use { statement ->
-                bindSearch(statement, filter, useFullTextSearch)
+                var index = bindSearch(statement, filter, useFullTextSearch)
+                if (libraryId != null) statement.setString(index, libraryId)
                 statement.executeQuery().use { it.next(); it.getInt(1) }
             }
             val items = db.prepareStatement(
@@ -276,6 +307,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                 """.trimIndent(),
             ).use { statement ->
                 var index = bindSearch(statement, filter, useFullTextSearch)
+                if (libraryId != null) statement.setString(index++, libraryId)
                 statement.setInt(index++, limit)
                 statement.setInt(index, offset)
                 statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.toTrack()) } }
@@ -309,6 +341,133 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
     fun markTrackDeleted(id: String, now: Long): Boolean = connection().use { db ->
         db.prepareStatement("UPDATE tracks SET deleted_at=? WHERE id=? AND deleted_at IS NULL").use {
             it.setLong(1, now); it.setString(2, id); it.executeUpdate() > 0
+        }
+    }
+
+    fun ensureDefaultLibrary(path: Path, now: Long) = connection().use { db ->
+        db.prepareStatement(
+            """
+            INSERT OR IGNORE INTO music_libraries(
+              id,name,path,device_type,read_only,enabled,download_target,status,last_scan_at,last_error,created_at,updated_at
+            ) VALUES(?, 'NAS 音乐', ?, 'local', 0, 1, 1, 'unknown', NULL, NULL, ?, ?)
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setString(1, DEFAULT_LIBRARY_ID)
+            statement.setString(2, path.toAbsolutePath().normalize().toString())
+            statement.setLong(3, now)
+            statement.setLong(4, now)
+            statement.executeUpdate()
+        }
+    }
+
+    fun createLibrary(request: MusicLibraryRequest, status: String, now: Long): MusicLibraryView {
+        val id = UUID.randomUUID().toString()
+        connection().use { db ->
+            db.autoCommit = false
+            try {
+                if (request.downloadTarget) db.createStatement().use { it.executeUpdate("UPDATE music_libraries SET download_target=0") }
+                db.prepareStatement(
+                    """
+                    INSERT INTO music_libraries(
+                      id,name,path,device_type,read_only,enabled,download_target,status,last_scan_at,last_error,created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?,?,?,NULL,NULL,?,?)
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, id)
+                    statement.setString(2, request.name)
+                    statement.setString(3, request.path)
+                    statement.setString(4, request.deviceType)
+                    statement.setBoolean(5, request.readOnly)
+                    statement.setBoolean(6, request.enabled)
+                    statement.setBoolean(7, request.downloadTarget)
+                    statement.setString(8, status)
+                    statement.setLong(9, now)
+                    statement.setLong(10, now)
+                    statement.executeUpdate()
+                }
+                db.commit()
+            } catch (error: Throwable) {
+                db.rollback()
+                throw error
+            } finally {
+                db.autoCommit = true
+            }
+        }
+        return requireNotNull(library(id))
+    }
+
+    fun updateLibrary(id: String, request: MusicLibraryRequest, status: String, now: Long): MusicLibraryView? {
+        if (library(id) == null) return null
+        connection().use { db ->
+            db.autoCommit = false
+            try {
+                if (request.downloadTarget) db.createStatement().use { it.executeUpdate("UPDATE music_libraries SET download_target=0") }
+                db.prepareStatement(
+                    """
+                    UPDATE music_libraries SET name=?,device_type=?,read_only=?,enabled=?,download_target=?,status=?,
+                      last_error=NULL,updated_at=? WHERE id=?
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, request.name)
+                    statement.setString(2, request.deviceType)
+                    statement.setBoolean(3, request.readOnly)
+                    statement.setBoolean(4, request.enabled)
+                    statement.setBoolean(5, request.downloadTarget)
+                    statement.setString(6, status)
+                    statement.setLong(7, now)
+                    statement.setString(8, id)
+                    statement.executeUpdate()
+                }
+                db.commit()
+            } catch (error: Throwable) {
+                db.rollback()
+                throw error
+            } finally {
+                db.autoCommit = true
+            }
+        }
+        return library(id)
+    }
+
+    fun libraries(): List<MusicLibraryView> = connection().use { db ->
+        db.createStatement().use { statement ->
+            statement.executeQuery(LIBRARY_SELECT + " ORDER BY l.created_at, l.name COLLATE NOCASE").use { rows ->
+                buildList { while (rows.next()) add(rows.toMusicLibrary()) }
+            }
+        }
+    }
+
+    fun library(id: String): MusicLibraryView? = connection().use { db ->
+        db.prepareStatement(LIBRARY_SELECT + " WHERE l.id=?").use { statement ->
+            statement.setString(1, id)
+            statement.executeQuery().use { row -> if (row.next()) row.toMusicLibrary() else null }
+        }
+    }
+
+    fun setLibraryStatus(id: String, status: String, lastScanAt: Long?, error: String?, now: Long) = connection().use { db ->
+        db.prepareStatement("UPDATE music_libraries SET status=?,last_scan_at=?,last_error=?,updated_at=? WHERE id=?").use { statement ->
+            statement.setString(1, status)
+            if (lastScanAt == null) statement.setNull(2, java.sql.Types.BIGINT) else statement.setLong(2, lastScanAt)
+            statement.setString(3, error)
+            statement.setLong(4, now)
+            statement.setString(5, id)
+            statement.executeUpdate()
+        }
+    }
+
+    fun activeTrackCount(libraryId: String): Int = connection().use { db ->
+        db.prepareStatement("SELECT COUNT(*) FROM tracks WHERE library_id=? AND deleted_at IS NULL").use { statement ->
+            statement.setString(1, libraryId)
+            statement.executeQuery().use { row -> row.next(); row.getInt(1) }
+        }
+    }
+
+    fun trackLocation(id: String): StoredTrackLocation? = connection().use { db ->
+        db.prepareStatement("SELECT file_path,library_id FROM tracks WHERE id=? AND deleted_at IS NULL").use { statement ->
+            statement.setString(1, id)
+            statement.executeQuery().use { row ->
+                if (row.next()) StoredTrackLocation(Path.of(row.getString("file_path")), row.getString("library_id")) else null
+            }
         }
     }
 
@@ -507,6 +666,22 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
 
     private fun ResultSet.toPlaylistSummary() = PlaylistSummary(getString("id"), getString("name"), getLong("version"), getInt("track_count"), getLong("updated_at"))
 
+    private fun ResultSet.toMusicLibrary() = MusicLibraryView(
+        id = getString("id"),
+        name = getString("name"),
+        path = getString("path"),
+        deviceType = getString("device_type"),
+        readOnly = getBoolean("read_only"),
+        enabled = getBoolean("enabled"),
+        downloadTarget = getBoolean("download_target"),
+        status = getString("status"),
+        trackCount = getInt("track_count"),
+        lastScanAt = getLong("last_scan_at").takeUnless { wasNull() },
+        lastError = getString("last_error"),
+        createdAt = getLong("created_at"),
+        updatedAt = getLong("updated_at"),
+    )
+
     private fun bindTrack(statement: java.sql.PreparedStatement, scanId: String, file: ScannedFile) {
         statement.setString(1, file.id)
         statement.setString(2, file.title)
@@ -518,6 +693,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         statement.setLong(8, file.size)
         statement.setLong(9, file.modifiedAt)
         statement.setString(10, scanId)
+        statement.setString(11, file.libraryId)
     }
     private fun maskSecret(secret: String) = when {
         secret.isBlank() -> ""
@@ -549,22 +725,27 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         modifiedAt = getLong("modified_at"),
         artworkUrl = "/api/media/${getString("id")}/artwork",
         favorite = getBoolean("favorite"),
+        libraryId = getString("library_id"),
     )
 
     companion object {
+        private const val LIBRARY_SELECT =
+            "SELECT l.*, (SELECT COUNT(*) FROM tracks t WHERE t.library_id=l.id AND t.deleted_at IS NULL) track_count FROM music_libraries l"
         private val UPSERT_TRACK_SQL =
             """
-            INSERT INTO tracks(id,title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,last_seen_scan,deleted_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,NULL)
+            INSERT INTO tracks(id,title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,last_seen_scan,library_id,deleted_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,NULL)
             ON CONFLICT(id) DO UPDATE SET title=excluded.title, artist=excluded.artist, album=excluded.album,
               duration_ms=excluded.duration_ms, mime_type=excluded.mime_type, file_path=excluded.file_path,
               file_size=excluded.file_size, modified_at=excluded.modified_at, last_seen_scan=excluded.last_seen_scan,
-              deleted_at=NULL
+              library_id=excluded.library_id, deleted_at=NULL
             """.trimIndent()
     }
 }
 
 data class TrackFingerprint(val size: Long, val modifiedAt: Long)
+
+data class StoredTrackLocation(val path: Path, val libraryId: String)
 
 data class StoredRoom(val id: String, val name: String, val stateJson: String, val version: Long, val updatedAt: Long)
 

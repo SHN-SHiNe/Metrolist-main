@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import { LIBRARY_PAGE_SIZE, mergeTrackPage, TRACK_ROW_HEIGHT, visibleTrackRange } from './libraryPaging'
-import type { DownloadJob, HistoryEntry, PlaylistDetail, PlaylistSummary, RoomSummary, SourceConfig, Track } from './types'
+import type { DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, PlaylistDetail, PlaylistSummary, RoomSummary, SourceConfig, Track } from './types'
 import { usePlayer } from './usePlayer'
 import { useRoomSync } from './useRoomSync'
 
@@ -29,6 +29,7 @@ export default function App() {
   const [rooms, setRooms] = useState<RoomSummary[]>([])
   const [sources, setSources] = useState<SourceConfig[]>([])
   const [downloads, setDownloads] = useState<DownloadJob[]>([])
+  const [libraries, setLibraries] = useState<MusicLibrary[]>([])
   const [searchResults, setSearchResults] = useState<Track[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -42,8 +43,8 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [libraryPage, favoriteTracks, historyEntries, playlistItems, roomItems, sourceItems, downloadItems] = await Promise.all([
-        api.library(), api.favorites(), api.history(), api.playlists(), api.rooms(), api.sources(), api.downloads(),
+      const [libraryPage, favoriteTracks, historyEntries, playlistItems, roomItems, sourceItems, downloadItems, libraryItems] = await Promise.all([
+        api.library(), api.favorites(), api.history(), api.playlists(), api.rooms(), api.sources(), api.downloads(), api.libraries(),
       ])
       setLibrary(libraryPage.items)
       setLibraryTotal(libraryPage.total)
@@ -54,6 +55,7 @@ export default function App() {
       setRooms(roomItems)
       setSources(sourceItems)
       setDownloads(downloadItems)
+      setLibraries(libraryItems)
     } catch (error) {
       setNotice(readError(error))
     } finally {
@@ -152,11 +154,11 @@ export default function App() {
           <div className="page-content">
             {section === 'home' && <HomePage history={history} favorites={favorites} onPlay={play} onNavigate={navigate} />}
             {section === 'search' && <SearchPage query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} favorites={favorites} onNotice={setNotice} />}
-            {section === 'library' && <LibraryPage initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'library' && <LibraryPage libraries={libraries} initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'favorites' && <TrackSection title="共享收藏" subtitle="局域网内所有访客看到同一份收藏" tracks={favorites} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} />}
             {section === 'playlists' && <PlaylistsPage playlists={playlists} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'rooms' && <RoomsPage rooms={rooms} room={room} onRefresh={refresh} onNotice={setNotice} />}
-            {section === 'settings' && <SettingsPage sources={sources} downloads={downloads} theme={theme} onTheme={setTheme} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'settings' && <SettingsPage libraries={libraries} sources={sources} downloads={downloads} theme={theme} onTheme={setTheme} onRefresh={refresh} onNotice={setNotice} />}
           </div>
         )}
       </main>
@@ -216,9 +218,10 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
   </>
 }
 
-function LibraryPage({ initialTracks, initialTotal, initialRevision, favorites, onPlay, onFavorite, onDiscover, onRefresh, onNotice }: { initialTracks: Track[]; initialTotal: number; initialRevision: number; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onDiscover: (tracks: Track[]) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+function LibraryPage({ libraries, initialTracks, initialTotal, initialRevision, favorites, onPlay, onFavorite, onDiscover, onRefresh, onNotice }: { libraries: MusicLibrary[]; initialTracks: Track[]; initialTotal: number; initialRevision: number; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onDiscover: (tracks: Track[]) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
   const [filter, setFilter] = useState('')
   const [sort, setSort] = useState<'title' | 'artist' | 'album'>('artist')
+  const [libraryId, setLibraryId] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [tracks, setTracks] = useState(() => initialTracks.slice(0, LIBRARY_PAGE_SIZE))
   const [total, setTotal] = useState(initialTotal)
@@ -228,13 +231,15 @@ function LibraryPage({ initialTracks, initialTotal, initialRevision, favorites, 
   const requestGeneration = useRef(0)
   const filterRef = useRef(filter)
   const sortRef = useRef(sort)
+  const libraryRef = useRef(libraryId)
   filterRef.current = filter
   sortRef.current = sort
+  libraryRef.current = libraryId
   useEffect(() => {
     let cancelled = false
     const generation = requestGeneration.current
     const timer = window.setTimeout(() => {
-      void api.library(0, filter, sort).then((page) => {
+      void api.library(0, filter, sort, libraryId).then((page) => {
         if (cancelled || generation !== requestGeneration.current) return
         setTracks(page.items)
         setTotal(page.total)
@@ -245,10 +250,10 @@ function LibraryPage({ initialTracks, initialTotal, initialRevision, favorites, 
       }).catch((error) => { if (!cancelled) onNotice(readError(error)) })
     }, 250)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [filter, onDiscover, onNotice, sort])
+  }, [filter, libraryId, onDiscover, onNotice, sort])
   const reloadCurrentView = async () => {
     const generation = requestGeneration.current
-    const page = await api.library(0, filterRef.current, sortRef.current)
+    const page = await api.library(0, filterRef.current, sortRef.current, libraryRef.current)
     if (generation !== requestGeneration.current) return
     setTracks(page.items)
     setTotal(page.total)
@@ -262,11 +267,11 @@ function LibraryPage({ initialTracks, initialTotal, initialRevision, favorites, 
     const generation = requestGeneration.current
     setLoadingMore(true)
     try {
-      const page = await api.library(nextOffset, filter, sort)
+      const page = await api.library(nextOffset, filter, sort, libraryId)
       if (generation !== requestGeneration.current) return
       const knownIds = new Set(tracks.map((track) => track.id))
       if (page.revision !== revision || page.total !== total || page.items.some((track) => knownIds.has(track.id))) {
-        const fresh = await api.library(0, filter, sort)
+        const fresh = await api.library(0, filter, sort, libraryId)
         if (generation !== requestGeneration.current) return
         setTracks(fresh.items)
         setTotal(fresh.total)
@@ -299,8 +304,8 @@ function LibraryPage({ initialTracks, initialTotal, initialRevision, favorites, 
     try { await api.deleteTrack(track.id); await onRefresh(); requestGeneration.current++; await reloadCurrentView(); onNotice('音乐已移入服务端回收区') } catch (error) { onNotice(readError(error)) }
   }
   return <>
-    <div className="toolbar"><label className="filter-field"><Icon name="search" /><input value={filter} onChange={(event) => { requestGeneration.current++; setLoadingMore(false); setFilter(event.target.value) }} placeholder="搜索整个 NAS 曲库" /></label><div className="toolbar-actions">{selected.length > 0 && <button className="primary-button" onClick={() => { const chosen = tracks.filter((track) => selected.includes(track.id)); if (chosen[0]) onPlay(chosen[0], chosen) }}>播放选中（{selected.length}）</button>}<button className="secondary-button" onClick={() => void scan()}><Icon name="refresh" />重新扫描</button></div></div>
-    <section className="track-section"><div className="section-heading"><div><h2>{filter ? `${total} 首匹配` : `${total} 首音乐`}</h2><p>已加载 {tracks.length} / {total} 首 · 筛选和排序覆盖整个 NAS 曲库</p></div>{tracks[0] && <button className="round-play" onClick={() => onPlay(tracks[0], tracks)} aria-label="播放当前已加载曲目"><Icon name="play" /></button>}</div><TrackList tracks={tracks} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} selectedIds={selected} onSelection={setSelected} sort={sort} onSort={(value) => { requestGeneration.current++; setLoadingMore(false); setSort(value) }} virtualized trailingAction={(track) => <button className="icon-button" onClick={() => void remove(track)} aria-label={`将 ${track.title} 移入回收区`}><Icon name="trash" /></button>} />{tracks.length < total && <button className="load-more secondary-button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? '正在加载…' : `继续加载（剩余 ${total - tracks.length} 首）`}</button>}</section>
+    <div className="toolbar"><label className="filter-field"><Icon name="search" /><input value={filter} onChange={(event) => { requestGeneration.current++; setLoadingMore(false); setFilter(event.target.value) }} placeholder="搜索整个 NAS 曲库" /></label><select className="library-filter" aria-label="按音频库筛选" value={libraryId} onChange={(event) => { requestGeneration.current++; setLoadingMore(false); setLibraryId(event.target.value) }}><option value="">全部音频库</option>{libraries.map((library) => <option key={library.id} value={library.id}>{library.name}{library.status === 'offline' ? '（离线）' : ''}</option>)}</select><div className="toolbar-actions">{selected.length > 0 && <button className="primary-button" onClick={() => { const chosen = tracks.filter((track) => selected.includes(track.id)); if (chosen[0]) onPlay(chosen[0], chosen) }}>播放选中（{selected.length}）</button>}<button className="secondary-button" onClick={() => void scan()}><Icon name="refresh" />重新扫描</button></div></div>
+    <section className="track-section"><div className="section-heading"><div><h2>{filter ? `${total} 首匹配` : `${total} 首音乐`}</h2><p>已加载 {tracks.length} / {total} 首 · 筛选和排序覆盖所选音频库</p></div>{tracks[0] && <button className="round-play" onClick={() => onPlay(tracks[0], tracks)} aria-label="播放当前已加载曲目"><Icon name="play" /></button>}</div><TrackList tracks={tracks} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} selectedIds={selected} onSelection={setSelected} sort={sort} onSort={(value) => { requestGeneration.current++; setLoadingMore(false); setSort(value) }} virtualized trailingAction={(track) => { const owner = libraries.find((item) => item.id === track.libraryId); return owner && (!owner.enabled || owner.readOnly || owner.status !== 'online') ? null : <button className="icon-button" onClick={() => void remove(track)} aria-label={`将 ${track.title} 移入回收区`}><Icon name="trash" /></button> }} />{tracks.length < total && <button className="load-more secondary-button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? '正在加载…' : `继续加载（剩余 ${total - tracks.length} 首）`}</button>}</section>
   </>
 }
 
@@ -347,19 +352,54 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
   </>
 }
 
-function SettingsPage({ sources, downloads, theme, onTheme, onRefresh, onNotice }: { sources: SourceConfig[]; downloads: DownloadJob[]; theme: Theme; onTheme: (value: Theme) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+function SettingsPage({ libraries, sources, downloads, theme, onTheme, onRefresh, onNotice }: { libraries: MusicLibrary[]; sources: SourceConfig[]; downloads: DownloadJob[]; theme: Theme; onTheme: (value: Theme) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
   const [form, setForm] = useState({ name: '', apiUrl: '', apiKey: '' })
+  const [libraryForm, setLibraryForm] = useState<MusicLibraryInput>({ name: '', path: '/libraries/', deviceType: 'local', readOnly: true, enabled: true, downloadTarget: false })
   const save = async (event: FormEvent) => {
     event.preventDefault()
     try { await api.createSource(form); setForm({ name: '', apiUrl: '', apiKey: '' }); await onRefresh(); onNotice('音乐源已安全保存到 NAS') } catch (error) { onNotice(readError(error)) }
   }
+  const addLibrary = async (event: FormEvent) => {
+    event.preventDefault()
+    try {
+      await api.createLibrary(libraryForm)
+      setLibraryForm({ name: '', path: '/libraries/', deviceType: 'local', readOnly: true, enabled: true, downloadTarget: false })
+      await onRefresh()
+      onNotice('音频库已添加，可以开始扫描')
+    } catch (error) { onNotice(readError(error)) }
+  }
   return <div className="settings-layout">
     <section className="settings-section"><h2>外观</h2><p>选择浅色、深色或适合 OLED 的纯黑主题。</p><div className="theme-options" role="group" aria-label="界面主题">{(['light', 'dark', 'black'] as Theme[]).map((value) => <button key={value} className={theme === value ? 'active' : ''} onClick={() => onTheme(value)} aria-pressed={theme === value}>{({ light: '浅色', dark: '深色', black: '纯黑' })[value]}</button>)}</div></section>
+    <section className="settings-section libraries-section"><h2>音频库</h2><p>统一管理 NAS、USB 硬盘和网络挂载。设备掉线时保留曲库索引，不会将音乐误判为已删除。</p><form className="settings-form library-create" onSubmit={addLibrary}><label>名称<input required value={libraryForm.name} onChange={(event) => setLibraryForm({ ...libraryForm, name: event.target.value })} placeholder="例如：客厅 USB 硬盘" /></label><label>容器内路径<input required value={libraryForm.path} onChange={(event) => setLibraryForm({ ...libraryForm, path: event.target.value })} placeholder="/libraries/living-room" /></label><label>设备类型<select value={libraryForm.deviceType} onChange={(event) => setLibraryForm({ ...libraryForm, deviceType: event.target.value as MusicLibraryInput['deviceType'] })}><option value="local">NAS 本地</option><option value="usb">USB 设备</option><option value="network">网络挂载</option><option value="cloud">云盘挂载</option></select></label><label className="check-label"><input type="checkbox" checked={libraryForm.readOnly} onChange={(event) => setLibraryForm({ ...libraryForm, readOnly: event.target.checked, downloadTarget: event.target.checked ? false : libraryForm.downloadTarget })} />只读保护</label><label className="check-label"><input type="checkbox" disabled={libraryForm.readOnly} checked={libraryForm.downloadTarget} onChange={(event) => setLibraryForm({ ...libraryForm, downloadTarget: event.target.checked })} />设为在线下载目标</label><button className="primary-button">添加音频库</button></form><div className="library-list">{libraries.map((library) => <LibraryEditor key={library.id} library={library} onRefresh={onRefresh} onNotice={onNotice} />)}</div></section>
     <section className="settings-section"><h2>音乐源</h2><p>密钥只保存在 NAS，页面只显示末四位。</p><form className="settings-form" onSubmit={save}><label>名称<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>API 地址<input required type="url" value={form.apiUrl} onChange={(event) => setForm({ ...form, apiUrl: event.target.value })} /></label><label>API 密钥<input required type="password" value={form.apiKey} onChange={(event) => setForm({ ...form, apiKey: event.target.value })} /></label><button className="primary-button">保存音乐源</button></form>{sources.map((source) => <div className="source-row" key={source.id}><span><strong>{source.name}</strong><small>{source.apiUrl}</small></span><code>{source.apiKeyMasked}</code></div>)}</section>
     <section className="settings-section"><h2>下载任务</h2><p>完成后自动扫描并进入 NAS 曲库；失败任务可以重试。</p>{downloads.length ? downloads.map((job) => <div className="download-row" key={job.id}><span><strong>{job.title}</strong><small>{job.artist}</small></span>{job.status === 'failed' ? <button className="secondary-button" onClick={async () => { try { await api.retryDownload(job.id); await onRefresh() } catch (error) { onNotice(readError(error)) } }}>重试</button> : <StatusBadge status={job.status} />}</div>) : <EmptyState compact title="暂无下载" body="在线搜索歌曲后可以加入下载队列。" />}</section>
     <section className="settings-section"><h2>HTTP 模式</h2><p>当前局域网入口以普通 Web 运行。切换受信任 HTTPS 后即可验收完整 PWA 安装与音频输出设备选择。</p></section>
   </div>
 }
+
+function LibraryEditor({ library, onRefresh, onNotice }: { library: MusicLibrary; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+  const [name, setName] = useState(library.name)
+  const [deviceType, setDeviceType] = useState(library.deviceType)
+  useEffect(() => { setName(library.name); setDeviceType(library.deviceType) }, [library.deviceType, library.name])
+  const update = async (changes: Partial<MusicLibraryInput>, message: string) => {
+    try {
+      await api.updateLibrary(library.id, { name, path: library.path, deviceType: library.deviceType, readOnly: library.readOnly, enabled: library.enabled, downloadTarget: library.downloadTarget, ...changes })
+      await onRefresh()
+      onNotice(message)
+    } catch (error) { onNotice(readError(error)) }
+  }
+  const scan = async () => {
+    try { await api.scanLibrary(library.id); await onRefresh(); onNotice(`${library.name} 扫描完成`) } catch (error) { onNotice(readError(error)) }
+  }
+  const confirmEmpty = async () => {
+    if (!window.confirm(`确认《${library.name}》已被主动清空？这会从曲库移除该库的所有索引。`)) return
+    try { await api.scanLibrary(library.id, true); await onRefresh(); onNotice('已确认空曲库并更新索引') } catch (error) { onNotice(readError(error)) }
+  }
+  const configurationChanged = name.trim() !== library.name || deviceType !== library.deviceType
+  return <article className="library-row"><div className="library-summary"><div><input aria-label={`${library.name} 的名称`} value={name} onChange={(event) => setName(event.target.value)} /><select aria-label={`${library.name} 的设备类型`} value={deviceType} onChange={(event) => setDeviceType(event.target.value as MusicLibrary['deviceType'])}><option value="local">NAS 本地</option><option value="usb">USB 设备</option><option value="network">网络挂载</option><option value="cloud">云盘挂载</option></select><small>{library.path} · {library.trackCount} 首 · {library.readOnly ? '只读' : '可写'}</small></div><span className={`status-badge ${library.status}`}>{libraryStatusLabel(library.status)}</span></div>{library.lastError && <small className="library-error">最近状态：{library.lastError}</small>}<div className="library-actions"><button className="secondary-button" disabled={!name.trim() || !configurationChanged} onClick={() => void update({ name, deviceType }, '音频库设置已更新')}>保存设置</button><button className="secondary-button" disabled={!library.enabled} onClick={() => void scan()}><Icon name="refresh" />扫描</button>{library.lastError === 'empty_mount' && <button className="secondary-button" onClick={() => void confirmEmpty()}>确认已清空</button>}<button className="secondary-button" onClick={() => void update({ enabled: !library.enabled, downloadTarget: library.enabled ? false : library.downloadTarget }, library.enabled ? '音频库已停用，索引仍保留' : '音频库已启用')}>{library.enabled ? '停用' : '启用'}</button><button className="secondary-button" disabled={library.downloadTarget} onClick={() => void update({ readOnly: !library.readOnly }, library.readOnly ? '音频库已允许写入' : '音频库已设为只读')}>{library.readOnly ? '允许写入' : '设为只读'}</button>{library.downloadTarget ? <button className="secondary-button" onClick={() => void update({ downloadTarget: false }, '已取消下载目标')}>取消下载目标</button> : !library.readOnly && library.enabled && library.status === 'online' && <button className="secondary-button" onClick={() => void update({ downloadTarget: true }, '已设为在线下载目标')}>设为下载目标</button>}</div></article>
+}
+
+function libraryStatusLabel(status: MusicLibrary['status']) { return ({ online: '已连接', offline: '设备离线', disabled: '已停用', unknown: '待扫描' })[status] }
 
 function TrackSection({ title, subtitle, tracks, favorites, onPlay, onFavorite }: { title: string; subtitle: string; tracks: Track[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void }) {
   return <section className="track-section"><div className="section-heading"><div><h2>{title}</h2><p>{subtitle}</p></div>{tracks.length > 0 && <button className="round-play" onClick={() => onPlay(tracks[0], tracks)} aria-label={`播放${title}`}><Icon name="play" /></button>}</div>{tracks.length ? <TrackList tracks={tracks} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} /> : <EmptyState title="这里还没有音乐" body="扫描 NAS、在线下载或继续收藏后会显示在这里。" />}</section>

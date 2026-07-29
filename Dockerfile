@@ -34,11 +34,12 @@ COPY --from=web-build --chown=shine:shine /workspace/web/node_modules/@sendspin/
 COPY --chown=shine:shine deploy/start-shine.sh /app/bin/start-shine.sh
 COPY --chown=shine:shine THIRD_PARTY_NOTICES.md /app/licenses/THIRD_PARTY_NOTICES.md
 RUN chmod +x /app/bin/sendspin-bridge /app/bin/start-shine.sh \
-    && mkdir -p /data /music /cache && chown -R shine:shine /data /music /cache
+    && mkdir -p /data /music /libraries /cache && chown -R shine:shine /data /music /libraries /cache
 USER shine
 ENV SHINE_HTTP_PORT=8767 \
     SHINE_DATA_DIR=/data \
     SHINE_MUSIC_DIR=/music \
+    SHINE_LIBRARY_DIR=/libraries \
     SHINE_CACHE_DIR=/cache \
     SHINE_SENDSPIN_BRIDGE_URL=http://127.0.0.1:8936 \
     SHINE_SENDSPIN_CONTROL_ADDR=127.0.0.1:8936 \
@@ -46,7 +47,7 @@ ENV SHINE_HTTP_PORT=8767 \
     SHINE_TRASH_RETENTION_DAYS=30 \
     SHINE_SCAN_ON_START=true
 EXPOSE 8767
-VOLUME ["/data", "/music", "/cache"]
+VOLUME ["/data", "/music", "/libraries", "/cache"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl --fail --silent http://127.0.0.1:8767/api/health || exit 1
 ENTRYPOINT ["/sbin/tini", "--", "/app/bin/start-shine.sh"]

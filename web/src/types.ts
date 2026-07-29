@@ -10,6 +10,7 @@ export type Track = {
   favorite?: boolean
   artworkUrl?: string | null
   source?: string
+  libraryId?: string
 }
 
 export type TrackPage = { items: Track[]; total: number; offset: number; limit: number; revision: number }
@@ -22,3 +23,19 @@ export type SearchResponse = { items: Track[]; total: number; page: number; limi
 export type RoomSummary = { id: string; name: string; memberCount: number; version: number; updatedAt: number }
 export type RoomPlaybackState = { queue: string[]; currentTrackId: string | null; positionMs: number; playing: boolean; effectiveAt: number }
 export type RoomDetail = { summary: RoomSummary; state: RoomPlaybackState }
+export type MusicLibrary = {
+  id: string
+  name: string
+  path: string
+  deviceType: 'local' | 'usb' | 'network' | 'cloud'
+  readOnly: boolean
+  enabled: boolean
+  downloadTarget: boolean
+  status: 'unknown' | 'online' | 'offline' | 'disabled'
+  trackCount: number
+  lastScanAt?: number | null
+  lastError?: string | null
+  createdAt: number
+  updatedAt: number
+}
+export type MusicLibraryInput = Pick<MusicLibrary, 'name' | 'path' | 'deviceType' | 'readOnly' | 'enabled' | 'downloadTarget'>

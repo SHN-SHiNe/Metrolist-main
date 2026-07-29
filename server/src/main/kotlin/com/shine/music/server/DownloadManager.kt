@@ -22,9 +22,8 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.extension
 
 class DownloadManager(
-    private val config: AppConfig,
     private val store: MusicStore,
-    private val scanner: LibraryScanner,
+    private val libraries: MusicLibraryManager,
     private val onlineCatalog: OnlineCatalog,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
@@ -65,8 +64,9 @@ class DownloadManager(
             val uri = URI(url)
             require(uri.scheme in setOf("http", "https")) { "unsupported_url_scheme" }
             ensurePublicHost(uri)
-            config.musicDir.createDirectories()
-            val incomingDir = config.musicDir.resolve(".shine-incoming")
+            val library = libraries.downloadTarget()
+            val musicDir = java.nio.file.Path.of(library.path)
+            val incomingDir = musicDir.resolve(".shine-incoming")
             incomingDir.createDirectories()
             val response = http.send(
                 HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(10)).header("User-Agent", "SHiNe-Music-NAS/0.1").GET().build(),
@@ -82,9 +82,9 @@ class DownloadManager(
             response.body().use { input -> Files.copy(input, part, StandardCopyOption.REPLACE_EXISTING) }
             currentCoroutineContext().ensureActive()
             require(Files.size(part) > 0) { "empty_download" }
-            val destination = Files.move(part, config.musicDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            val destination = Files.move(part, musicDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
             temporary = null
-            scanner.index(destination)
+            libraries.indexDownloaded(library.id, destination)
             update(job, "completed")
         } catch (error: Throwable) {
             if (!closed.get()) update(job, "failed", error.message ?: error::class.simpleName)

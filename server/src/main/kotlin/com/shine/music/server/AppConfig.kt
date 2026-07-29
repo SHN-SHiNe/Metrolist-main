@@ -11,6 +11,7 @@ data class AppConfig(
     val scanOnStart: Boolean = true,
     val sendspinBridgeUrl: String? = null,
     val sendspinInternalToken: String? = null,
+    val libraryDir: Path = musicDir.parent.resolve("libraries"),
 ) {
     val databasePath: Path get() = dataDir.resolve("shine-music.db")
     val backupDir: Path get() = dataDir.resolve("backups")
@@ -27,6 +28,7 @@ data class AppConfig(
                 scanOnStart = env["SHINE_SCAN_ON_START"]?.toBooleanStrictOrNull() ?: true,
                 sendspinBridgeUrl = env["SHINE_SENDSPIN_BRIDGE_URL"]?.trim()?.trimEnd('/')?.takeIf(String::isNotBlank),
                 sendspinInternalToken = env["SHINE_SENDSPIN_INTERNAL_TOKEN"]?.takeIf(String::isNotBlank),
+                libraryDir = Path(env["SHINE_LIBRARY_DIR"] ?: data.parent.resolve("libraries").toString()),
             )
         }
     }
