@@ -515,6 +515,33 @@ test('mobile home keeps the original swipeable three-column speed dial with rand
   await expect(secondPage.getByText('继续聆听', { exact: true })).toBeVisible()
 })
 
+test('mobile player keeps gesture-driven motion and animated dismissal', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  const track = { id: 'motion-track', title: '动效测试歌曲', artist: 'SHiNe', album: '动效专辑', durationMs: 180000 }
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [track], total: 1, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  await page.getByRole('button', { name: '播放 动效测试歌曲' }).click()
+  await page.locator('.player-track').click()
+  const player = page.locator('.now-playing')
+  await expect(player).toBeVisible()
+  await expect(player).toHaveClass(/presentation-opening/)
+  const stage = player.locator('.now-stage')
+  await stage.dispatchEvent('pointerdown', { pointerType: 'touch', pointerId: 19, button: 0, clientX: 240, clientY: 350 })
+  await stage.dispatchEvent('pointermove', { pointerType: 'touch', pointerId: 19, buttons: 1, clientX: 150, clientY: 350 })
+  await expect(stage).toHaveClass(/dragging/)
+  await expect.poll(() => stage.evaluate((element) => getComputedStyle(element).transform)).not.toBe('none')
+  await stage.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 19, button: 0, clientX: 110, clientY: 350 })
+  await expect(stage).toHaveClass(/next/)
+  await player.locator('.close-now-playing').click()
+  await expect(player).toHaveClass(/presentation-closing/)
+  await expect(player).toHaveCount(0, { timeout: 1000 })
+})
+
 test('original top app bar exposes history, listening statistics and grouped settings', async ({ page }) => {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())

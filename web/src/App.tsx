@@ -24,6 +24,7 @@ import { PlayerBar } from './player/PlayerBar'
 import shineLogoUrl from '../../SHiNe.png'
 
 type Theme = 'light' | 'dark' | 'black'
+type NowPlayingState = 'closed' | 'opening' | 'open' | 'closing'
 
 const navItems = desktopNavigation
 
@@ -45,7 +46,7 @@ export default function App() {
   const [searchPresentationKey, setSearchPresentationKey] = useState(0)
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<string | null>(null)
-  const [nowPlayingOpen, setNowPlayingOpen] = useState(false)
+  const [nowPlayingState, setNowPlayingState] = useState<NowPlayingState>('closed')
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('shine-theme') as Theme) || 'dark')
   const [queueOpen, setQueueOpen] = useState(true)
   const [queueTab, setQueueTab] = useState<'queue' | 'lyrics' | 'similar'>('queue')
@@ -139,6 +140,13 @@ export default function App() {
     setPullDistance(48)
     void refresh().finally(() => { setPullRefreshing(false); setPullDistance(0) })
   }
+
+  const openNowPlaying = () => {
+    if (!player.current) return
+    setNowPlayingState('opening')
+  }
+
+  const closeNowPlaying = () => setNowPlayingState('closing')
 
   const rememberPlayed = useCallback((id: string) => {
     sessionRecent.current = recentTrackIds(sessionRecent.current, id)
@@ -493,9 +501,9 @@ export default function App() {
         )}
       </main>
 
-      <PlayerBar player={player} room={room} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onOpen={() => setNowPlayingOpen(true)} onLyrics={() => { setQueueOpen(true); setQueueTab('lyrics') }} />
+      <PlayerBar player={player} room={room} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onOpen={openNowPlaying} onLyrics={() => { setQueueOpen(true); setQueueTab('lyrics') }} />
       <MobileShell active={section} onNavigate={navigate} />
-      {nowPlayingOpen && <NowPlaying player={player} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} similar={currentSimilar} similarLoading={similarLoadingId === player.current?.id} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onClose={() => setNowPlayingOpen(false)} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} onAnalyze={() => void analyzeCurrent()} onPlaySimilar={play} onMoveQueue={moveQueueItem} onRemoveQueue={removeQueueItem} />}
+      {nowPlayingState !== 'closed' && <NowPlaying presentation={nowPlayingState} player={player} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} similar={currentSimilar} similarLoading={similarLoadingId === player.current?.id} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onClose={closeNowPlaying} onClosed={() => setNowPlayingState('closed')} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} onAnalyze={() => void analyzeCurrent()} onPlaySimilar={play} onMoveQueue={moveQueueItem} onRemoveQueue={removeQueueItem} />}
     </div>
     </TrackActionsProvider>
   )

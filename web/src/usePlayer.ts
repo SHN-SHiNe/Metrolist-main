@@ -175,6 +175,7 @@ export function usePlayer() {
 
   useEffect(() => {
     audio.preload = 'auto'
+    audio.setAttribute('playsinline', '')
     audio.volume = volume
     const update = () => {
       if (roomMode.current) return
