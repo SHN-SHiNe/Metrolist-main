@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
+import { installMediaSessionHandlers } from './mediaSession'
 import { insertTrackNext } from './trackActions'
 import type { RoomPlaybackState, Track } from './types'
 
@@ -182,8 +183,14 @@ export function usePlayer() {
       setPosition(audio.currentTime)
       setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
     }
-    const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
+    const onPlay = () => {
+      setPlaying(true)
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'
+    }
+    const onPause = () => {
+      setPlaying(false)
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'
+    }
     audio.addEventListener('timeupdate', update)
     audio.addEventListener('durationchange', update)
     audio.addEventListener('play', onPlay)
@@ -212,13 +219,31 @@ export function usePlayer() {
   }, [index, position, queue])
 
   useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    return installMediaSessionHandlers(navigator.mediaSession, {
+      play: () => { if (!roomMode.current) void audio.play().catch(() => setPlaying(false)) },
+      pause: () => { if (!roomMode.current) audio.pause() },
+      next: () => { if (!roomMode.current) void next() },
+      previous: () => { if (!roomMode.current) void previous() },
+      seek: (seconds) => { if (!roomMode.current) seek(seconds) },
+      stop: () => { if (!roomMode.current) audio.pause() },
+    })
+  }, [audio, next, previous, seek])
+
+  useEffect(() => {
     if (!current || !('mediaSession' in navigator)) return
-    navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: current.artist, album: current.album })
-    navigator.mediaSession.setActionHandler('play', () => { if (!roomMode.current) void audio.play() })
-    navigator.mediaSession.setActionHandler('pause', () => { if (!roomMode.current) audio.pause() })
-    navigator.mediaSession.setActionHandler('nexttrack', () => { if (!roomMode.current) next() })
-    navigator.mediaSession.setActionHandler('previoustrack', () => { if (!roomMode.current) previous() })
-  }, [audio, current, next, previous])
+    const artwork = current.artworkUrl ? [{ src: new URL(current.artworkUrl, location.href).href, sizes: '512x512', type: 'image/jpeg' }] : undefined
+    navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: current.artist, album: current.album, artwork })
+  }, [current])
+
+  useEffect(() => {
+    if (!current || !('mediaSession' in navigator) || !Number.isFinite(duration) || duration <= 0) return
+    try {
+      navigator.mediaSession.setPositionState({ duration, playbackRate: audio.playbackRate, position: Math.max(0, Math.min(position, duration)) })
+    } catch {
+      // Safari can reject position updates while metadata is still loading.
+    }
+  }, [audio, current, duration, position])
 
   return { audio, current, queue, index, playing, position, duration, volume, playTrack, appendTracks, insertNext, continueWith, hydrateTracks, moveQueueItem, removeQueueItem, toggle, next, previous, seek, setVolume, enterRoomMode, leaveRoomMode, reflectRoomState }
 }
