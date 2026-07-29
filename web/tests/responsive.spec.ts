@@ -10,6 +10,8 @@ test('app shell exposes navigation and playback controls', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '首页' })).toBeVisible()
   await expect(page.locator('nav:visible').first()).toBeVisible()
   await expect(page.getByText('选择一首歌开始播放')).toBeVisible()
+  await expect(page.locator('.mobile-nav .nav-button')).toHaveCount(5)
+  await expect(page.locator('.mobile-nav')).toContainText('首页搜索音乐库本地同步')
 })
 
 test('large library loads pages while keeping the rendered row count bounded', async ({ page }) => {
@@ -34,7 +36,7 @@ test('large library loads pages while keeping the rendered row count bounded', a
     await route.fulfill({ contentType: 'application/json', body: '[]' })
   })
   await page.goto('/')
-  await page.locator('.nav-button:visible').filter({ hasText: 'NAS 曲库' }).click()
+  await page.locator('.nav-button:visible').filter({ hasText: '本地' }).click()
 
   await expect(page.getByText('已加载 200 / 450 首')).toBeVisible()
   expect(await page.locator('.track-row').count()).toBeLessThan(50)
@@ -81,7 +83,7 @@ test('music libraries are visible in settings and filter the NAS catalog', async
   await expect(page.getByRole('textbox', { name: '随身硬盘 的名称' })).toHaveValue('随身硬盘')
   await expect(page.getByText('设备离线')).toBeVisible()
 
-  await page.goto('/#library')
+  await page.goto('/#local')
   await page.getByLabel('按音频库筛选').selectOption('usb')
   await expect(page.getByText('移动歌曲')).toBeVisible()
   await expect(page.getByText('本地歌曲')).not.toBeVisible()

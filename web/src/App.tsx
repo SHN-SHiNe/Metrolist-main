@@ -1,24 +1,19 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import { LIBRARY_PAGE_SIZE, mergeTrackPage, TRACK_ROW_HEIGHT, visibleTrackRange } from './libraryPaging'
+import { mainNavigation, sectionFromHash, type Section } from './navigation'
+import { randomId } from './randomId'
+import { swipeAction } from './swipeGesture'
 import type { DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, PlaylistDetail, PlaylistSummary, RoomSummary, SourceConfig, Track } from './types'
 import { usePlayer } from './usePlayer'
 import { useRoomSync } from './useRoomSync'
 
-type Section = 'home' | 'search' | 'library' | 'favorites' | 'playlists' | 'rooms' | 'settings'
 type Theme = 'light' | 'dark' | 'black'
 
-const navItems: { id: Section; label: string; icon: IconName }[] = [
-  { id: 'home', label: '首页', icon: 'home' },
-  { id: 'search', label: '搜索', icon: 'search' },
-  { id: 'library', label: 'NAS 曲库', icon: 'library' },
-  { id: 'favorites', label: '收藏', icon: 'heart' },
-  { id: 'playlists', label: '歌单', icon: 'playlist' },
-  { id: 'rooms', label: '同步房间', icon: 'room' },
-]
+const navItems = mainNavigation as readonly { id: Exclude<Section, 'settings'>; label: string; icon: IconName }[]
 
 export default function App() {
-  const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home')
+  const [section, setSection] = useState<Section>(() => sectionFromHash(location.hash))
   const [library, setLibrary] = useState<Track[]>([])
   const [libraryTotal, setLibraryTotal] = useState(0)
   const [libraryRevision, setLibraryRevision] = useState(0)
@@ -71,7 +66,7 @@ export default function App() {
     localStorage.setItem('shine-theme', theme)
   }, [theme])
   useEffect(() => {
-    const onHash = () => setSection((location.hash.slice(1) as Section) || 'home')
+    const onHash = () => setSection(sectionFromHash(location.hash))
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -130,7 +125,7 @@ export default function App() {
     await refresh()
   }
 
-  const title = navItems.find((item) => item.id === section)?.label ?? 'SHiNe MUSIC'
+  const title = navItems.find((item) => item.id === section)?.label ?? '设置'
 
   return (
     <div className={`app-shell ${queueOpen ? '' : 'queue-closed'}`}>
@@ -146,17 +141,20 @@ export default function App() {
 
       <main className="main-content" id="main-content">
         <header className="topbar">
-          <div><p className="eyeline">SHiNe Music · 家庭 NAS</p><h1>{title}</h1></div>
-          <div className="topbar-actions"><div className={`connection ${room.status}`} title={`Sendspin 同步误差 ${Math.round(room.serverOffset)}ms`}><span className="status-dot" />{roomConnectionLabel(room)}</div><button className="queue-toggle secondary-button" onClick={() => setQueueOpen((value) => !value)} aria-expanded={queueOpen} aria-controls="play-queue">{queueOpen ? '收起队列' : '展开队列'}</button></div>
+          <div><p className="eyeline">SHiNe MUSIC</p><h1>{title}</h1></div>
+          <div className="topbar-actions">
+            <button className={`connection ${room.status}`} title={`Sendspin 同步误差 ${Math.round(room.serverOffset)}ms`} onClick={() => navigate('rooms')}><span className="status-dot" />{roomConnectionLabel(room)}</button>
+            <button className="topbar-icon" onClick={() => navigate('settings')} aria-label="打开设置"><Icon name="settings" /></button>
+            <button className="queue-toggle secondary-button" onClick={() => setQueueOpen((value) => !value)} aria-expanded={queueOpen} aria-controls="play-queue">{queueOpen ? '收起队列' : '展开队列'}</button>
+          </div>
         </header>
         {notice && <div className="notice" role="status"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="关闭提示">×</button></div>}
         {loading ? <LoadingRows /> : (
           <div className="page-content">
-            {section === 'home' && <HomePage history={history} favorites={favorites} onPlay={play} onNavigate={navigate} />}
+            {section === 'home' && <HomePage history={history} favorites={favorites} library={library} playlists={playlists} onPlay={play} onNavigate={navigate} />}
             {section === 'search' && <SearchPage query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} favorites={favorites} onNotice={setNotice} />}
-            {section === 'library' && <LibraryPage libraries={libraries} initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onRefresh={refresh} onNotice={setNotice} />}
-            {section === 'favorites' && <TrackSection title="共享收藏" subtitle="局域网内所有访客看到同一份收藏" tracks={favorites} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} />}
-            {section === 'playlists' && <PlaylistsPage playlists={playlists} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'library' && <LibraryHub playlists={playlists} favorites={favorites} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onFavorite={toggleFavorite} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'local' && <LibraryPage libraries={libraries} initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'rooms' && <RoomsPage rooms={rooms} room={room} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'settings' && <SettingsPage libraries={libraries} sources={sources} downloads={downloads} theme={theme} onTheme={setTheme} onRefresh={refresh} onNotice={setNotice} />}
           </div>
@@ -173,25 +171,30 @@ export default function App() {
         )) : <EmptyState compact title="队列还是空的" body="从曲库或搜索结果中选择一首歌。" />}
       </aside>
 
-      <PlayerBar player={player} room={room} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onOpen={() => setNowPlayingOpen(true)} />
+      <PlayerBar player={player} room={room} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onOpen={() => setNowPlayingOpen(true)} />
       <nav className="mobile-nav" aria-label="移动端主导航">
         {navItems.map((item) => <NavButton key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}
-        <NavButton item={{ id: 'settings', label: '设置', icon: 'settings' }} active={section === 'settings'} onClick={() => navigate('settings')} />
       </nav>
-      {nowPlayingOpen && <NowPlaying player={player} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onClose={() => setNowPlayingOpen(false)} />}
+      {nowPlayingOpen && <NowPlaying player={player} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onClose={() => setNowPlayingOpen(false)} />}
     </div>
   )
 }
 
-function HomePage({ history, favorites, onPlay, onNavigate }: { history: HistoryEntry[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onNavigate: (section: Section) => void }) {
+function HomePage({ history, favorites, library, playlists, onPlay, onNavigate }: { history: HistoryEntry[]; favorites: Track[]; library: Track[]; playlists: PlaylistSummary[]; onPlay: (track: Track, queue: Track[]) => void; onNavigate: (section: Section) => void }) {
   const recent = history.slice(0, 8).map((entry) => entry.track)
   return <>
-    <section className="hero-strip">
-      <div><span className="hero-mark">局域网音乐室</span><h2>音乐在 NAS，播放在每一台设备。</h2><p>共享整理，独立聆听；需要时，一键加入同步房间。</p></div>
-      <button className="primary-button" onClick={() => onNavigate('library')}><Icon name="play" />打开曲库</button>
+    <section className="home-greeting">
+      <div><h2>听点什么？</h2><p>{library.length} 首音乐已在家里的 NAS 上准备好</p></div>
+      {library[0] && <button className="round-play" onClick={() => onPlay(library[0], library)} aria-label="播放 NAS 曲库"><Icon name="play" /></button>}
     </section>
-    <TrackSection title="最近播放" subtitle="来自所有访客的共享历史" tracks={recent} favorites={favorites} onPlay={onPlay} />
-    <AlbumRow title="最常回来的收藏" tracks={favorites.slice(0, 6)} onPlay={onPlay} />
+    <section><div className="section-heading"><div><h2>快速访问</h2><p>熟悉的位置，也连接着家里的音乐</p></div></div><div className="quick-grid">
+      <button onClick={() => onNavigate('local')}><span className="quick-art four-covers">{library.slice(0, 4).map((track) => <AlbumArt key={track.id} title={track.title} artworkUrl={track.artworkUrl} small />)}</span><strong>NAS 曲库</strong><small>{library.length} 首音乐</small></button>
+      <button onClick={() => onNavigate('library')}><span className="quick-art liked"><Icon name="heart" /></span><strong>已点赞</strong><small>{favorites.length} 首音乐</small></button>
+      <button onClick={() => onNavigate('library')}><span className="quick-art playlists"><Icon name="playlist" /></span><strong>播放列表</strong><small>{playlists.length} 个共享歌单</small></button>
+      <button onClick={() => onNavigate('rooms')}><span className="quick-art room"><Icon name="room" /></span><strong>同步房间</strong><small>让多台音响一起播放</small></button>
+    </div></section>
+    <AlbumRow title="继续听" tracks={(recent.length ? recent : favorites).slice(0, 8)} onPlay={onPlay} />
+    <TrackSection title="最近播放" subtitle="家庭成员共同留下的播放记录" tracks={recent} favorites={favorites} onPlay={onPlay} />
   </>
 }
 
@@ -200,11 +203,12 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
   onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; favorites: Track[]; onNotice: (value: string) => void
 }) {
   const [searching, setSearching] = useState(false)
+  const [source, setSource] = useState('all')
   const search = async (event: FormEvent) => {
     event.preventDefault()
     if (!query.trim()) return
     setSearching(true)
-    try { setResults((await api.search(query)).items) } catch (error) { onNotice(readError(error)) } finally { setSearching(false) }
+    try { setResults((await api.search(query, source)).items) } catch (error) { onNotice(readError(error)) } finally { setSearching(false) }
   }
   const download = async (track: Track) => {
     try { await api.download(track); onNotice(`《${track.title}》已加入 NAS 下载队列`) } catch (error) { onNotice(readError(error)) }
@@ -214,7 +218,17 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
       <Icon name="search" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索歌曲、歌手或专辑" aria-label="在线搜索" />
       <button className="primary-button" disabled={searching}>{searching ? '搜索中…' : '搜索'}</button>
     </form>
+    <div className="source-chips" role="group" aria-label="搜索音源">{[['all', '聚合'], ['netease', '网易云'], ['qq', 'QQ'], ['kugou', '酷狗'], ['kuwo', '酷我']].map(([value, label]) => <button key={value} className={source === value ? 'active' : ''} aria-pressed={source === value} onClick={() => setSource(value)}>{label}</button>)}</div>
     {results.length ? <TrackList tracks={results} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} trailingAction={(track) => <button className="icon-button" onClick={() => void download(track)} title="下载到 NAS"><Icon name="download" /></button>} /> : <EmptyState title="从五大音源开始搜索" body="搜索结果可以直接播放，也可以下载到 NAS 永久保存。" />}
+  </>
+}
+
+function LibraryHub({ playlists, favorites, selected, setSelected, library, onPlay, onFavorite, onRefresh, onNotice }: { playlists: PlaylistSummary[]; favorites: Track[]; selected: PlaylistDetail | null; setSelected: (value: PlaylistDetail | null) => void; library: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+  const [tab, setTab] = useState<'playlists' | 'favorites'>('playlists')
+  if (selected) return <PlaylistsPage playlists={playlists} selected={selected} setSelected={setSelected} library={library} onPlay={onPlay} onRefresh={onRefresh} onNotice={onNotice} />
+  return <>
+    <div className="library-tabs" role="tablist" aria-label="音乐库分类"><button role="tab" aria-selected={tab === 'playlists'} className={tab === 'playlists' ? 'active' : ''} onClick={() => setTab('playlists')}>播放列表</button><button role="tab" aria-selected={tab === 'favorites'} className={tab === 'favorites' ? 'active' : ''} onClick={() => setTab('favorites')}>已点赞</button></div>
+    {tab === 'playlists' ? <PlaylistsPage playlists={playlists} selected={null} setSelected={setSelected} library={library} onPlay={onPlay} onRefresh={onRefresh} onNotice={onNotice} /> : <TrackSection title="已点赞" subtitle={`${favorites.length} 首 · 家庭共享`} tracks={favorites} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} />}
   </>
 }
 
@@ -336,7 +350,7 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
   const [name, setName] = useState('全屋同步')
   const create = async (event: FormEvent) => {
     event.preventDefault()
-    const id = crypto.randomUUID()
+    const id = randomId()
     let creation: Promise<RoomSummary> | undefined
     try {
       await room.join(id, () => { creation = api.createRoom(name, id); return creation })
@@ -447,8 +461,18 @@ function AlbumRow({ title, tracks, onPlay }: { title: string; tracks: Track[]; o
   return <section><div className="section-heading"><h2>{title}</h2></div><div className="album-row">{tracks.map((track) => <button key={track.id} className="album-item" onClick={() => onPlay(track, tracks)}><AlbumArt title={track.title} artworkUrl={track.artworkUrl} /><strong>{track.title}</strong><span>{track.artist}</span></button>)}</div></section>
 }
 
-function PlayerBar({ player, room, onToggle, onPrevious, onNext, onSeek, onOpen }: { player: ReturnType<typeof usePlayer>; room: ReturnType<typeof useRoomSync>; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onOpen: () => void }) {
-  return <footer className={`player-bar ${player.current ? 'has-track' : ''}`}><button className="player-track" onClick={onOpen} disabled={!player.current}><AlbumArt title={player.current?.title ?? 'SHiNe'} small /><span><strong>{player.current?.title ?? '选择一首歌开始播放'}</strong><small>{player.current?.artist ?? 'SHiNe MUSIC'}</small></span></button><div className="player-center"><div className="transport"><button className="icon-button" onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle} disabled={!player.current} aria-label={player.playing ? '暂停' : '播放'}><Icon name={player.playing ? 'pause' : 'play'} /></button><button className="icon-button" onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div><div className="progress-row"><span>{formatTime(player.position)}</span><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} step="0.1" value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.duration)}</span></div></div><div className="player-extras"><span className={`room-pill ${room.status}`}>{roomPlayerLabel(room)}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div></footer>
+function PlayerBar({ player, room, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onOpen }: { player: ReturnType<typeof usePlayer>; room: ReturnType<typeof useRoomSync>; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onOpen: () => void }) {
+  const swipeStart = useRef<number | null>(null)
+  const swiped = useRef(false)
+  const finishSwipe = (x: number) => {
+    if (swipeStart.current === null) return
+    const action = swipeAction(swipeStart.current, x)
+    swipeStart.current = null
+    swiped.current = Boolean(action)
+    if (action === 'next') onNext()
+    if (action === 'previous') onPrevious()
+  }
+  return <footer className={`player-bar ${player.current ? 'has-track' : ''}`}><button className="player-track" onPointerDown={(event) => { swipeStart.current = event.clientX; swiped.current = false }} onPointerUp={(event) => finishSwipe(event.clientX)} onPointerCancel={() => { swipeStart.current = null }} onClick={() => { if (swiped.current) { swiped.current = false; return }; onOpen() }} disabled={!player.current} title="点击展开，左右滑动切歌"><AlbumArt title={player.current?.title ?? 'SHiNe'} artworkUrl={player.current?.artworkUrl} small /><span><strong>{player.current?.title ?? '选择一首歌开始播放'}</strong><small>{player.current?.artist ?? 'SHiNe MUSIC'}</small></span></button><div className="mobile-player-actions"><button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={onFavorite} disabled={!player.current} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button></div><div className="player-center"><div className="transport"><button className="icon-button" onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle} disabled={!player.current} aria-label={player.playing ? '暂停' : '播放'}><Icon name={player.playing ? 'pause' : 'play'} /></button><button className="icon-button" onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div><div className="progress-row"><span>{formatTime(player.position)}</span><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} step="0.1" value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.duration)}</span></div></div><div className="player-extras"><span className={`room-pill ${room.status}`}>{roomPlayerLabel(room)}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div></footer>
 }
 
 function roomConnectionLabel(room: ReturnType<typeof useRoomSync>) {
@@ -463,11 +487,19 @@ function roomPlayerLabel(room: ReturnType<typeof useRoomSync>) {
   return room.status === 'connecting' ? '重连中' : '同步异常'
 }
 
-function NowPlaying({ player, onToggle, onPrevious, onNext, onSeek, onClose }: { player: ReturnType<typeof usePlayer>; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onClose: () => void }) {
-  return <div className="now-playing" role="dialog" aria-modal="true" aria-label="正在播放"><button className="close-now-playing" onClick={onClose} aria-label="关闭">⌄</button><AlbumArt title={player.current?.title ?? 'SHiNe'} hero /><div className="now-meta"><h2>{player.current?.title}</h2><p>{player.current?.artist}</p></div><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} value={player.position} onChange={(event) => onSeek(Number(event.target.value))} /><div className="now-controls"><button onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle}><Icon name={player.playing ? 'pause' : 'play'} /></button><button onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div></div>
+function NowPlaying({ player, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onClose }: { player: ReturnType<typeof usePlayer>; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onClose: () => void }) {
+  const swipeStart = useRef<number | null>(null)
+  const finishSwipe = (x: number) => {
+    if (swipeStart.current === null) return
+    const action = swipeAction(swipeStart.current, x)
+    swipeStart.current = null
+    if (action === 'next') onNext()
+    if (action === 'previous') onPrevious()
+  }
+  return <div className="now-playing" role="dialog" aria-modal="true" aria-label="正在播放"><button className="close-now-playing" onClick={onClose} aria-label="关闭">⌄</button><div className="now-heading"><strong>正在播放</strong><span>{player.current?.album || 'NAS 音乐'}</span></div><div className="now-cover-swipe" onPointerDown={(event) => { swipeStart.current = event.clientX }} onPointerUp={(event) => finishSwipe(event.clientX)} onPointerCancel={() => { swipeStart.current = null }}><AlbumArt title={player.current?.title ?? 'SHiNe'} artworkUrl={player.current?.artworkUrl} hero /></div><div className="now-meta"><span><h2>{player.current?.title}</h2><p>{player.current?.artist}</p></span><button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={onFavorite} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button></div><div className="now-progress"><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} value={player.position} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.position)}</span><span>{formatTime(player.duration)}</span></div><div className="now-controls"><button onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle}><Icon name={player.playing ? 'pause' : 'play'} /><span>{player.playing ? '暂停' : '播放'}</span></button><button onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div></div>
 }
 
-function NavButton({ item, active, onClick }: { item: typeof navItems[number]; active: boolean; onClick: () => void }) { return <button className={`nav-button ${active ? 'active' : ''}`} onClick={onClick} aria-current={active ? 'page' : undefined}><Icon name={item.icon} /><span>{item.label}</span></button> }
+function NavButton({ item, active, onClick }: { item: { id: Section; label: string; icon: IconName }; active: boolean; onClick: () => void }) { return <button className={`nav-button ${active ? 'active' : ''}`} onClick={onClick} aria-current={active ? 'page' : undefined}><Icon name={item.icon} /><span>{item.label}</span></button> }
 function Brand() { return <div className="brand"><span className="brand-icon">♪</span><span><strong>SHiNe</strong><small>家庭音乐</small></span></div> }
 function AlbumArt({ title, artworkUrl, small, hero }: { title: string; artworkUrl?: string | null; small?: boolean; hero?: boolean }) { return <span className={`album-art ${small ? 'small' : ''} ${hero ? 'hero' : ''}`} aria-hidden="true">{artworkUrl && <img src={artworkUrl} alt="" onError={(event) => event.currentTarget.remove()} />}<span>♪</span><i>{title.slice(0, 1).toUpperCase()}</i></span> }
 function EmptyState({ title, body, compact }: { title: string; body: string; compact?: boolean }) { return <div className={`empty-state ${compact ? 'compact' : ''}`}><span>♫</span><strong>{title}</strong><p>{body}</p></div> }
@@ -476,8 +508,8 @@ function StatusBadge({ status }: { status: string }) { const labels: Record<stri
 function formatTime(seconds: number) { if (!Number.isFinite(seconds) || seconds < 0) return '0:00'; return `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}` }
 function readError(error: unknown) { return error instanceof Error ? error.message : '操作失败，请稍后重试' }
 
-type IconName = 'home' | 'search' | 'library' | 'heart' | 'playlist' | 'room' | 'settings' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash'
+type IconName = 'home' | 'search' | 'library' | 'storage' | 'heart' | 'playlist' | 'room' | 'settings' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash'
 const paths: Record<IconName, string> = {
-  home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z', search: 'm21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z', library: 'M4 5h4v14H4zm6-2h4v16h-4zm6 5h4v11h-4z', heart: 'M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z', playlist: 'M4 6h11M4 11h11M4 16h7m7-3v8m-4-4h8', room: 'M4 14a8 8 0 0 1 16 0m-12 0a4 4 0 0 1 8 0m-4 0v.01', settings: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5 2-1.2-2-3.5-2.2.7a8 8 0 0 0-1.2-.7l-.5-2.3h-4l-.5 2.3a8 8 0 0 0-1.2.7l-2.2-.7-2 3.5 2 1.2v1.4l-2 1.2 2 3.5 2.2-.7 1.2.7.5 2.3h4l.5-2.3 1.2-.7 2.2.7 2-3.5-2-1.2z', play: 'm9 7 9 5-9 5z', pause: 'M8 6h3v12H8zm5 0h3v12h-3z', previous: 'M7 6h2v12H7zm3 6 8-6v12z', next: 'M15 6h2v12h-2zm-1 6-8 6V6z', volume: 'M4 10v4h4l5 4V6l-5 4zm12-1a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10', refresh: 'M20 7v5h-5m4-1a7 7 0 1 0 0 4', download: 'M12 3v12m-5-5 5 5 5-5M5 20h14', speaker: 'M5 9h4l5-4v14l-5-4H5zm12 1a3 3 0 0 1 0 4m2-7a7 7 0 0 1 0 10', trash: 'M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6',
+  home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z', search: 'm21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z', library: 'M4 5h4v14H4zm6-2h4v16h-4zm6 5h4v11h-4z', storage: 'M4 5h16v14H4zM8 9h8m-8 4h8m-8 4h5', heart: 'M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z', playlist: 'M4 6h11M4 11h11M4 16h7m7-3v8m-4-4h8', room: 'M4 14a8 8 0 0 1 16 0m-12 0a4 4 0 0 1 8 0m-4 0v.01', settings: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5 2-1.2-2-3.5-2.2.7a8 8 0 0 0-1.2-.7l-.5-2.3h-4l-.5 2.3a8 8 0 0 0-1.2.7l-2.2-.7-2 3.5 2 1.2v1.4l-2 1.2 2 3.5 2.2-.7 1.2.7.5 2.3h4l.5-2.3 1.2-.7 2.2.7 2-3.5-2-1.2z', play: 'm9 7 9 5-9 5z', pause: 'M8 6h3v12H8zm5 0h3v12h-3z', previous: 'M7 6h2v12H7zm3 6 8-6v12z', next: 'M15 6h2v12h-2zm-1 6-8 6V6z', volume: 'M4 10v4h4l5 4V6l-5 4zm12-1a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10', refresh: 'M20 7v5h-5m4-1a7 7 0 1 0 0 4', download: 'M12 3v12m-5-5 5 5 5-5M5 20h14', speaker: 'M5 9h4l5-4v14l-5-4H5zm12 1a3 3 0 0 1 0 4m2-7a7 7 0 0 1 0 10', trash: 'M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6',
 }
 function Icon({ name }: { name: IconName }) { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]} /></svg> }

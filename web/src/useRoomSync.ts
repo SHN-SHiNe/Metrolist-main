@@ -2,6 +2,7 @@ import { SendspinPlayer } from '@sendspin/sendspin-js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { clampSendspinDelay, sendspinBaseUrl } from './sendspin'
+import { randomId } from './randomId'
 import type { RoomPlaybackState, Track } from './types'
 import type { PlayerController } from './usePlayer'
 
@@ -63,28 +64,25 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
     setRoomId(id)
     joinedRoom.current = id
     playerRef.current.enterRoomMode()
-    const sdk = new SendspinPlayer({
-      playerId: clientId(),
-      clientName: deviceName(),
-      baseUrl: sendspinBaseUrl(id, location.origin),
-      correctionMode: 'sync',
-      syncDelay: deviceDelay,
-      onStateChange: (state) => {
-        metadataRef.current = { ...metadataRef.current, ...state.serverState.metadata }
-        void reflect(id)
-      },
-      reconnect: {
-        onReconnecting: () => { if (joinedRoom.current === id) setStatus('connecting') },
-        onReconnected: () => { if (joinedRoom.current === id) setStatus('joined') },
-        onExhausted: () => { if (joinedRoom.current === id) setStatus('error') },
-      },
-    })
-    sendspin.current = sdk
-    const unlockPromise = sdk.unlock()
-    const readyPromise = ready?.()
     try {
-      await unlockPromise
-      await readyPromise
+      const sdk = new SendspinPlayer({
+        playerId: clientId(),
+        clientName: deviceName(),
+        baseUrl: sendspinBaseUrl(id, location.origin),
+        correctionMode: 'sync',
+        syncDelay: deviceDelay,
+        onStateChange: (state) => {
+          metadataRef.current = { ...metadataRef.current, ...state.serverState.metadata }
+          void reflect(id)
+        },
+        reconnect: {
+          onReconnecting: () => { if (joinedRoom.current === id) setStatus('connecting') },
+          onReconnected: () => { if (joinedRoom.current === id) setStatus('joined') },
+          onExhausted: () => { if (joinedRoom.current === id) setStatus('error') },
+        },
+      })
+      sendspin.current = sdk
+      await Promise.all([sdk.unlock(), ready?.()])
       await sdk.connect()
       if (joinedRoom.current !== id) {
         sdk.disconnect()
@@ -93,8 +91,9 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
       sdk.setVolume(playerRef.current.volume * 100)
       setStatus('joined')
       await reflect(id)
-    } catch {
-      if (joinedRoom.current === id) setStatus('error')
+    } catch (error) {
+      if (joinedRoom.current === id) leave()
+      throw error
     }
   }, [deviceDelay, leave, reflect])
 
@@ -134,7 +133,7 @@ function clientId(): string {
   const key = 'shine-client-id'
   const existing = localStorage.getItem(key)
   if (existing) return existing
-  const next = crypto.randomUUID()
+  const next = randomId()
   localStorage.setItem(key, next)
   return next
 }
