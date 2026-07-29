@@ -111,10 +111,83 @@ test('track actions open by touch hold and desktop context menu without accident
   await page.setViewportSize({ width: 1366, height: 768 })
   await row.click({ button: 'right' })
   await expect(page.locator('.track-context-menu.context')).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '下一首播放' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '加入播放队列' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '添加到播放列表' })).toBeDisabled()
+  await expect(page.getByRole('menuitem', { name: '分享' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '查看歌手' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '查看专辑' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '分析音乐画像' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: '取消收藏', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.locator('.track-context-menu')).toHaveCount(0)
   await expect(row).toBeFocused()
+})
+
+test('track menu actions mutate the queue, shared playlist and analysis queue', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 })
+  const tracks = ['当前歌曲', '原下一首', '指定下一首'].map((title, index) => ({ id: `action-${index}`, title, artist: '动作歌手', album: '动作专辑', durationMs: 180_000 }))
+  let playlistBody: { trackIds: string[]; expectedVersion: number } | null = null
+  let analyzedIds: string[] = []
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const method = route.request().method()
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: tracks, total: tracks.length, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname === '/api/playlists' && method === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 'action-list', name: '动作歌单', version: 3, trackCount: 0, updatedAt: 1 }]) })
+    if (url.pathname === '/api/playlists/action-list' && method === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: 'action-list', name: '动作歌单', version: 3, tracks: [], updatedAt: 1 }) })
+    if (url.pathname === '/api/playlists/action-list' && method === 'PUT') {
+      playlistBody = route.request().postDataJSON() as { trackIds: string[]; expectedVersion: number }
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: 'action-list', name: '动作歌单', version: 4, tracks: [tracks[2]], updatedAt: 2 }) })
+    }
+    if (url.pathname === '/api/analysis' && method === 'POST') {
+      analyzedIds = (route.request().postDataJSON() as { trackIds: string[] }).trackIds
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ queued: 1, draining: false }) })
+    }
+    if (url.pathname === '/api/tracks') return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ ...tracks[0], analysis: { status: 'completed', progress: 1 } }]) })
+    if (url.pathname.endsWith('/similar')) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ seed: tracks[0], items: [] }) })
+    if (url.pathname === '/api/history' && method === 'POST') return route.fulfill({ status: 204 })
+    if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  await page.getByRole('button', { name: '播放 当前歌曲' }).click()
+  const targetRow = page.locator('.track-row').filter({ hasText: '指定下一首' })
+  await targetRow.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '下一首播放' }).click()
+  await expect(page.locator('.queue-editor-item').nth(1)).toContainText('指定下一首')
+
+  await targetRow.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '添加到播放列表' }).click()
+  await page.getByRole('menuitem', { name: '动作歌单' }).click()
+  await expect.poll(() => playlistBody?.trackIds.join(',')).toBe('action-2')
+  expect(playlistBody?.expectedVersion).toBe(3)
+
+  const firstRow = page.locator('.track-row').filter({ hasText: '当前歌曲' })
+  await firstRow.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '分析音乐画像' }).click()
+  await expect.poll(() => analyzedIds.join(',')).toBe('action-0')
+})
+
+test('library sorting sends energy, modified time and explicit direction', async ({ page }) => {
+  const track = { id: 'sort-track', title: '排序歌曲', artist: '歌手', album: '专辑', durationMs: 180_000 }
+  const requests: URL[] = []
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') {
+      requests.push(url)
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [track], total: 1, offset: 0, limit: 200, revision: 1 }) })
+    }
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  await page.getByLabel('曲库排序').selectOption('energy')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('sort')).toBe('energy')
+  await page.getByRole('button', { name: /当前升序，点击切换为降序/ }).click()
+  await expect.poll(() => requests.at(-1)?.searchParams.get('direction')).toBe('desc')
+  await page.getByLabel('曲库排序').selectOption('scanned')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('sort')).toBe('scanned')
+  await page.getByLabel('曲库排序').selectOption('modified')
+  await expect.poll(() => requests.at(-1)?.searchParams.get('sort')).toBe('modified')
 })
 
 test('joining a room aborts pending similar continuation before it can change the local queue', async ({ page }) => {
@@ -298,12 +371,18 @@ test('advanced analysis summary polls and reports the enqueue response', async (
 test('online preview asks for download and never enters the NAS analysis queue', async ({ page }) => {
   const online = { id: 'online-demo-1', title: '云端试听', artist: '在线音源', album: '搜索结果', durationMs: 180000, source: 'netease', analysis: { status: 'pending', progress: 0 } }
   let analysisPosts = 0
+  let favoritePuts = 0
+  let playlistPuts = 0
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
     let body: unknown = []
     if (url.pathname === '/api/library') body = { items: [], total: 0, offset: 0, limit: 200, revision: 1 }
     else if (url.pathname === '/api/search') body = { items: [online], total: 1, page: 1, limit: 50 }
     else if (url.pathname === '/api/libraries') body = []
+    else if (url.pathname === '/api/playlists' && route.request().method() === 'GET') body = [{ id: 'online-list', name: '云端收藏', version: 1, trackCount: 0, updatedAt: 1 }]
+    else if (url.pathname === '/api/playlists/online-list' && route.request().method() === 'GET') body = { id: 'online-list', name: '云端收藏', version: 1, tracks: [], updatedAt: 1 }
+    else if (url.pathname === '/api/playlists/online-list' && route.request().method() === 'PUT') { playlistPuts++; body = { id: 'online-list', name: '云端收藏', version: 2, tracks: [online], updatedAt: 2 } }
+    else if (url.pathname === `/api/favorites/${online.id}` && route.request().method() === 'PUT') { favoritePuts++; return route.fulfill({ status: 204 }) }
     else if (url.pathname === '/api/analysis' && route.request().method() === 'POST') { analysisPosts++; body = { queued: 0, draining: false } }
     else if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
@@ -311,7 +390,32 @@ test('online preview asks for download and never enters the NAS analysis queue',
   await page.goto('/#search')
   await page.getByLabel('在线搜索').fill('云端试听')
   await page.locator('.search-box').getByRole('button', { name: '搜索', exact: true }).click()
-  await page.locator('.track-identity').filter({ hasText: '云端试听' }).click()
+  const onlineRow = page.locator('.track-row').filter({ hasText: '云端试听' })
+  await onlineRow.click({ button: 'right' })
+  await expect(page.getByRole('menuitem', { name: '收藏', exact: true })).toBeEnabled()
+  await page.getByRole('menuitem', { name: '收藏', exact: true }).click()
+  await expect.poll(() => favoritePuts).toBe(1)
+  await onlineRow.click({ button: 'right' })
+  await expect(page.getByRole('menuitem', { name: '添加到播放列表' })).toBeEnabled()
+  await page.getByRole('menuitem', { name: '添加到播放列表' }).click()
+  await page.getByRole('menuitem', { name: '云端收藏' }).click()
+  await expect.poll(() => playlistPuts).toBe(1)
+  const identity = page.locator('.track-identity').filter({ hasText: '云端试听' })
+  const onlineDialog = page.getByRole('dialog', { name: '是否播放这首网易云歌曲？' })
+  await identity.click()
+  await expect(onlineDialog.getByRole('button', { name: '取消' })).toBeFocused()
+  await page.getByLabel('在线搜索').evaluate((input: HTMLInputElement) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '云端试听更新')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await expect(onlineDialog.getByRole('button', { name: '取消' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(identity).toBeFocused()
+
+  await onlineRow.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '播放', exact: true }).click()
+  await expect(onlineDialog).toBeVisible()
+  await onlineDialog.getByRole('button', { name: '播放' }).click()
   await page.locator('.player-track').click()
   await page.getByRole('tab', { name: '音乐画像' }).click()
   await page.getByRole('button', { name: '先下载入库后分析' }).click()
@@ -366,8 +470,18 @@ test('search restores two paired source capsules and persistent history chips', 
   await expect(page.getByText('搜索国内歌单')).toBeVisible()
   await page.getByLabel('在线搜索').fill('夜跑')
   await page.locator('.search-box').getByRole('button', { name: '搜索', exact: true }).click()
-  await page.getByRole('button', { name: '打开歌单 夜跑精选' }).click()
+  const playlistOpener = page.getByRole('button', { name: '打开歌单 夜跑精选' })
+  await playlistOpener.click()
+  const confirmation = page.getByRole('dialog', { name: '是否打开这个网易云歌单？' })
+  await expect(confirmation).toBeVisible()
+  await expect(confirmation.getByRole('button', { name: '取消' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(confirmation).toBeHidden()
+  await expect(playlistOpener).toBeFocused()
+  await playlistOpener.click()
+  await confirmation.getByRole('button', { name: '打开' }).click()
   await expect(page.getByRole('heading', { name: '夜跑精选' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '返回在线歌单' })).toBeFocused()
   await expect(page.getByText('夜色节拍')).toBeVisible()
 })
 

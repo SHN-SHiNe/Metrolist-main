@@ -43,10 +43,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import kotlin.io.path.createDirectories
 
 fun Application.shineModule(
@@ -131,16 +130,22 @@ fun Application.shineModule(
 
     routing {
         get("/api/health") {
-            call.respond(HealthResponse("ok", BuildInfo.VERSION, clock()))
+            val response = HealthResponse(
+                status = if (sendspinBridge.isReadyWithin()) "ok" else "degraded",
+                version = BuildInfo.VERSION,
+                serverTime = clock(),
+            )
+            call.respond(if (response.status == "ok") HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable, response)
         }
 
         get("/api/library") {
             val query = call.request.queryParameters["q"]
             val offset = call.request.queryParameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
-            val sort = call.request.queryParameters["sort"]?.takeIf { it in setOf("title", "artist", "album", "bpm", "key", "analysis") } ?: "artist"
+            val sort = call.request.queryParameters["sort"]?.takeIf(MusicStore.SUPPORTED_LIBRARY_SORTS::contains) ?: "artist"
+            val direction = call.request.queryParameters["direction"]?.takeIf(MusicStore.SUPPORTED_SORT_DIRECTIONS::contains) ?: "asc"
             val libraryId = call.request.queryParameters["libraryId"]?.takeIf(String::isNotBlank)
-            call.respond(store.listTracks(query, offset, limit, sort, libraryId))
+            call.respond(store.listTracks(query, offset, limit, sort, libraryId, direction))
         }
         get("/api/tracks") {
             val ids = call.request.queryParameters["ids"].orEmpty().split(',').map(String::trim).filter(String::isNotBlank).distinct()
@@ -266,6 +271,7 @@ fun Application.shineModule(
         get("/api/favorites") { call.respond(store.favorites()) }
         put("/api/favorites/{trackId}") {
             val id = call.parameters["trackId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
+            catalog.materialize(id, clock())
             store.setFavorite(id, true)
             call.respond(MessageResponse("favorite_added"))
         }
@@ -288,7 +294,9 @@ fun Application.shineModule(
         }
         put("/api/playlists/{playlistId}") {
             val id = call.parameters["playlistId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
-            val updated = store.updatePlaylist(id, call.receive(), clock()) ?: return@put call.respond(HttpStatusCode.NotFound)
+            val request = call.receive<UpdatePlaylistRequest>()
+            request.trackIds.orEmpty().forEach { catalog.materialize(it, clock()) }
+            val updated = store.updatePlaylist(id, request, clock()) ?: return@put call.respond(HttpStatusCode.NotFound)
             call.respond(updated)
         }
         delete("/api/playlists/{playlistId}") {
@@ -302,7 +310,9 @@ fun Application.shineModule(
         }
         post("/api/history") {
             val request = call.receive<HistoryRequest>()
-            store.recordHistory(request.trackId, request.playedAt ?: clock())
+            val playedAt = request.playedAt ?: clock()
+            catalog.materialize(request.trackId, playedAt)
+            store.recordHistory(request.trackId, playedAt)
             call.respond(HttpStatusCode.Created, MessageResponse("history_recorded"))
         }
 
@@ -318,7 +328,11 @@ fun Application.shineModule(
         }
 
         get("/api/downloads") { call.respond(store.downloads()) }
-        post("/api/downloads") { call.respond(HttpStatusCode.Accepted, downloads.enqueue(call.receive())) }
+        post("/api/downloads") {
+            val request = call.receive<DownloadRequest>()
+            request.trackId?.let { catalog.materialize(it, clock()) }
+            call.respond(HttpStatusCode.Accepted, downloads.enqueue(request))
+        }
         post("/api/downloads/{downloadId}/retry") {
             val id = call.parameters["downloadId"] ?: return@post call.respond(HttpStatusCode.BadRequest)
             call.respond(HttpStatusCode.Accepted, downloads.retry(id))
@@ -344,7 +358,9 @@ fun Application.shineModule(
         }
         put("/api/rooms/{roomId}/state") {
             val id = call.parameters["roomId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
-            call.respond(rooms.update(id, call.receive()) ?: return@put call.respond(HttpStatusCode.NotFound))
+            val request = call.receive<UpdateRoomStateRequest>()
+            (request.queue.orEmpty() + listOfNotNull(request.currentTrackId)).distinct().forEach { catalog.materialize(it, clock()) }
+            call.respond(rooms.update(id, request) ?: return@put call.respond(HttpStatusCode.NotFound))
         }
         post("/api/rooms/{roomId}/autofill") {
             val id = call.parameters["roomId"] ?: return@post call.respond(HttpStatusCode.BadRequest)
@@ -413,19 +429,34 @@ internal object BuildInfo {
     const val VERSION = "0.1.0"
 }
 
-private fun openStoreWithRecovery(config: AppConfig, now: Long): MusicStore = try {
-    MusicStore(config.databasePath)
+internal suspend fun SendspinBridge.isReadyWithin(timeoutMillis: Long = 4_500): Boolean =
+    withTimeoutOrNull(timeoutMillis) {
+        try {
+            ready()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+    } ?: false
+
+internal fun openStoreWithRecovery(
+    config: AppConfig,
+    now: Long,
+    opener: (java.nio.file.Path) -> MusicStore = ::MusicStore,
+): MusicStore = try {
+    opener(config.databasePath)
 } catch (initial: Throwable) {
-    val backup = if (Files.isDirectory(config.backupDir)) Files.list(config.backupDir).use { paths ->
-        paths.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".db") }
-            .max(Comparator.comparingLong<Path> { Files.getLastModifiedTime(it).toMillis() })
-            .orElse(null)
-    } else null
+    if (!DatabaseRecovery.shouldAttempt(config.databasePath, initial)) throw initial
+    val backup = DatabaseRecovery.latestHealthyBackup(config.backupDir)
     if (backup == null) throw initial
-    val damaged = config.dataDir.resolve("shine-music-corrupt-$now.db")
-    if (Files.exists(config.databasePath)) Files.move(config.databasePath, damaged, StandardCopyOption.REPLACE_EXISTING)
-    Files.deleteIfExists(Path.of("${config.databasePath}-wal"))
-    Files.deleteIfExists(Path.of("${config.databasePath}-shm"))
-    Files.copy(backup, config.databasePath, StandardCopyOption.REPLACE_EXISTING)
-    MusicStore(config.databasePath)
+    runCatching { DatabaseRecovery.restore(config.databasePath, backup, now) }
+        .getOrElse { recoveryError ->
+            initial.addSuppressed(recoveryError)
+            throw initial
+        }
+    runCatching { opener(config.databasePath) }.getOrElse { recoveryError ->
+        initial.addSuppressed(recoveryError)
+        throw initial
+    }
 }

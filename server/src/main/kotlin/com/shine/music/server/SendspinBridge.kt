@@ -9,6 +9,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 
 @Serializable
 data class SendspinTrack(
@@ -44,6 +45,7 @@ data class SendspinRoomStatus(
 )
 
 interface SendspinBridge {
+    suspend fun ready(): Boolean
     suspend fun update(roomId: String, request: SendspinRoomRequest): SendspinRoomStatus
     suspend fun status(roomId: String): SendspinRoomStatus?
     suspend fun websocketUrl(roomId: String): String?
@@ -53,12 +55,21 @@ interface SendspinBridge {
 class HttpSendspinBridge(
     private val baseUrl: String,
     private val json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
+    private val requestTimeout: Duration = Duration.ofSeconds(4),
 ) : SendspinBridge {
-    private val client = HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(3)).build()
+    private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build()
+
+    override suspend fun ready(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            client.send(request(healthUri()).GET().build(), HttpResponse.BodyHandlers.discarding()).statusCode() in 200..299
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     override suspend fun update(roomId: String, request: SendspinRoomRequest): SendspinRoomStatus = withContext(Dispatchers.IO) {
         val response = client.send(
-            HttpRequest.newBuilder(roomUri(roomId)).header("Content-Type", "application/json")
+            request(roomUri(roomId)).header("Content-Type", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(json.encodeToString(request))).build(),
             HttpResponse.BodyHandlers.ofString(),
         )
@@ -67,7 +78,7 @@ class HttpSendspinBridge(
     }
 
     override suspend fun status(roomId: String): SendspinRoomStatus? = withContext(Dispatchers.IO) {
-        val response = client.send(HttpRequest.newBuilder(roomUri(roomId)).GET().build(), HttpResponse.BodyHandlers.ofString())
+        val response = client.send(request(roomUri(roomId)).GET().build(), HttpResponse.BodyHandlers.ofString())
         when (response.statusCode()) {
             404 -> null
             in 200..299 -> json.decodeFromString(response.body())
@@ -81,7 +92,7 @@ class HttpSendspinBridge(
 
     override suspend fun delete(roomId: String): Boolean = withContext(Dispatchers.IO) {
         val response = client.send(
-            HttpRequest.newBuilder(roomUri(roomId)).DELETE().build(),
+            request(roomUri(roomId)).DELETE().build(),
             HttpResponse.BodyHandlers.discarding(),
         )
         when (response.statusCode()) {
@@ -91,12 +102,15 @@ class HttpSendspinBridge(
         }
     }
 
+    private fun request(uri: URI) = HttpRequest.newBuilder(uri).timeout(requestTimeout)
+    private fun healthUri() = URI.create("$baseUrl/health")
     private fun roomUri(roomId: String) = URI.create("$baseUrl/rooms/$roomId")
 }
 
 class InMemorySendspinBridge : SendspinBridge {
     private val rooms = java.util.concurrent.ConcurrentHashMap<String, Pair<SendspinRoomRequest, SendspinRoomStatus>>()
     private val revision = java.util.concurrent.atomic.AtomicLong()
+    override suspend fun ready() = true
     override suspend fun update(roomId: String, request: SendspinRoomRequest): SendspinRoomStatus {
         val prior = rooms[roomId]?.second
         val status = SendspinRoomStatus(roomId, request.name, prior?.port ?: 0, prior?.memberCount ?: 0, request.currentTrackId, request.positionMs, request.playing, revision.incrementAndGet())

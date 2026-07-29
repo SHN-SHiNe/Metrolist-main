@@ -1,4 +1,4 @@
-export type IconName = 'home' | 'search' | 'library' | 'storage' | 'heart' | 'playlist' | 'room' | 'settings' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash' | 'radar' | 'sparkles' | 'queue' | 'close' | 'back'
+export type IconName = 'home' | 'search' | 'library' | 'storage' | 'heart' | 'playlist' | 'room' | 'settings' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash' | 'radar' | 'sparkles' | 'queue' | 'close' | 'back' | 'share' | 'artist' | 'album'
 
 const paths: Record<IconName, string> = {
   home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z',
@@ -18,6 +18,9 @@ const paths: Record<IconName, string> = {
   radar: 'M12 2 22 9l-4 12H6L2 9zm0 4v6m0 0 5 4m-5-4-5 4',
   sparkles: 'm12 2 1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
   queue: 'M5 6h14M5 11h14M5 16h8m4-2v6m-3-3h6', close: 'M6 6l12 12M18 6 6 18', back: 'm15 18-6-6 6-6',
+  share: 'M8 12 16 7m-8 5 8 5M18 4a3 3 0 1 1 0 6 3 3 0 0 1 0-6ZM6 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm12 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z',
+  artist: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0',
+  album: 'M4 4h16v16H4zm4 4h8v8H8zm4 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
 }
 
 export function Icon({ name }: { name: IconName }) {

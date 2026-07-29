@@ -10,7 +10,7 @@ fi
 bridge_pid=$!
 
 attempt=0
-until curl --fail --silent http://127.0.0.1:8936/health >/dev/null; do
+until curl --fail --silent --max-time 2 http://127.0.0.1:8936/health >/dev/null; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 50 ]; then
     echo "Sendspin bridge did not become ready" >&2
@@ -29,8 +29,18 @@ shutdown() {
 
 trap shutdown TERM INT EXIT
 
+bridge_failures=0
 while kill -0 "$bridge_pid" 2>/dev/null && kill -0 "$server_pid" 2>/dev/null; do
-  sleep 1
+  if curl --fail --silent --max-time 2 http://127.0.0.1:8936/health >/dev/null; then
+    bridge_failures=0
+  else
+    bridge_failures=$((bridge_failures + 1))
+    if [ "$bridge_failures" -ge 3 ]; then
+      echo "Sendspin bridge failed three consecutive readiness checks" >&2
+      exit 1
+    fi
+  fi
+  sleep 5
 done
 
 exit 1

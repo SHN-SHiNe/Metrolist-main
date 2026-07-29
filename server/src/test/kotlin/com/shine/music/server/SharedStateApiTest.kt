@@ -1,5 +1,10 @@
 package com.shine.music.server
 
+import com.metrolist.chinamusic.model.ChinaSong
+import com.metrolist.chinamusic.model.MusicSource
+import com.metrolist.chinamusic.model.SearchResult
+import com.metrolist.chinamusic.model.SonglistDetail
+import com.metrolist.chinamusic.model.SonglistSearchResult
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.delete
@@ -53,6 +58,92 @@ class SharedStateApiTest {
 
         assertEquals(HttpStatusCode.OK, api.delete("/api/favorites/${track.id}").status)
         assertTrue(api.get("/api/favorites").body<List<Track>>().isEmpty())
+    }
+
+    @Test
+    fun `online search tracks can be favorited and recorded across a server restart`() {
+        val root = Files.createTempDirectory("shine-online-shared-test")
+        val music = root.resolve("music")
+        Files.createDirectories(music)
+        val song = ChinaSong(
+            name = "稻香",
+            singer = "周杰伦",
+            source = "wy",
+            songmid = "song-1",
+            albumName = "魔杰座",
+            durationSeconds = 223,
+            img = "https://img.example/cover.jpg",
+        )
+        val gateway = object : OnlineCatalogGateway {
+            override suspend fun search(query: String, page: Int, limit: Int, source: MusicSource) =
+                Result.success(SearchResult(listOf(song), 1, page, 1, limit, source.id))
+
+            override suspend fun searchPlaylists(query: String, page: Int, limit: Int, source: MusicSource) =
+                Result.success(SonglistSearchResult(emptyList(), 0, page, 1, limit, source.id))
+
+            override suspend fun playlistDetail(id: String, page: Int, limit: Int, source: MusicSource) =
+                Result.success(SonglistDetail(id, "", "", songs = emptyList(), total = 0, page = page, allPage = 1, source = source.id))
+
+            override suspend fun resolve(song: ChinaSong) = Result.success("https://audio.example/song.mp3")
+        }
+        lateinit var onlineTrack: OnlineTrack
+        lateinit var playlistId: String
+
+        testApplication {
+            application {
+                shineModule(
+                    AppConfig(root.resolve("data"), music, root.resolve("cache"), scanOnStart = false),
+                    clock = { 1_234 },
+                    onlineCatalogGateway = gateway,
+                )
+            }
+            val api = createClient { install(ContentNegotiation) { json() } }
+            onlineTrack = api.get("/api/search?q=%E7%A8%BB%E9%A6%99&source=netease").body<SearchResponse>().items.single()
+
+            assertEquals(HttpStatusCode.OK, api.put("/api/favorites/${onlineTrack.id}").status)
+            assertEquals(HttpStatusCode.Created, api.post("/api/history") { jsonBody(HistoryRequest(onlineTrack.id)) }.status)
+            val playlist = api.post("/api/playlists") { jsonBody(CreatePlaylistRequest("在线收藏")) }.body<PlaylistSummary>()
+            playlistId = playlist.id
+            val playlistDetail = api.put("/api/playlists/${playlist.id}") {
+                jsonBody(UpdatePlaylistRequest(trackIds = listOf(onlineTrack.id), expectedVersion = playlist.version))
+            }.body<PlaylistDetail>()
+            assertEquals(listOf(onlineTrack.id), playlistDetail.tracks.map(Track::id))
+            val room = api.post("/api/rooms") { jsonBody(CreateRoomRequest("在线房间")) }.body<RoomSummary>()
+            val roomDetail = api.put("/api/rooms/${room.id}/state") {
+                jsonBody(UpdateRoomStateRequest(listOf(onlineTrack.id), onlineTrack.id, 5_000, false))
+            }.body<RoomDetail>()
+            assertEquals(listOf(onlineTrack.id), roomDetail.state.queue)
+            assertEquals(
+                HttpStatusCode.Accepted,
+                api.post("/api/downloads") {
+                    jsonBody(DownloadRequest(trackId = onlineTrack.id, title = onlineTrack.title, artist = onlineTrack.artist))
+                }.status,
+            )
+        }
+
+        testApplication {
+            application {
+                shineModule(
+                    AppConfig(root.resolve("data"), music, root.resolve("cache"), scanOnStart = false),
+                    clock = { 2_345 },
+                    onlineCatalogGateway = gateway,
+                )
+            }
+            val api = createClient { install(ContentNegotiation) { json() } }
+            val favorite = api.get("/api/favorites").body<List<Track>>().single()
+            val history = api.get("/api/history").body<List<HistoryEntry>>().single().track
+
+            assertEquals(onlineTrack.id, favorite.id)
+            assertEquals("稻香", favorite.title)
+            assertEquals("https://img.example/cover.jpg", favorite.artworkUrl)
+            assertEquals(onlineTrack.id, history.id)
+            assertEquals("周杰伦", history.artist)
+            assertEquals(
+                listOf(onlineTrack.id),
+                api.get("/api/playlists/$playlistId").body<PlaylistDetail>().tracks.map(Track::id),
+            )
+            assertTrue(api.get("/api/library").body<TrackPage>().items.isEmpty())
+        }
     }
 
     private inline fun <reified T> io.ktor.client.request.HttpRequestBuilder.jsonBody(value: T) {

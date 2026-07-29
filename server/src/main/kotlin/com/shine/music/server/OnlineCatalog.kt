@@ -7,6 +7,7 @@ import com.metrolist.chinamusic.model.MusicSource
 import com.metrolist.chinamusic.model.SearchResult
 import com.metrolist.chinamusic.model.SonglistDetail
 import com.metrolist.chinamusic.model.SonglistSearchResult
+import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
@@ -86,6 +87,7 @@ class OnlineCatalog(
     private val gateway: OnlineCatalogGateway = ChinaMusicOnlineCatalogGateway,
 ) {
     private val tracks = ConcurrentHashMap<String, ChinaSong>()
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     suspend fun search(query: String, page: Int, limit: Int, sourceId: String?): SearchResponse {
         configureSource()
@@ -138,9 +140,15 @@ class OnlineCatalog(
     }
 
     suspend fun resolve(id: String): String? {
-        val song = tracks[id] ?: return null
+        val song = song(id) ?: return null
         configureSource()
         return gateway.resolve(song).getOrNull()
+    }
+
+    fun materialize(id: String, now: Long) {
+        if (!id.startsWith("online-")) return
+        val song = song(id) ?: throw IllegalArgumentException("online_track_not_found")
+        store.saveOnlineTrack(id, json.encodeToString(song), song.toOnlineTrack(id), now)
     }
 
     private fun configureSource() {
@@ -152,16 +160,22 @@ class OnlineCatalog(
     private fun register(song: ChinaSong): OnlineTrack {
         val id = onlineId(song)
         tracks[id] = song
-        return OnlineTrack(
-            id = id,
-            title = song.name,
-            artist = song.singer,
-            album = song.albumName,
-            artworkUrl = song.img,
-            source = song.source,
-            durationMs = song.durationSeconds.toLong() * 1000,
-        )
+        return song.toOnlineTrack(id)
     }
+
+    private fun song(id: String): ChinaSong? = tracks[id] ?: store.onlineTrackPayload(id)?.let { payload ->
+        runCatching { json.decodeFromString<ChinaSong>(payload) }.getOrNull()?.also { tracks[id] = it }
+    }
+
+    private fun ChinaSong.toOnlineTrack(id: String) = OnlineTrack(
+            id = id,
+            title = name,
+            artist = singer,
+            album = albumName,
+            artworkUrl = img,
+            source = source,
+            durationMs = durationSeconds.toLong() * 1000,
+        )
 
     private fun <T> Result<T>.orUpstreamFailure(operation: String): T =
         getOrElse { throw OnlineCatalogUpstreamException(operation, it) }

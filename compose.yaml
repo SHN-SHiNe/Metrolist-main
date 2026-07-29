@@ -8,7 +8,7 @@ services:
     image: shine-music:nas
     container_name: shine-music
     restart: unless-stopped
-    stop_grace_period: 40s
+    stop_grace_period: 75s
     ports:
       - "${SHINE_HOST_PORT:-8767}:8767"
     environment:
@@ -22,14 +22,30 @@ services:
       SHINE_ANALYSIS_ON_SCAN: ${SHINE_ANALYSIS_ON_SCAN:-true}
       SHINE_LOG_LEVEL: ${SHINE_LOG_LEVEL:-INFO}
     volumes:
-      - ${SHINE_DATA_PATH:-./nas-data}:/data
-      - ${SHINE_MUSIC_PATH:-./nas-music}:/music
-      - ${SHINE_LIBRARIES_PATH:-./nas-libraries}:/libraries
-      - ${SHINE_CACHE_PATH:-./nas-cache}:/cache
+      - type: bind
+        source: "${SHINE_DATA_PATH:-./nas-data}"
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${SHINE_MUSIC_PATH:-./nas-music}"
+        target: /music
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${SHINE_LIBRARIES_PATH:-./nas-libraries}"
+        target: /libraries
+        bind:
+          create_host_path: false
+      - type: bind
+        source: "${SHINE_CACHE_PATH:-./nas-cache}"
+        target: /cache
+        bind:
+          create_host_path: false
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8767/api/health"]
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "6", "http://127.0.0.1:8767/api/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 7s
       retries: 3
       start_period: 20s
     security_opt:

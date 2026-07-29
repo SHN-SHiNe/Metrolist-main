@@ -19,6 +19,7 @@ data class Track(
     val mimeType: String,
     val size: Long,
     val modifiedAt: Long,
+    val scannedAt: Long,
     val artworkUrl: String? = null,
     val favorite: Boolean = false,
     val libraryId: String = DEFAULT_LIBRARY_ID,

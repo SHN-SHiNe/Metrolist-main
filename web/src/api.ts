@@ -1,4 +1,4 @@
-import type { AdvancedSearchRequest, AdvancedSearchResponse, AnalysisEnqueueResponse, AnalysisSummary, DownloadJob, HistoryEntry, LibrarySort, MusicLibrary, MusicLibraryInput, OnlinePlaylistDetailResponse, OnlinePlaylistSearchResponse, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SimilarTracksResponse, SourceConfig, Track, TrackPage } from './types'
+import type { AdvancedSearchRequest, AdvancedSearchResponse, AnalysisEnqueueResponse, AnalysisSummary, DownloadJob, HistoryEntry, LibrarySort, LibrarySortDirection, MusicLibrary, MusicLibraryInput, OnlinePlaylistDetailResponse, OnlinePlaylistSearchResponse, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SimilarTracksResponse, SourceConfig, Track, TrackPage } from './types'
 import { LIBRARY_PAGE_SIZE } from './libraryPaging'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -15,7 +15,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  library: (offset = 0, q = '', sort: LibrarySort = 'artist', libraryId = '') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}&libraryId=${encodeURIComponent(libraryId)}`),
+  library: (offset = 0, q = '', sort: LibrarySort = 'artist', libraryId = '', direction: LibrarySortDirection = 'asc') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}&direction=${direction}&libraryId=${encodeURIComponent(libraryId)}`),
   tracks: (ids: string[]) => request<Track[]>(`/api/tracks?ids=${encodeURIComponent(ids.join(','))}`),
   libraries: () => request<MusicLibrary[]>('/api/libraries'),
   createLibrary: (value: MusicLibraryInput) => request<MusicLibrary>('/api/libraries', { method: 'POST', body: JSON.stringify(value) }),

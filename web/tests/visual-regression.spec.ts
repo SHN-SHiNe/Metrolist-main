@@ -14,14 +14,15 @@ const tracks = Array.from({ length: 12 }, (_, index) => ({
   durationMs: 178000 + index * 7000,
   analysis: index === 11 ? { status: 'running', progress: .46, message: '提取七维听感' } : completedAnalysis,
 }))
+const onlineTracks = tracks.slice(0, 6).map((track, index) => ({ ...track, id: `online-netease-${index + 1}`, source: 'netease', artworkUrl: '/icon.svg' }))
 
 const playlist = { id: 'visual-playlist', name: '夜间驰放', version: 1, tracks: tracks.slice(0, 6), updatedAt: 1 }
 const similar = { seed: tracks[0], items: tracks.slice(1, 7).map((track, index) => ({ track, similarityPercent: 96 - index * 3, bpmDelta: index - 2, camelotDelta: index % 2 })) }
 const onlinePlaylists = {
   items: [
-    { id: 'cloud-night', name: '云端夜间驰放', author: 'SHiNe Select', playCount: 182400, source: 'netease' },
-    { id: 'cloud-trance', name: '意境 Trance 长途', author: '浩南的收藏', playCount: 92800, source: 'netease' },
-    { id: 'cloud-focus', name: '专注但不打扰', author: '音乐生活家', playCount: 38600, source: 'netease' },
+    { id: 'cloud-night', name: '云端夜间驰放', author: 'SHiNe Select', playCount: 182400, source: 'netease', artworkUrl: '/icon.svg' },
+    { id: 'cloud-trance', name: '意境 Trance 长途', author: '浩南的收藏', playCount: 92800, source: 'netease', artworkUrl: '/icon.svg' },
+    { id: 'cloud-focus', name: '专注但不打扰', author: '音乐生活家', playCount: 38600, source: 'netease', artworkUrl: '/icon.svg' },
   ],
   total: 3, page: 1, limit: 20, allPages: 1, source: 'netease',
 }
@@ -29,8 +30,9 @@ const onlinePlaylistDetail = {
   id: onlinePlaylists.items[0].id,
   name: onlinePlaylists.items[0].name,
   author: onlinePlaylists.items[0].author,
+  artworkUrl: '/icon.svg',
   description: '保持相近风格与情绪，让一整晚不必频繁切歌。',
-  tracks: tracks.slice(0, 6),
+  tracks: onlineTracks,
   total: 6, page: 1, limit: 100, allPages: 1, source: 'netease',
 }
 
@@ -45,17 +47,20 @@ test.describe('Android gold-standard mobile states', () => {
     await mockProductState(page)
   })
 
-  test('01 domestic playlist discovery', async ({ page }) => {
-    await openOnlinePlaylists(page)
-    await expect(page).toHaveScreenshot('01-online-playlist-results.png', screenshotOptions)
-  })
-
-  test('02 domestic playlist detail', async ({ page }) => {
+  test('01 domestic playlist open confirmation', async ({ page }) => {
     await openOnlinePlaylists(page)
     await page.getByRole('button', { name: `打开歌单 ${onlinePlaylists.items[0].name}` }).click()
-    await expect(page.getByRole('heading', { name: onlinePlaylistDetail.name })).toBeVisible()
-    await page.locator('.online-playlist-browser.detail').evaluate((element) => element.scrollTo(0, 0))
-    await expect(page).toHaveScreenshot('02-online-playlist-detail.png', screenshotOptions)
+    await expect(page.getByRole('dialog', { name: '是否打开这个网易云歌单？' })).toBeVisible()
+    await expect(page).toHaveScreenshot('01-online-playlist-confirmation.png', screenshotOptions)
+  })
+
+  test('02 domestic track play confirmation', async ({ page }) => {
+    await page.goto('/#search')
+    await page.getByLabel('在线搜索').fill('Cruel Summer')
+    await page.getByRole('search').getByRole('button', { name: '搜索', exact: true }).click()
+    await page.locator('.track-identity').filter({ hasText: onlineTracks[0].title }).click()
+    await expect(page.getByRole('dialog', { name: '是否播放这首网易云歌曲？' })).toBeVisible()
+    await expect(page).toHaveScreenshot('02-online-track-confirmation.png', screenshotOptions)
   })
 
   test('03 service and about settings', async ({ page }) => {
@@ -142,6 +147,20 @@ test.describe('Android gold-standard mobile states', () => {
     await page.getByRole('tab', { name: '音乐画像' }).click()
     await expect(page).toHaveScreenshot('16-player-analysis-progress.png', screenshotOptions)
   })
+
+  test('17 domestic playlist results remain covered', async ({ page }) => {
+    await openOnlinePlaylists(page)
+    await expect(page).toHaveScreenshot('17-online-playlist-results.png', screenshotOptions)
+  })
+
+  test('18 domestic playlist detail remains covered', async ({ page }) => {
+    await openOnlinePlaylists(page)
+    await page.getByRole('button', { name: `打开歌单 ${onlinePlaylists.items[0].name}` }).click()
+    await page.getByRole('dialog', { name: '是否打开这个网易云歌单？' }).getByRole('button', { name: '打开' }).click()
+    await expect(page.getByRole('heading', { name: onlinePlaylistDetail.name })).toBeVisible()
+    await page.locator('.online-playlist-browser.detail').evaluate((element) => element.scrollTo(0, 0))
+    await expect(page).toHaveScreenshot('18-online-playlist-detail.png', screenshotOptions)
+  })
 })
 
 const screenshotOptions = { animations: 'disabled' as const, caret: 'hide' as const, maxDiffPixelRatio: 0.08 }
@@ -184,7 +203,7 @@ async function mockProductState(page: Page) {
     else if (url.pathname === '/api/downloads') body = []
     else if (url.pathname === '/api/search/playlists') body = onlinePlaylists
     else if (url.pathname === '/api/search/playlists/detail') body = onlinePlaylistDetail
-    else if (url.pathname === '/api/search') body = { items: tracks.slice(0, 6), total: 6, page: 1, limit: 50 }
+    else if (url.pathname === '/api/search') body = { items: onlineTracks, total: 6, page: 1, limit: 50 }
     else if (url.pathname === '/api/analysis' && method === 'GET') body = { available: true, implementation: 'vibenet', total: 12, pending: 1, queued: 0, running: 1, completed: 11, failed: 0 }
     else if (url.pathname === '/api/library/advanced-search') body = { items: similar.items, totalCandidates: similar.items.length }
     else if (url.pathname.endsWith('/similar')) body = similar

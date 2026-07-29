@@ -26,6 +26,7 @@ data class ScannedFile(
     val mimeType: String,
     val size: Long,
     val modifiedAt: Long,
+    val scannedAt: Long,
     val libraryId: String = DEFAULT_LIBRARY_ID,
 )
 
@@ -63,7 +64,7 @@ class LibraryScanner(
             store.scanSession(libraryId).use { session ->
                 fun flush() {
                     if (changed.isEmpty() && unchanged.isEmpty()) return
-                    session.applyBatch(scanId, changed, unchanged)
+                    session.applyBatch(scanId, changed, unchanged, startedAt)
                     changed.clear()
                     unchanged.clear()
                 }
@@ -75,7 +76,7 @@ class LibraryScanner(
                         if (previous != null && previous.size == snapshot.size && previous.modifiedAt == snapshot.modifiedAt) {
                             unchanged += snapshot.id
                         } else {
-                            changed += readFile(snapshot)
+                            changed += readFile(snapshot, startedAt)
                             if (previous == null) discovered++ else updated++
                         }
                         if (changed.size + unchanged.size >= SCAN_BATCH_SIZE) flush()
@@ -99,7 +100,7 @@ class LibraryScanner(
         val normalized = path.toAbsolutePath().normalize()
         require(normalized.startsWith(normalizedRoot)) { "track_outside_music_directory" }
         require(normalized.isRegularFile() && normalized.extension.lowercase() in SUPPORTED_EXTENSIONS) { "unsupported_audio_file" }
-        store.upsertTrack("single-${UUID.randomUUID()}", readFile(snapshot(normalized)))
+        store.upsertTrack("single-${UUID.randomUUID()}", readFile(snapshot(normalized), clock()))
     }
 
     fun moveToTrash(trackId: String, trashRoot: Path, now: Long): Boolean = scanLock.withLock {
@@ -120,7 +121,7 @@ class LibraryScanner(
         return FileSnapshot(id, normalized, normalized.fileSize(), normalized.getLastModifiedTime().toMillis())
     }
 
-    private fun readFile(snapshot: FileSnapshot): ScannedFile {
+    private fun readFile(snapshot: FileSnapshot, scannedAt: Long): ScannedFile {
         val path = snapshot.path
         val fallback = path.nameWithoutExtension.split(" - ", limit = 2)
         val fallbackTitle = fallback.firstOrNull().orEmpty().ifBlank { path.nameWithoutExtension }
@@ -137,7 +138,7 @@ class LibraryScanner(
             Files.write(covers.resolve("${snapshot.id}.$extension"), bytes)
         }
         return ScannedFile(
-            snapshot.id, path, title, artist, album, duration, mimeFor(path.extension), snapshot.size, snapshot.modifiedAt, libraryId,
+            snapshot.id, path, title, artist, album, duration, mimeFor(path.extension), snapshot.size, snapshot.modifiedAt, scannedAt, libraryId,
         )
     }
 

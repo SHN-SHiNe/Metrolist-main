@@ -6,13 +6,19 @@ import { randomId } from './randomId'
 import type { RoomPlaybackState, Track } from './types'
 import type { PlayerController } from './usePlayer'
 
+const MISSING_TRACK_RETRY_BASE_MS = 1_000
+const MISSING_TRACK_RETRY_MAX_MS = 30_000
+
 export function useRoomSync(player: PlayerController, tracks: Track[]) {
   const sendspin = useRef<SendspinPlayer | null>(null)
   const joinedRoom = useRef<string | null>(null)
+  const roomSession = useRef(0)
+  const snapshotSequence = useRef(0)
+  const appliedSnapshot = useRef<{ session: number; version: number; requestId: number } | null>(null)
   const playerRef = useRef(player)
   const tracksRef = useRef(tracks)
   const roomTrackCache = useRef(new Map<string, Track>())
-  const unresolvedRoomTracks = useRef(new Set<string>())
+  const missingTrackBackoff = useRef(new Map<string, { attempts: number; retryAt: number }>())
   const metadataRef = useRef<{ title?: string | null; artist?: string | null; album?: string | null }>({})
   const [roomId, setRoomId] = useState<string | null>(null)
   const [members, setMembers] = useState(0)
@@ -26,12 +32,14 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
     tracksRef.current = tracks
     tracks.forEach((track) => {
       roomTrackCache.current.set(track.id, track)
-      unresolvedRoomTracks.current.delete(track.id)
+      missingTrackBackoff.current.delete(track.id)
     })
   }, [tracks])
   useEffect(() => { sendspin.current?.setVolume(player.volume * 100) }, [player.volume])
 
   const leave = useCallback(() => {
+    roomSession.current += 1
+    appliedSnapshot.current = null
     joinedRoom.current = null
     sendspin.current?.disconnect()
     sendspin.current = null
@@ -43,38 +51,77 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
     setQueueIds([])
     setServerOffset(0)
     roomTrackCache.current.clear()
-    unresolvedRoomTracks.current.clear()
+    missingTrackBackoff.current.clear()
   }, [])
 
+  const beginSnapshotRequest = useCallback(() => ({
+    session: roomSession.current,
+    requestId: ++snapshotSequence.current,
+  }), [])
+
+  const isActiveRequest = useCallback((id: string, request: { session: number }) => (
+    joinedRoom.current === id && roomSession.current === request.session
+  ), [])
+
+  const acceptSnapshot = useCallback((id: string, version: number, request: { session: number; requestId: number }) => {
+    if (!isActiveRequest(id, request)) return false
+    const applied = appliedSnapshot.current
+    if (applied?.session === request.session) {
+      if (version < applied.version) return false
+      if (version === applied.version && request.requestId <= applied.requestId) return false
+    }
+    appliedSnapshot.current = { ...request, version }
+    return true
+  }, [isActiveRequest])
+
   const reflect = useCallback(async (id: string) => {
+    const request = beginSnapshotRequest()
     const detail = await api.room(id)
-    if (joinedRoom.current !== id) return
-    setMembers(detail.summary.memberCount)
-    setQueueIds(detail.state.queue)
+    if (!isActiveRequest(id, request)) return
     const progress = sendspin.current?.trackProgress
     const metadata = metadataRef.current
     const currentId = detail.state.currentTrackId
-    const missingIds = detail.state.queue.filter((trackId) => !roomTrackCache.current.has(trackId) && !unresolvedRoomTracks.current.has(trackId)).slice(0, 100)
+    const candidateIds = [...new Set([
+      ...(currentId ? [currentId] : []),
+      ...detail.state.queue,
+    ])]
+    const now = Date.now()
+    const missingIds = candidateIds.filter((trackId) => {
+      if (roomTrackCache.current.has(trackId)) return false
+      const retry = missingTrackBackoff.current.get(trackId)
+      return !retry || retry.retryAt <= now
+    }).slice(0, 100)
     if (missingIds.length) {
-      const fetched = await api.tracks(missingIds).catch(() => [])
-      if (joinedRoom.current !== id) return
-      fetched.forEach((track) => roomTrackCache.current.set(track.id, track))
-      const fetchedIds = new Set(fetched.map((track) => track.id))
-      missingIds.filter((trackId) => !fetchedIds.has(trackId)).forEach((trackId) => unresolvedRoomTracks.current.add(trackId))
+      try {
+        const fetched = await api.tracks(missingIds)
+        if (!isActiveRequest(id, request)) return
+        fetched.forEach((track) => {
+          roomTrackCache.current.set(track.id, track)
+          missingTrackBackoff.current.delete(track.id)
+        })
+        const fetchedIds = new Set(fetched.map((track) => track.id))
+        missingIds.filter((trackId) => !fetchedIds.has(trackId)).forEach((trackId) => {
+          const attempts = (missingTrackBackoff.current.get(trackId)?.attempts ?? 0) + 1
+          const delay = Math.min(MISSING_TRACK_RETRY_BASE_MS * 2 ** (attempts - 1), MISSING_TRACK_RETRY_MAX_MS)
+          missingTrackBackoff.current.set(trackId, { attempts, retryAt: Date.now() + delay })
+        })
+      } catch {
+        // A transient batch lookup failure must leave these IDs eligible for the next reflection.
+      }
     }
-    const knownTracks = [...roomTrackCache.current.values()]
-    const displayTracks = currentId && !knownTracks.some((track) => track.id === currentId)
-      ? [...knownTracks, {
-          id: currentId,
-          title: metadata.title || '同步房间正在播放',
-          artist: metadata.artist || 'Sendspin',
-          album: metadata.album || '',
-          durationMs: progress?.durationMs ?? 0,
-        }]
-      : knownTracks
+    if (!acceptSnapshot(id, detail.summary.version, request)) return
+    setMembers(detail.summary.memberCount)
+    setQueueIds(detail.state.queue)
+    const displayTracks = roomTracksForSnapshot(
+      detail.state,
+      roomTrackCache.current,
+      tracksRef.current,
+      metadata,
+      progress?.durationMs,
+    )
     playerRef.current.reflectRoomState(detail.state, displayTracks, progress?.positionMs, progress?.durationMs)
     setServerOffset(sendspin.current?.syncInfo.syncErrorMs ?? 0)
-  }, [])
+  }, [acceptSnapshot, beginSnapshotRequest, isActiveRequest])
 
   const join = useCallback(async (id: string, ready?: () => Promise<unknown>) => {
     leave()
@@ -121,14 +168,23 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
   const command = useCallback((partial: Partial<RoomPlaybackState>) => {
     const id = joinedRoom.current
     if (!id) return false
+    const request = beginSnapshotRequest()
     void api.updateRoom(id, partial).then((detail) => {
-      if (joinedRoom.current !== id) return
-      playerRef.current.reflectRoomState(detail.state, tracksRef.current)
+      if (!acceptSnapshot(id, detail.summary.version, request)) return
+      const progress = sendspin.current?.trackProgress
+      const displayTracks = roomTracksForSnapshot(
+        detail.state,
+        roomTrackCache.current,
+        tracksRef.current,
+        metadataRef.current,
+        progress?.durationMs,
+      )
+      playerRef.current.reflectRoomState(detail.state, displayTracks, progress?.positionMs, progress?.durationMs)
       setMembers(detail.summary.memberCount)
       setQueueIds(detail.state.queue)
-    }).catch(() => setStatus('error'))
+    }).catch(() => { if (isActiveRequest(id, request)) setStatus('error') })
     return true
-  }, [])
+  }, [acceptSnapshot, beginSnapshotRequest, isActiveRequest])
 
   const autofill = useCallback(async (recentTrackIds: string[] = []) => {
     const id = joinedRoom.current
@@ -157,6 +213,28 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
   useEffect(() => leave, [leave])
 
   return { roomId, members, queueIds, status, serverOffset, deviceDelay, setDeviceDelay, join, leave, command, autofill }
+}
+
+function roomTracksForSnapshot(
+  state: RoomPlaybackState,
+  cache: Map<string, Track>,
+  currentTracks: Track[],
+  metadata: { title?: string | null; artist?: string | null; album?: string | null },
+  liveDurationMs?: number,
+): Track[] {
+  const known = new Map(cache)
+  currentTracks.forEach((track) => known.set(track.id, track))
+  const currentId = state.currentTrackId
+  if (currentId && !known.has(currentId)) {
+    known.set(currentId, {
+      id: currentId,
+      title: metadata.title || '同步房间正在播放',
+      artist: metadata.artist || 'Sendspin',
+      album: metadata.album || '',
+      durationMs: liveDurationMs ?? 0,
+    })
+  }
+  return [...known.values()]
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {

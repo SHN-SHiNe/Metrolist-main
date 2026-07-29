@@ -71,6 +71,6 @@ ENV SHINE_HTTP_PORT=8767 \
     SHINE_ANALYSIS_ON_SCAN=true
 EXPOSE 8767
 VOLUME ["/data", "/music", "/libraries", "/cache"]
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl --fail --silent http://127.0.0.1:8767/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=7s --start-period=20s --retries=3 \
+  CMD curl --fail --silent --max-time 6 http://127.0.0.1:8767/api/health || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--", "/app/bin/start-shine.sh"]

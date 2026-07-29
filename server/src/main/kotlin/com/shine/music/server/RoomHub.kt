@@ -27,7 +27,21 @@ class RoomHub(
     }
 
     suspend fun restore() {
-        rooms.values.forEach { room -> room.lastBridgeRevision = sync(room, room.state, forcePosition = true).revision }
+        rooms.values.forEach { room ->
+            room.lock.withLock {
+                if (room.deleted) return@withLock
+                val pausedState = room.state.copy(playing = false, effectiveAt = 0)
+                if (pausedState != room.state) {
+                    val nextVersion = room.version + 1
+                    val updatedAt = clock()
+                    store.saveRoom(room.id, json.encodeToString(pausedState), nextVersion, updatedAt)
+                    room.state = pausedState
+                    room.version = nextVersion
+                    room.updatedAt = updatedAt
+                }
+                room.lastBridgeRevision = sync(room, room.state, forcePosition = true).revision
+            }
+        }
     }
 
     suspend fun create(name: String, requestedId: String? = null): RoomSummary {
@@ -52,12 +66,14 @@ class RoomHub(
 
     suspend fun detail(roomId: String): RoomDetail? {
         val room = rooms[roomId] ?: return null
-        if (room.deleted) return null
-        val status = runCatching { bridge.status(roomId) }.getOrNull()
-        val state = if (status != null && status.currentTrackId.isNotBlank()) {
-            room.state.copy(currentTrackId = status.currentTrackId, positionMs = status.positionMs, playing = status.playing)
-        } else room.state
-        return RoomDetail(RoomSummary(room.id, room.name, status?.memberCount ?: 0, room.version, room.updatedAt), state)
+        return room.lock.withLock {
+            if (room.deleted) return@withLock null
+            val status = runCatching { bridge.status(roomId) }.getOrNull()
+            val state = if (status != null && status.currentTrackId.isNotBlank()) {
+                room.state.copy(currentTrackId = status.currentTrackId, positionMs = status.positionMs, playing = status.playing)
+            } else room.state
+            RoomDetail(RoomSummary(room.id, room.name, status?.memberCount ?: 0, room.version, room.updatedAt), state)
+        }
     }
 
     suspend fun update(roomId: String, command: UpdateRoomStateRequest): RoomDetail? {
@@ -71,19 +87,7 @@ class RoomHub(
                 playing = command.playing ?: room.state.playing,
                 effectiveAt = 0,
             )
-            val bridgeStatus = sync(room, nextState, forcePosition = command.positionMs != null)
-            room.lastBridgeRevision = maxOf(room.lastBridgeRevision, bridgeStatus.revision)
-            val committedState = nextState.copy(
-                currentTrackId = bridgeStatus.currentTrackId.takeIf(String::isNotBlank) ?: nextState.currentTrackId,
-                positionMs = bridgeStatus.positionMs,
-                playing = bridgeStatus.playing,
-            )
-            val nextVersion = room.version + 1
-            val updatedAt = clock()
-            store.saveRoom(room.id, json.encodeToString(committedState), nextVersion, updatedAt)
-            room.state = committedState
-            room.version = nextVersion
-            room.updatedAt = updatedAt
+            commitState(room, nextState, forcePosition = command.positionMs != null)
         }
         return detail(roomId)
     }
@@ -111,17 +115,7 @@ class RoomHub(
             if (additions.isEmpty()) return@withLock
 
             val nextState = room.state.copy(queue = room.state.queue + additions, effectiveAt = 0)
-            val bridgeStatus = sync(room, nextState)
-            room.lastBridgeRevision = maxOf(room.lastBridgeRevision, bridgeStatus.revision)
-            val committedState = nextState.copy(
-                currentTrackId = bridgeStatus.currentTrackId.takeIf(String::isNotBlank) ?: nextState.currentTrackId,
-                positionMs = bridgeStatus.positionMs,
-                playing = bridgeStatus.playing,
-            )
-            room.version++
-            room.updatedAt = clock()
-            room.state = committedState
-            store.saveRoom(room.id, json.encodeToString(committedState), room.version, room.updatedAt)
+            commitState(room, nextState)
         }
         return detail(roomId)
     }
@@ -148,22 +142,67 @@ class RoomHub(
         room.lock.withLock {
             if (room.deleted) return@withLock
             if (status.revision > 0 && status.revision <= room.lastBridgeRevision) return@withLock
-            if (status.revision > 0) room.lastBridgeRevision = status.revision
             val currentTrackId = status.currentTrackId.takeIf(String::isNotBlank) ?: room.state.currentTrackId
             val nextState = room.state.copy(
                 currentTrackId = currentTrackId,
                 positionMs = status.positionMs.coerceAtLeast(0),
                 playing = status.playing,
             )
-            if (nextState == room.state) return@withLock
-            room.version++
-            room.updatedAt = clock()
+            if (nextState == room.state) {
+                if (status.revision > 0) room.lastBridgeRevision = status.revision
+                return@withLock
+            }
+            val nextVersion = room.version + 1
+            val updatedAt = clock()
+            store.saveRoom(room.id, json.encodeToString(nextState), nextVersion, updatedAt)
             room.state = nextState
-            store.saveRoom(room.id, json.encodeToString(nextState), room.version, room.updatedAt)
+            room.version = nextVersion
+            room.updatedAt = updatedAt
+            if (status.revision > 0) room.lastBridgeRevision = status.revision
         }
     }
 
     suspend fun websocketUrl(roomId: String): String? = rooms[roomId]?.takeUnless { it.deleted }?.let { bridge.websocketUrl(roomId) }
+
+    /**
+     * Commits a room transition without publishing a state that SQLite cannot recover. The
+     * bridge response remains authoritative for playback position, but neither runtime state
+     * nor that normalized response becomes visible until both durable writes have succeeded.
+     */
+    private suspend fun commitState(room: RuntimeRoom, candidate: RoomPlaybackState, forcePosition: Boolean = false) {
+        val previousState = room.state
+        val previousVersion = room.version
+        val previousUpdatedAt = room.updatedAt
+        val nextVersion = previousVersion + 1
+        val updatedAt = clock()
+
+        store.saveRoom(room.id, json.encodeToString(candidate), nextVersion, updatedAt)
+        try {
+            val bridgeStatus = sync(room, candidate, forcePosition)
+            val committedState = candidate.copy(
+                currentTrackId = bridgeStatus.currentTrackId.takeIf(String::isNotBlank) ?: candidate.currentTrackId,
+                positionMs = bridgeStatus.positionMs,
+                playing = bridgeStatus.playing,
+            )
+            if (committedState != candidate) {
+                store.saveRoom(room.id, json.encodeToString(committedState), nextVersion, updatedAt)
+            }
+            room.state = committedState
+            room.version = nextVersion
+            room.updatedAt = updatedAt
+            room.lastBridgeRevision = maxOf(room.lastBridgeRevision, bridgeStatus.revision)
+        } catch (failure: Throwable) {
+            val rollback = runCatching {
+                store.saveRoom(room.id, json.encodeToString(previousState), previousVersion, previousUpdatedAt)
+            }.onFailure(failure::addSuppressed)
+            if (rollback.isSuccess) {
+                runCatching { sync(room, previousState, forcePosition = true) }
+                    .onSuccess { room.lastBridgeRevision = maxOf(room.lastBridgeRevision, it.revision) }
+                    .onFailure(failure::addSuppressed)
+            }
+            throw failure
+        }
+    }
 
     private suspend fun sync(room: RuntimeRoom, state: RoomPlaybackState, forcePosition: Boolean = false): SendspinRoomStatus {
         val resolved = state.queue.mapNotNull { id ->

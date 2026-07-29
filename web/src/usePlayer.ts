@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
+import { insertTrackNext } from './trackActions'
 import type { RoomPlaybackState, Track } from './types'
 
 export function usePlayer() {
@@ -49,6 +50,13 @@ export function usePlayer() {
       return additions.length ? [...current, ...additions] : current
     })
   }, [])
+
+  const insertNext = useCallback((track: Track) => {
+    const currentId = queue[index]?.id ?? null
+    const nextQueue = insertTrackNext(queue, currentId, track)
+    setQueue(nextQueue)
+    if (currentId) setIndex(nextQueue.findIndex((item) => item.id === currentId))
+  }, [index, queue])
 
   const continueWith = useCallback((tracks: Track[]) => {
     const known = new Set(queue.map((track) => track.id))
@@ -211,7 +219,7 @@ export function usePlayer() {
     navigator.mediaSession.setActionHandler('previoustrack', () => { if (!roomMode.current) previous() })
   }, [audio, current, next, previous])
 
-  return { audio, current, queue, index, playing, position, duration, volume, playTrack, appendTracks, continueWith, hydrateTracks, moveQueueItem, removeQueueItem, toggle, next, previous, seek, setVolume, enterRoomMode, leaveRoomMode, reflectRoomState }
+  return { audio, current, queue, index, playing, position, duration, volume, playTrack, appendTracks, insertNext, continueWith, hydrateTracks, moveQueueItem, removeQueueItem, toggle, next, previous, seek, setVolume, enterRoomMode, leaveRoomMode, reflectRoomState }
 }
 
 export type PlayerController = ReturnType<typeof usePlayer>

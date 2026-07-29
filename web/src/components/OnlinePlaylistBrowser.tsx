@@ -4,6 +4,7 @@ import { collectOnlinePlaylistTracks, formatPlayCount, normalizedPage, ONLINE_PL
 import type { OnlinePlaylistDetailResponse, OnlinePlaylistSummary, OnlineTrack, Track } from '../types'
 import { AlbumArt, EmptyState, TrackList } from './TrackList'
 import { Icon } from './Icon'
+import { OnlineConfirmationDialog } from './OnlineConfirmationDialog'
 
 const SEARCH_LIMIT = 20
 const SEARCH_DEBOUNCE_MS = 250
@@ -26,6 +27,8 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
   const [searchError, setSearchError] = useState('')
   const [searchResult, setSearchResult] = useState<Awaited<ReturnType<typeof api.searchPlaylists>> | null>(null)
   const [selected, setSelected] = useState<OnlinePlaylistSummary | null>(null)
+  const [pendingPlaylist, setPendingPlaylist] = useState<OnlinePlaylistSummary | null>(null)
+  const [pendingTrack, setPendingTrack] = useState<{ track: Track; queue: Track[] } | null>(null)
   const [detailPage, setDetailPage] = useState(1)
   const [detailRetry, setDetailRetry] = useState(0)
   const [detailStatus, setDetailStatus] = useState<LoadingStatus>('idle')
@@ -36,10 +39,13 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(() => new Set())
   const [operationMessage, setOperationMessage] = useState('')
   const selectedKeyRef = useRef('')
+  const detailBackButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     setSearchPage(1)
     setSelected(null)
+    setPendingPlaylist(null)
+    setPendingTrack(null)
     setSearchResult(null)
     setSearchStatus(normalizedQuery ? 'loading' : 'idle')
   }, [normalizedQuery, source])
@@ -101,17 +107,41 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
 
   useEffect(() => {
     if (!selected) return
-    const frame = window.requestAnimationFrame(() => {
+    let focusFrame = 0
+    const scrollFrame = window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0 })
       document.querySelector<HTMLElement>('.main-content')?.scrollTo({ top: 0 })
+      // Run after the confirmation dialog's focus restoration frame so the
+      // newly opened detail view owns the final focus destination.
+      focusFrame = window.requestAnimationFrame(() => detailBackButton.current?.focus({ preventScroll: true }))
     })
-    return () => window.cancelAnimationFrame(frame)
+    return () => {
+      window.cancelAnimationFrame(scrollFrame)
+      window.cancelAnimationFrame(focusFrame)
+    }
   }, [selected])
 
   const openPlaylist = (item: OnlinePlaylistSummary) => {
-    setDetailPage(1)
-    setSelected(item)
+    setPendingPlaylist(item)
   }
+
+  const confirmPlaylist = () => {
+    if (!pendingPlaylist) return
+    setDetailPage(1)
+    setSelected(pendingPlaylist)
+    setPendingPlaylist(null)
+  }
+
+  const confirmTrack = () => {
+    if (!pendingTrack) return
+    onPlay(pendingTrack.track, pendingTrack.queue)
+    setPendingTrack(null)
+  }
+
+  const confirmation = <>
+    {pendingPlaylist && <OnlineConfirmationDialog kind="playlist" title={pendingPlaylist.name} subtitle={pendingPlaylist.author} sourceLabel={sourceLabel(pendingPlaylist.source)} artworkUrl={pendingPlaylist.artworkUrl} onCancel={() => setPendingPlaylist(null)} onConfirm={confirmPlaylist} />}
+    {pendingTrack && <OnlineConfirmationDialog kind="track" title={pendingTrack.track.title} subtitle={pendingTrack.track.artist} sourceLabel={sourceLabel(pendingTrack.track.source ?? source)} artworkUrl={pendingTrack.track.artworkUrl} onCancel={() => setPendingTrack(null)} onConfirm={confirmTrack} />}
+  </>
 
   const downloadTrack = async (track: OnlineTrack) => {
     if (downloadingIds.has(track.id) || wholeAction === 'download') return
@@ -204,8 +234,8 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
   }
 
   if (selected) {
-    return <section className="online-playlist-browser detail" aria-labelledby={detailStatus === 'ready' && detail ? headingId : undefined} aria-label={detailStatus === 'ready' && detail ? undefined : `在线歌单 ${selected.name}`} aria-busy={detailStatus === 'loading'}>
-      <button className="back-button" onClick={() => setSelected(null)}><Icon name="back" />返回在线歌单</button>
+    return <><section className="online-playlist-browser detail" aria-labelledby={detailStatus === 'ready' && detail ? headingId : undefined} aria-label={detailStatus === 'ready' && detail ? undefined : `在线歌单 ${selected.name}`} aria-busy={detailStatus === 'loading'}>
+      <button ref={detailBackButton} className="back-button" onClick={() => setSelected(null)}><Icon name="back" />返回在线歌单</button>
       {detailStatus === 'loading' && <LoadingState label="正在读取歌单详情" />}
       {detailStatus === 'error' && <ErrorState message={detailError} onRetry={() => setDetailRetry((value) => value + 1)} />}
       {detailStatus === 'ready' && detail && <>
@@ -229,20 +259,20 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
           {detail.tracks.length ? <TrackList
             tracks={detail.tracks}
             favorites={[]}
-            onPlay={onPlay}
+            onPlay={(track, queue) => setPendingTrack({ track, queue })}
             trailingAction={(track) => <button className="icon-button" disabled={downloadingIds.has(track.id) || wholeAction === 'download'} onClick={() => void downloadTrack(track as OnlineTrack)} title="下载到 NAS" aria-label={`下载 ${track.title} 到 NAS`}><Icon name="download" /></button>}
           /> : <EmptyState title="这张歌单没有歌曲" body="音源暂时没有返回可播放曲目，可以稍后重试或切换其他歌单。" />}
           <Pagination page={detail.page} allPages={detail.allPages} label="歌单歌曲分页" onChange={setDetailPage} />
         </section>
       </>}
-    </section>
+    </section>{confirmation}</>
   }
 
   if (!normalizedQuery) {
-    return <EmptyState title="搜索国内歌单" body="输入歌单名称、风格或场景，从网易云、QQ、酷狗、酷我等来源查找真实歌单。" />
+    return <><EmptyState title="搜索国内歌单" body="输入歌单名称、风格或场景，从网易云、QQ、酷狗、酷我等来源查找真实歌单。" />{confirmation}</>
   }
 
-  return <section className="online-playlist-browser" aria-labelledby={headingId} aria-busy={searchStatus === 'loading'}>
+  return <><section className="online-playlist-browser" aria-labelledby={headingId} aria-busy={searchStatus === 'loading'}>
     <div className="section-heading"><div><h2 id={headingId}>“{normalizedQuery}”的在线歌单</h2><p>{searchResult ? `找到 ${searchResult.total} 张 · ${sourceLabel(searchResult.source)}` : '正在连接国内音乐源'}</p></div></div>
     {searchStatus === 'loading' && <LoadingState label="正在搜索在线歌单" />}
     {searchStatus === 'error' && <ErrorState message={searchError} onRetry={() => setSearchRetry((value) => value + 1)} />}
@@ -250,7 +280,7 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
       {searchResult.items.length ? <div className="playlist-grid" role="list" aria-label="在线歌单搜索结果">{searchResult.items.map((item) => <article key={`${item.source}:${item.id}`} role="listitem"><button className="playlist-tile" onClick={() => openPlaylist(item)} aria-label={`打开歌单 ${item.name}`}><AlbumArt title={item.name} artworkUrl={item.artworkUrl} /><strong>{item.name}</strong><span>{item.author || sourceLabel(item.source)} · {formatPlayCount(item.playCount)}</span></button></article>)}</div> : <EmptyState title="没有找到匹配歌单" body="可以换一个关键词，或切换网易云、QQ、酷狗、酷我等音源再试。" />}
       <Pagination page={searchResult.page} allPages={searchResult.allPages} label="在线歌单搜索分页" onChange={setSearchPage} />
     </>}
-  </section>
+  </section>{confirmation}</>
 }
 
 function Pagination({ page, allPages, label, onChange }: { page: number; allPages: number; label: string; onChange: (page: number) => void }) {
@@ -272,7 +302,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   return <div className="search-capability-note" role="alert"><strong>暂时无法读取在线歌单</strong><span>{message}</span><button className="secondary-button" onClick={onRetry}><Icon name="refresh" />重试</button></div>
 }
 
-function sourceLabel(source: string): string {
+export function sourceLabel(source: string): string {
   return ({ all: '聚合', netease: '网易云', wy: '网易云', qq: 'QQ', tx: 'QQ', kugou: '酷狗', kg: '酷狗', kuwo: '酷我', kw: '酷我', migu: '咪咕', mg: '咪咕' } as Record<string, string>)[source.toLowerCase()] ?? source
 }
 

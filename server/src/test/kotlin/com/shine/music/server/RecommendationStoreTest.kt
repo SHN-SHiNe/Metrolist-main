@@ -176,11 +176,38 @@ class RecommendationStoreTest {
         }
     }
 
-    private fun result(bpm: Float = 120f, valence: Float = 0.75f) = AudioAnalysisResult(
+    @Test
+    fun `library energy sorting supports both directions and keeps pending tracks last`() {
+        val root = Files.createTempDirectory("shine-energy-sort")
+        val music = root.resolve("music")
+        Files.createDirectories(music)
+        listOf("Pending.mp3", "Energetic.mp3", "Calm.mp3").forEachIndexed { index, name ->
+            music.resolve(name).writeBytes(byteArrayOf(index.toByte()))
+        }
+        MusicStore(root.resolve("data/library.db")).use { store ->
+            LibraryScanner(music, store, root.resolve("cache")) { path ->
+                AudioMetadata(path.fileName.toString().removeSuffix(".mp3"), "Artist", "", 1_000)
+            }.scan()
+            val tracks = store.listTracks(null, 0, 10, "title").items.associateBy(Track::title)
+            store.saveAnalysis(tracks.getValue("Energetic").id, result(energy = .91f), 100)
+            store.saveAnalysis(tracks.getValue("Calm").id, result(energy = .18f), 101)
+
+            assertEquals(
+                listOf("Calm", "Energetic", "Pending"),
+                store.listTracks(null, 0, 10, "energy", direction = "asc").items.map(Track::title),
+            )
+            assertEquals(
+                listOf("Energetic", "Calm", "Pending"),
+                store.listTracks(null, 0, 10, "energy", direction = "desc").items.map(Track::title),
+            )
+        }
+    }
+
+    private fun result(bpm: Float = 120f, valence: Float = 0.75f, energy: Float = 0.72f) = AudioAnalysisResult(
         bpm = bpm,
         keyName = "Am",
         valence = valence,
-        energy = 0.72f,
+        energy = energy,
         danceability = 0.66f,
         acousticness = 0.2f,
         instrumentalness = 0.1f,

@@ -8,8 +8,24 @@ services:
         GOPROXY: ${SHINE_GOPROXY:-https://goproxy.cn,direct}
         DEBIAN_MIRROR: ${SHINE_DEBIAN_MIRROR:-https://mirrors.aliyun.com/debian}
         UBUNTU_MIRROR: ${SHINE_UBUNTU_MIRROR:-https://mirrors.aliyun.com/ubuntu}
-    volumes:
-      - /vol1/1000/shine-music/data:/data
-      - /vol1/1000/2.Music:/music
-      - /vol1/1000/shine-music/libraries:/libraries
-      - /vol1/1000/shine-music/cache:/cache
+    volumes: !override
+      - type: bind
+        source: /vol1/1000/shine-music/data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /vol1/1000/2.Music
+        target: /music
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /vol1/1000/shine-music/libraries
+        target: /libraries
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /vol1/1000/shine-music/cache
+        target: /cache
+        bind:
+          create_host_path: false

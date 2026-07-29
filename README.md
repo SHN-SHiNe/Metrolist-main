@@ -16,8 +16,8 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 - React + TypeScript 响应式 Web：手机端延续原 Android/Compose 的四主入口、迷你播放器与沉浸式全屏播放；PC 端将同一套信息架构展开为左侧导航、内容区、右侧队列和底部播放器。
 - 多音频库扫描，可管理 NAS 本地目录、USB 设备和网络挂载；支持 HTTP Range 流媒体、国内歌曲/歌单搜索、在线直放与单曲或整张歌单后台下载入库。
 - NAS 后台分析 BPM、调性/Camelot 与七维音乐特征，提供相似歌曲、雷达图、高级筛选和保持风格的连续续播；分析只读取三段有界采样，不会随单曲时长持续增加内存占用。
-- 曲库可切换“歌曲/分析”视图，按标题、歌手、专辑、BPM、调性或分析状态排序；大列表使用服务端分页与窗口化渲染。
-- 歌词支持普通文本和 LRC，同步行自动居中、点击跳转、整曲偏移、搜索、多选复制与系统分享；手机长按或 PC 右键可打开歌曲操作菜单。
+- 曲库可切换“歌曲/分析”视图，按标题、歌手、专辑、最近扫描时间、文件更新时间、BPM、调性、能量或分析状态升降序排列；大列表使用服务端分页与窗口化渲染。最近扫描时间记录服务端最后成功看见该文件的时间，文件更新时间来自文件系统 mtime，两者互不混用。
+- 歌词支持普通文本和 LRC，同步行自动居中、点击跳转、整曲偏移、搜索、多选复制与系统分享；手机长按或 PC 右键使用同一歌曲菜单，可播放、排下一首、加入队列、收藏、加入共享歌单、分享、查看歌手/专辑或分析音乐画像。
 - 共享收藏、歌单与历史；访客免登录，因此局域网内所有用户均有修改权限。
 - 多个命名同步房间，以 [Sendspin](https://www.sendspin-audio.com/) 协议、官方 Go 服务端与官方 Web SDK 为同步底座；SHiNe 只负责房间、队列和曲库编排。
 - 浅色、深色、纯黑主题，键盘焦点、44px 触控目标和减少动态效果支持。
@@ -31,10 +31,14 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 ```bash
 cp .env.example .env
 # 编辑 .env，将 SHINE_*_PATH 改成 NAS 上的绝对路径
+# 先创建 .env 指向的四个目录；默认路径可执行：
+mkdir -p nas-data nas-music nas-libraries nas-cache
 docker compose up -d --build
 docker compose ps
-curl http://127.0.0.1:8767/api/health
+curl --fail --max-time 6 http://127.0.0.1:8767/api/health
 ```
+
+Compose 不会代替管理员创建宿主机 bind mount 目录，路径拼错会直接启动失败，避免 Docker 静默创建空目录并让曲库看起来“被清空”。
 
 家庭 NAS 的目标入口为：
 
@@ -42,7 +46,7 @@ curl http://127.0.0.1:8767/api/health
 http://192.168.31.142:8767
 ```
 
-首次启动会扫描旧的 `/music` 默认音频库。数据库、配置、回收区与每日备份位于 `SHINE_DATA_PATH`；下载临时文件与封面缓存位于 `SHINE_CACHE_PATH`。删除音乐时先移动至 `data/trash`，默认保留 30 天。
+首次启动会扫描旧的 `/music` 默认音频库。数据库、配置、回收区与每日备份位于 `SHINE_DATA_PATH`；下载临时文件与封面缓存位于 `SHINE_CACHE_PATH`。每日备份先写入非候选临时文件，只有通过 SQLite `quick_check` 后才原子发布为 `.db`；启动时也只会在明确的 `SQLITE_CORRUPT`/`SQLITE_NOTADB` 或主库 `quick_check` 失败时，从最新的健康备份恢复。权限、锁、迁移代码等其他启动错误会保留主库并直接失败，避免误覆盖。删除音乐时先移动至 `data/trash`，默认保留 30 天。
 
 ### 多路径与多设备音频库
 
@@ -97,6 +101,8 @@ Sendspin 当前仍标注为 Public Preview。SHiNe 将它封装在独立桥接�
 - `/api/playlists`、`/api/favorites`、`/api/history`
 - `/api/downloads`、`/api/scans`、`/api/settings/sources`
 - `/api/rooms`、`/api/rooms/{roomId}/state`、`/api/rooms/{roomId}/autofill`、`/api/rooms/{roomId}/sendspin`、`/api/health`
+
+`GET /api/library` 的 `sort` 白名单包括 `title`、`artist`、`album`、`scanned`、`modified`、`bpm`、`key`、`energy` 和 `analysis`；`direction` 为 `asc` 或 `desc`。`scanned` 是最近扫描/看见时间，`modified` 是文件 mtime。
 
 音源密钥只保存在服务端，读取配置时返回脱敏值。流媒体支持 Range 请求、正确 Content-Type 和缓存头。在线下载由 SQLite 队列和固定 3 个 Worker 消费，整张歌单不会按歌曲数无限创建并发任务。
 

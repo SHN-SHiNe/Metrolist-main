@@ -10,6 +10,7 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class OnlineCatalogTest {
     @Test
@@ -78,15 +79,32 @@ class OnlineCatalogTest {
             override suspend fun resolve(song: ChinaSong) = Result.success("https://audio.example/song.mp3")
         }
         val root = Files.createTempDirectory("shine-online-catalog")
+        lateinit var track: OnlineTrack
         MusicStore(root.resolve("music.db")).use { store ->
             val catalog = OnlineCatalog(store, gateway)
 
             val detail = catalog.playlistDetail("list-1", 1, 20, "netease")
+            track = detail.tracks.single()
+            catalog.materialize(track.id, 123)
 
             assertEquals("华语精选", detail.name)
-            assertEquals("稻香", detail.tracks.single().title)
-            assertEquals(223_000L, detail.tracks.single().durationMs)
-            assertEquals("https://audio.example/song.mp3", catalog.resolve(detail.tracks.single().id))
+            assertEquals("稻香", track.title)
+            assertEquals(223_000L, track.durationMs)
+            assertEquals("https://audio.example/song.mp3", catalog.resolve(track.id))
+            assertEquals(0, store.listTracks(null, 0, 10).total)
+            assertNull(store.trackFile(track.id))
+            assertEquals(0, store.analysisSummary(true, "test").total)
+        }
+
+        MusicStore(root.resolve("music.db")).use { reopened ->
+            val restoredCatalog = OnlineCatalog(reopened, gateway)
+
+            assertEquals("https://audio.example/song.mp3", restoredCatalog.resolve(track.id))
+            val restored = checkNotNull(reopened.track(track.id))
+            assertEquals("稻香", restored.title)
+            assertEquals("周杰伦", restored.artist)
+            assertEquals("https://img.example/cover.jpg", restored.artworkUrl)
+            assertNull(reopened.trackFile(track.id))
         }
     }
 }
