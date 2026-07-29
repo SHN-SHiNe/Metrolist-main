@@ -23,7 +23,7 @@ RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/sendspin-bridge . 
     && cp /go/pkg/mod/github.com/\!sendspin/sendspin-go@v1.8.2/LICENSE /out/sendspin-go-LICENSE
 
 FROM eclipse-temurin:21-jre-alpine
-RUN apk add --no-cache curl ffmpeg libopus tini \
+RUN apk add --no-cache curl ffmpeg opus tini \
     && addgroup -g 1000 shine \
     && adduser -D -u 1000 -G shine shine
 WORKDIR /app
