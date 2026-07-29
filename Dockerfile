@@ -17,6 +17,7 @@ FROM golang:1.24-alpine AS sendspin-build
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
 RUN apk add --no-cache gcc musl-dev opus-dev pkgconf
+RUN apk add --no-cache opusfile-dev
 WORKDIR /workspace/sendspin-bridge
 COPY sendspin-bridge/go.mod sendspin-bridge/go.sum ./
 RUN go mod download
@@ -28,6 +29,7 @@ FROM eclipse-temurin:21-jre-alpine
 RUN apk add --no-cache curl ffmpeg opus tini \
     && addgroup -g 1000 shine \
     && adduser -D -u 1000 -G shine shine
+RUN apk add --no-cache opusfile
 WORKDIR /app
 COPY --from=server-build --chown=shine:shine /workspace/server/build/install/shine-music-server/ ./
 COPY --from=sendspin-build --chown=shine:shine /out/sendspin-bridge /app/bin/sendspin-bridge
