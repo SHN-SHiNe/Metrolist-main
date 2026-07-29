@@ -73,37 +73,38 @@ export default function App() {
   }
 
   const play = (track: Track, queue: Track[]) => {
-    if (room.status === 'joined') {
+    if (room.roomId) {
       room.command({ queue: queue.map((item) => item.id), currentTrackId: track.id, positionMs: 0, playing: true })
     } else player.playTrack(track, queue)
   }
 
   const togglePlayback = () => {
-    if (room.status === 'joined' && player.current) {
+    if (room.roomId && player.current) {
       room.command({ currentTrackId: player.current.id, positionMs: Math.round(player.position * 1000), playing: !player.playing })
     } else player.toggle()
   }
 
   const skipPlayback = useCallback((delta: -1 | 1) => {
-    if (room.status !== 'joined' || !player.current || player.queue.length === 0) {
+    if (!room.roomId) {
       if (delta === 1) player.next(); else player.previous()
       return
     }
+    if (!player.current || room.queueIds.length === 0) return
     if (delta === -1 && player.position > 5) {
       room.command({ currentTrackId: player.current.id, positionMs: 0, playing: player.playing })
       return
     }
-    const nextIndex = (player.index + delta + player.queue.length) % player.queue.length
+    const currentIndex = Math.max(0, room.queueIds.indexOf(player.current.id))
+    const nextIndex = (currentIndex + delta + room.queueIds.length) % room.queueIds.length
     room.command({
-      queue: player.queue.map((item) => item.id),
-      currentTrackId: player.queue[nextIndex].id,
+      currentTrackId: room.queueIds[nextIndex],
       positionMs: 0,
       playing: true,
     })
   }, [player, room])
 
   const seekPlayback = useCallback((seconds: number) => {
-    if (room.status === 'joined' && player.current) {
+    if (room.roomId && player.current) {
       room.command({ currentTrackId: player.current.id, positionMs: Math.round(seconds * 1000), playing: player.playing })
     } else player.seek(seconds)
   }, [player, room])
@@ -137,7 +138,7 @@ export default function App() {
       <main className="main-content" id="main-content">
         <header className="topbar">
           <div><p className="eyeline">SHiNe Music · 家庭 NAS</p><h1>{title}</h1></div>
-          <div className="topbar-actions"><div className={`connection ${room.status}`} title={`时钟偏移 ${Math.round(room.serverOffset)}ms`}><span className="status-dot" />{room.status === 'joined' ? `${room.members} 台设备同步中` : '独立播放'}</div><button className="queue-toggle secondary-button" onClick={() => setQueueOpen((value) => !value)} aria-expanded={queueOpen} aria-controls="play-queue">{queueOpen ? '收起队列' : '展开队列'}</button></div>
+          <div className="topbar-actions"><div className={`connection ${room.status}`} title={`Sendspin 同步误差 ${Math.round(room.serverOffset)}ms`}><span className="status-dot" />{roomConnectionLabel(room)}</div><button className="queue-toggle secondary-button" onClick={() => setQueueOpen((value) => !value)} aria-expanded={queueOpen} aria-controls="play-queue">{queueOpen ? '收起队列' : '展开队列'}</button></div>
         </header>
         {notice && <div className="notice" role="status"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="关闭提示">×</button></div>}
         {loading ? <LoadingRows /> : (
@@ -254,13 +255,19 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
   const [name, setName] = useState('全屋同步')
   const create = async (event: FormEvent) => {
     event.preventDefault()
-    try { const created = await api.createRoom(name); await onRefresh(); room.join(created.id) } catch (error) { onNotice(readError(error)) }
+    const id = crypto.randomUUID()
+    let creation: Promise<RoomSummary> | undefined
+    try {
+      await room.join(id, () => { creation = api.createRoom(name, id); return creation })
+      await creation
+      await onRefresh()
+    } catch (error) { onNotice(readError(error)) }
   }
   return <>
-    <section className="room-intro"><div><h2>让不同设备连接的音响一起播放</h2><p>每台设备先打开本页并主动加入房间。蓝牙链路可以用延迟补偿校准。</p></div><span className="latency-readout">服务器时钟 {Math.round(room.serverOffset)} ms</span></section>
+    <section className="room-intro"><div><h2>让不同设备连接的音响一起播放</h2><p>同步由 Sendspin 负责。每台设备需主动加入并启用声音，蓝牙链路可用静态延迟校准。</p></div><span className="latency-readout">同步误差 {Math.round(room.serverOffset)} ms</span></section>
     <form className="inline-create" onSubmit={create}><input value={name} onChange={(event) => setName(event.target.value)} aria-label="房间名称" /><button className="primary-button">创建并加入</button></form>
-    <div className="room-list">{rooms.map((item) => <div key={item.id} className={`room-row ${room.roomId === item.id ? 'active' : ''}`}><span className="speaker-glyph"><Icon name="speaker" /></span><div><strong>{item.name}</strong><small>{item.memberCount} 台设备在线</small></div>{room.roomId === item.id ? <button className="secondary-button" onClick={room.leave}>离开</button> : <button className="primary-button" onClick={() => room.join(item.id)}>加入并启用声音</button>}</div>)}</div>
-    <label className="delay-control"><span>本设备延迟补偿 <b>{room.deviceDelay} ms</b></span><input type="range" min="-500" max="1500" step="10" value={room.deviceDelay} onChange={(event) => room.setDeviceDelay(Number(event.target.value))} /></label>
+    <div className="room-list">{rooms.map((item) => <div key={item.id} className={`room-row ${room.roomId === item.id ? 'active' : ''}`}><span className="speaker-glyph"><Icon name="speaker" /></span><div><strong>{item.name}</strong><small>{item.memberCount} 台设备在线</small></div>{room.roomId === item.id ? <button className="secondary-button" onClick={room.leave}>离开</button> : <button className="primary-button" onClick={() => void room.join(item.id)}>加入并启用声音</button>}</div>)}</div>
+    <label className="delay-control"><span>本设备输出延迟补偿 <b>{room.deviceDelay} ms</b></span><input type="range" min="0" max="5000" step="10" value={room.deviceDelay} onChange={(event) => room.setDeviceDelay(Number(event.target.value))} /></label>
   </>
 }
 
@@ -297,7 +304,19 @@ function AlbumRow({ title, tracks, onPlay }: { title: string; tracks: Track[]; o
 }
 
 function PlayerBar({ player, room, onToggle, onPrevious, onNext, onSeek, onOpen }: { player: ReturnType<typeof usePlayer>; room: ReturnType<typeof useRoomSync>; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onOpen: () => void }) {
-  return <footer className={`player-bar ${player.current ? 'has-track' : ''}`}><button className="player-track" onClick={onOpen} disabled={!player.current}><AlbumArt title={player.current?.title ?? 'SHiNe'} small /><span><strong>{player.current?.title ?? '选择一首歌开始播放'}</strong><small>{player.current?.artist ?? 'SHiNe MUSIC'}</small></span></button><div className="player-center"><div className="transport"><button className="icon-button" onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle} disabled={!player.current} aria-label={player.playing ? '暂停' : '播放'}><Icon name={player.playing ? 'pause' : 'play'} /></button><button className="icon-button" onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div><div className="progress-row"><span>{formatTime(player.position)}</span><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} step="0.1" value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.duration)}</span></div></div><div className="player-extras"><span className={`room-pill ${room.status}`}>{room.status === 'joined' ? `${room.members} 台同步` : '本机'}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div></footer>
+  return <footer className={`player-bar ${player.current ? 'has-track' : ''}`}><button className="player-track" onClick={onOpen} disabled={!player.current}><AlbumArt title={player.current?.title ?? 'SHiNe'} small /><span><strong>{player.current?.title ?? '选择一首歌开始播放'}</strong><small>{player.current?.artist ?? 'SHiNe MUSIC'}</small></span></button><div className="player-center"><div className="transport"><button className="icon-button" onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle} disabled={!player.current} aria-label={player.playing ? '暂停' : '播放'}><Icon name={player.playing ? 'pause' : 'play'} /></button><button className="icon-button" onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div><div className="progress-row"><span>{formatTime(player.position)}</span><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} step="0.1" value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.duration)}</span></div></div><div className="player-extras"><span className={`room-pill ${room.status}`}>{roomPlayerLabel(room)}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div></footer>
+}
+
+function roomConnectionLabel(room: ReturnType<typeof useRoomSync>) {
+  if (!room.roomId) return '独立播放'
+  if (room.status === 'joined') return `${room.members} 台设备同步中`
+  return room.status === 'connecting' ? 'Sendspin 正在重连' : 'Sendspin 连接异常'
+}
+
+function roomPlayerLabel(room: ReturnType<typeof useRoomSync>) {
+  if (!room.roomId) return '本机'
+  if (room.status === 'joined') return `${room.members} 台同步`
+  return room.status === 'connecting' ? '重连中' : '同步异常'
 }
 
 function NowPlaying({ player, onToggle, onPrevious, onNext, onSeek, onClose }: { player: ReturnType<typeof usePlayer>; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onClose: () => void }) {

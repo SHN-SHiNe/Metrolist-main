@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import type { RoomPlaybackState, Track } from './types'
-import { driftCorrection, scheduledDelay } from './sync'
 
 export function usePlayer() {
   const audio = useMemo(() => new Audio(), [])
@@ -12,9 +11,8 @@ export function usePlayer() {
   const [position, setPosition] = useState(restored.position)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(() => Number(localStorage.getItem('shine-volume') ?? .8))
-  const remoteTimer = useRef<number | null>(null)
-  const pendingCanPlay = useRef<(() => void) | null>(null)
-  const audioContext = useRef<AudioContext | null>(null)
+  const roomMode = useRef(false)
+  const independentState = useRef<{ queue: Track[]; index: number; position: number } | null>(null)
   const current = queue[index] ?? null
 
   const playIndex = useCallback(async (nextIndex: number, autoPlay = true) => {
@@ -62,59 +60,42 @@ export function usePlayer() {
     localStorage.setItem('shine-volume', String(value))
   }, [audio])
 
-  const enableAudio = useCallback(async () => {
-    if (!audioContext.current) {
-      const context = new AudioContext()
-      context.createMediaElementSource(audio).connect(context.destination)
-      audioContext.current = context
+  const enterRoomMode = useCallback(() => {
+    if (!roomMode.current) independentState.current = { queue, index, position: audio.currentTime }
+    roomMode.current = true
+    audio.pause()
+  }, [audio, index, queue])
+
+  const leaveRoomMode = useCallback(() => {
+    roomMode.current = false
+    const snapshot = independentState.current
+    independentState.current = null
+    if (snapshot) {
+      setQueue(snapshot.queue)
+      setIndex(snapshot.index)
+      setPosition(snapshot.position)
+      setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
     }
-    await audioContext.current.resume()
+    setPlaying(false)
   }, [audio])
 
-  const outputLatencyMs = useCallback(() => {
-    const context = audioContext.current
-    if (!context) return 0
-    const timestampLatency = typeof context.getOutputTimestamp === 'function'
-      ? Math.max(0, (context.currentTime - (context.getOutputTimestamp().contextTime ?? context.currentTime)) * 1000)
-      : 0
-    return Math.max(timestampLatency, ((context.baseLatency ?? 0) + ('outputLatency' in context ? Number(context.outputLatency) : 0)) * 1000)
-  }, [])
-
-  const applyRoomState = useCallback((state: RoomPlaybackState, tracks: Track[], serverOffset: number, deviceDelay: number) => {
-    if (remoteTimer.current !== null) window.clearTimeout(remoteTimer.current)
-    if (pendingCanPlay.current) audio.removeEventListener('canplay', pendingCanPlay.current)
-    pendingCanPlay.current = null
+  const reflectRoomState = useCallback((state: RoomPlaybackState, tracks: Track[], livePositionMs?: number, liveDurationMs?: number) => {
     const nextQueue = state.queue.map((id) => tracks.find((track) => track.id === id)).filter(Boolean) as Track[]
     const target = tracks.find((track) => track.id === state.currentTrackId)
     if (!target) return
     const targetIndex = Math.max(0, nextQueue.findIndex((track) => track.id === target.id))
     setQueue(nextQueue.length ? nextQueue : [target])
     setIndex(targetIndex)
-    if (audio.src !== `${location.origin}/api/media/${target.id}/stream`) {
-      audio.src = `/api/media/${target.id}/stream`
-      audio.load()
-    }
-    const delay = Math.max(0, scheduledDelay(state.effectiveAt, serverOffset, deviceDelay, Date.now()) - outputLatencyMs())
-    const startAtSynchronizedPosition = () => {
-      pendingCanPlay.current = null
-      const elapsed = state.playing ? Math.max(0, Date.now() + serverOffset - state.effectiveAt) : 0
-      audio.currentTime = (state.positionMs + elapsed) / 1000
-      if (state.playing) void audio.play().catch(() => setPlaying(false))
-      else audio.pause()
-    }
-    remoteTimer.current = window.setTimeout(() => {
-      if (!state.playing || audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) startAtSynchronizedPosition()
-      else {
-        pendingCanPlay.current = startAtSynchronizedPosition
-        audio.addEventListener('canplay', startAtSynchronizedPosition, { once: true })
-      }
-    }, delay)
-  }, [audio, outputLatencyMs])
+    setPosition((livePositionMs ?? state.positionMs) / 1000)
+    setDuration((liveDurationMs ?? target.durationMs) / 1000)
+    setPlaying(state.playing)
+  }, [])
 
   useEffect(() => {
     audio.preload = 'auto'
     audio.volume = volume
     const update = () => {
+      if (roomMode.current) return
       setPosition(audio.currentTime)
       setDuration(Number.isFinite(audio.duration) ? audio.duration : 0)
     }
@@ -143,34 +124,20 @@ export function usePlayer() {
   }, [audio, current, restored.position])
 
   useEffect(() => {
+    if (roomMode.current) return
     localStorage.setItem('shine-playback', JSON.stringify({ queue, index, position }))
   }, [index, position, queue])
 
   useEffect(() => {
     if (!current || !('mediaSession' in navigator)) return
     navigator.mediaSession.metadata = new MediaMetadata({ title: current.title, artist: current.artist, album: current.album })
-    navigator.mediaSession.setActionHandler('play', () => void audio.play())
-    navigator.mediaSession.setActionHandler('pause', () => audio.pause())
-    navigator.mediaSession.setActionHandler('nexttrack', next)
-    navigator.mediaSession.setActionHandler('previoustrack', previous)
+    navigator.mediaSession.setActionHandler('play', () => { if (!roomMode.current) void audio.play() })
+    navigator.mediaSession.setActionHandler('pause', () => { if (!roomMode.current) audio.pause() })
+    navigator.mediaSession.setActionHandler('nexttrack', () => { if (!roomMode.current) next() })
+    navigator.mediaSession.setActionHandler('previoustrack', () => { if (!roomMode.current) previous() })
   }, [audio, current, next, previous])
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (!playing || audio.playbackRate === 1) return
-      audio.playbackRate = 1
-    }, 3000)
-    return () => window.clearInterval(timer)
-  }, [audio, playing])
-
-  const correctDrift = useCallback((expectedPositionMs: number) => {
-    const drift = expectedPositionMs - audio.currentTime * 1000
-    const correction = driftCorrection(drift)
-    if (correction.seek) audio.currentTime = expectedPositionMs / 1000
-    audio.playbackRate = correction.rate
-  }, [audio])
-
-  return { audio, current, queue, index, playing, position, duration, volume, playTrack, toggle, next, previous, seek, setVolume, enableAudio, applyRoomState, correctDrift }
+  return { audio, current, queue, index, playing, position, duration, volume, playTrack, toggle, next, previous, seek, setVolume, enterRoomMode, leaveRoomMode, reflectRoomState }
 }
 
 export type PlayerController = ReturnType<typeof usePlayer>

@@ -16,7 +16,7 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 - React + TypeScript 响应式 Web：手机端底部导航与全屏播放，PC 端左侧导航、内容区、右侧队列和底部播放器。
 - NAS 本地曲库扫描、HTTP Range 流媒体、在线歌曲直放与后台下载入库。
 - 共享收藏、歌单与历史；访客免登录，因此局域网内所有用户均有修改权限。
-- 多个命名同步房间，通过 WebSocket、NAS 时钟偏移估算、预定起播与设备延迟补偿实现听感同步。
+- 多个命名同步房间，以 [Sendspin](https://www.sendspin-audio.com/) 协议、官方 Go 服务端与官方 Web SDK 为同步底座；SHiNe 只负责房间、队列和曲库编排。
 - 浅色、深色、纯黑主题，键盘焦点、44px 触控目标和减少动态效果支持。
 
 产品边界与视觉规则分别见 [PRODUCT.md](./PRODUCT.md) 和 [DESIGN.md](./DESIGN.md)。
@@ -53,13 +53,15 @@ http://192.168.31.142:8767
 | `SHINE_SCAN_ON_START` | `true` | 启动时是否增量扫描 |
 | `SHINE_LOG_LEVEL` | `INFO` | 服务日志级别 |
 
-镜像定义支持 `linux/amd64` 和 `linux/arm64`。服务端同时托管构建后的 Web 静态资源，因此运行时只有一个容器和一个端口。
+镜像定义支持 `linux/amd64` 和 `linux/arm64`。容器内由 Ktor 服务和 Sendspin 桥接进程协作，Ktor 同时托管 Web 静态资源并代理 Sendspin WebSocket，因此 NAS 对外仍只有一个容器和一个端口。
 
 ## 使用说明
 
 独立播放状态保存在当前浏览器。收藏、歌单和历史会立即写入 NAS，并对所有访客可见。
 
-进入同步房间后，每台设备仍须点击“加入并启用声音”，浏览器不会在页面打开时自动发声。蓝牙、声卡与音响 DSP 的缓冲差异可通过每设备延迟补偿校准；这属于听感同步，不是专业多房间系统的样本级同步。
+进入同步房间后，每台设备仍须点击“加入并启用声音”，浏览器不会在页面打开时自动发声。Sendspin 负责时钟同步、预缓冲、统一时间戳起播和漂移校正；蓝牙、声卡与音响 DSP 的额外缓冲可用每设备 `0–5000 ms` 静态延迟补偿校准。这仍以家庭听感同步为目标，不承诺专业多房间系统的样本级精度。
+
+Sendspin 当前仍标注为 Public Preview。SHiNe 将它封装在独立桥接边界内，并锁定 `sendspin-go v1.8.2` 与 `@sendspin/sendspin-js 3.2.1`，后续升级需先执行多设备回归。协议说明见 [Sendspin Protocol](https://www.sendspin-audio.com/spec/)，客户端实现见 [sendspin-js](https://github.com/Sendspin/sendspin-js)。
 
 当前 HTTP 局域网入口按普通 Web 验收。Manifest 和图标已经提供，但完整 PWA 安装、Service Worker、离线能力以及网页选择音频输出设备，需要未来配置受信任 HTTPS 后再启用。
 
@@ -70,7 +72,7 @@ http://192.168.31.142:8767
 - `/api/library`、`/api/search`、`/api/media/{trackId}/stream`
 - `/api/playlists`、`/api/favorites`、`/api/history`
 - `/api/downloads`、`/api/scans`、`/api/settings/sources`
-- `/api/rooms`、`/ws/rooms/{roomId}`、`/api/health`
+- `/api/rooms`、`/api/rooms/{roomId}/state`、`/api/rooms/{roomId}/sendspin`、`/api/health`
 
 音源密钥只保存在服务端，读取配置时返回脱敏值。流媒体支持 Range 请求、正确 Content-Type 和缓存头。
 
@@ -94,7 +96,15 @@ gradle -p server test installDist
 server/build/install/shine-music-server/bin/shine-music-server
 ```
 
-开发时可用 `npm run dev` 启动 Vite。生产构建必须先生成 `web/dist`，Gradle 会将其嵌入服务端发行包。
+Sendspin 桥接进程（需要 Go 1.24、libopus 开发文件和 `ffmpeg`）：
+
+```bash
+cd sendspin-bridge
+go test ./...
+go build ./...
+```
+
+开发时可用 `npm run dev` 启动 Vite。仅运行 JVM 时会使用内存桥接替身，房间 REST API 可用但不会输出同步音频；完整联调建议使用 Compose。手动分别启动两个进程时，除 `SHINE_SENDSPIN_BRIDGE_URL=http://127.0.0.1:8936` 外，还要为两边设置相同的随机 `SHINE_SENDSPIN_INTERNAL_TOKEN`，并为桥接进程设置 `SHINE_SENDSPIN_EVENT_URL=http://127.0.0.1:8767/internal/sendspin/events`。生产构建必须先生成 `web/dist`，Gradle 会将其嵌入服务端发行包。
 
 ## Android 历史代码
 

@@ -21,12 +21,4 @@ export type DownloadJob = { id: string; title: string; artist: string; status: s
 export type SearchResponse = { items: Track[]; total: number; page: number; limit: number }
 export type RoomSummary = { id: string; name: string; memberCount: number; version: number; updatedAt: number }
 export type RoomPlaybackState = { queue: string[]; currentTrackId: string | null; positionMs: number; playing: boolean; effectiveAt: number }
-export type RoomEnvelope = {
-  type: 'snapshot' | 'state' | 'members' | 'pong'
-  roomId: string
-  version: number
-  state?: RoomPlaybackState
-  serverTime: number
-  memberCount: number
-  clientTime?: number
-}
+export type RoomDetail = { summary: RoomSummary; state: RoomPlaybackState }

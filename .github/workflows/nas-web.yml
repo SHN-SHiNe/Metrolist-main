@@ -29,6 +29,19 @@ jobs:
           npm run typecheck
           npm run build
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.24.1
+          cache-dependency-path: sendspin-bridge/go.sum
+
+      - name: Verify Sendspin bridge
+        working-directory: sendspin-bridge
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopus-dev pkg-config
+          go test ./...
+          go build ./...
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

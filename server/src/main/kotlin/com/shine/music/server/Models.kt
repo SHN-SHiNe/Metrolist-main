@@ -100,7 +100,7 @@ data class OnlineTrack(
 data class SearchResponse(val items: List<OnlineTrack>, val total: Int, val page: Int, val limit: Int)
 
 @Serializable
-data class CreateRoomRequest(val name: String)
+data class CreateRoomRequest(val name: String, val id: String? = null)
 
 @Serializable
 data class RoomSummary(val id: String, val name: String, val memberCount: Int, val version: Long, val updatedAt: Long)
@@ -115,27 +115,15 @@ data class RoomPlaybackState(
 )
 
 @Serializable
-data class RoomCommand(
-    val type: String,
-    val clientId: String,
+data class UpdateRoomStateRequest(
     val queue: List<String>? = null,
     val currentTrackId: String? = null,
     val positionMs: Long? = null,
     val playing: Boolean? = null,
-    val effectiveAt: Long? = null,
-    val clientTime: Long? = null,
 )
 
 @Serializable
-data class RoomEnvelope(
-    val type: String,
-    val roomId: String,
-    val version: Long,
-    val state: RoomPlaybackState? = null,
-    val serverTime: Long,
-    val memberCount: Int,
-    val clientTime: Long? = null,
-)
+data class RoomDetail(val summary: RoomSummary, val state: RoomPlaybackState)
 
 @Serializable
 data class MessageResponse(val status: String)

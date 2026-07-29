@@ -196,6 +196,15 @@ class MusicStore(private val databasePath: Path) {
         }
     }
 
+    fun track(id: String): Track? = connection().use { db ->
+        db.prepareStatement(
+            "SELECT t.*, EXISTS(SELECT 1 FROM favorites f WHERE f.track_id=t.id) AS favorite FROM tracks t WHERE t.id=? AND t.deleted_at IS NULL",
+        ).use { statement ->
+            statement.setString(1, id)
+            statement.executeQuery().use { row -> if (row.next()) row.toTrack() else null }
+        }
+    }
+
     fun markTrackDeleted(id: String, now: Long): Boolean = connection().use { db ->
         db.prepareStatement("UPDATE tracks SET deleted_at=? WHERE id=? AND deleted_at IS NULL").use {
             it.setLong(1, now); it.setString(2, id); it.executeUpdate() > 0
@@ -351,12 +360,19 @@ class MusicStore(private val databasePath: Path) {
         } } }
     }
 
-    fun createRoom(name: String, stateJson: String, now: Long): RoomSummary {
-        val id = UUID.randomUUID().toString()
+    fun createRoom(name: String, stateJson: String, now: Long, requestedId: String? = null): RoomSummary {
+        val id = requestedId ?: UUID.randomUUID().toString()
         connection().use { db -> db.prepareStatement("INSERT INTO rooms(id,name,state_json,version,updated_at) VALUES(?,?,?,0,?)").use {
             it.setString(1, id); it.setString(2, name); it.setString(3, stateJson); it.setLong(4, now); it.executeUpdate()
         } }
         return RoomSummary(id, name, 0, 0, now)
+    }
+
+    fun deleteRoom(id: String): Boolean = connection().use { db ->
+        db.prepareStatement("DELETE FROM rooms WHERE id=?").use { statement ->
+            statement.setString(1, id)
+            statement.executeUpdate() > 0
+        }
     }
 
     fun rooms(): List<StoredRoom> = connection().use { db ->

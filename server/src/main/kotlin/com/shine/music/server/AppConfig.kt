@@ -9,6 +9,8 @@ data class AppConfig(
     val cacheDir: Path,
     val trashRetentionDays: Long = 30,
     val scanOnStart: Boolean = true,
+    val sendspinBridgeUrl: String? = null,
+    val sendspinInternalToken: String? = null,
 ) {
     val databasePath: Path get() = dataDir.resolve("shine-music.db")
     val backupDir: Path get() = dataDir.resolve("backups")
@@ -23,6 +25,8 @@ data class AppConfig(
                 cacheDir = Path(env["SHINE_CACHE_DIR"] ?: data.resolve("cache").toString()),
                 trashRetentionDays = env["SHINE_TRASH_RETENTION_DAYS"]?.toLongOrNull() ?: 30,
                 scanOnStart = env["SHINE_SCAN_ON_START"]?.toBooleanStrictOrNull() ?: true,
+                sendspinBridgeUrl = env["SHINE_SENDSPIN_BRIDGE_URL"]?.trim()?.trimEnd('/')?.takeIf(String::isNotBlank),
+                sendspinInternalToken = env["SHINE_SENDSPIN_INTERNAL_TOKEN"]?.takeIf(String::isNotBlank),
             )
         }
     }

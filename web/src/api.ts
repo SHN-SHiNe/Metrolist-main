@@ -1,4 +1,4 @@
-import type { DownloadJob, HistoryEntry, PlaylistDetail, PlaylistSummary, RoomSummary, SearchResponse, SourceConfig, Track, TrackPage } from './types'
+import type { DownloadJob, HistoryEntry, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SourceConfig, Track, TrackPage } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -37,5 +37,9 @@ export const api = {
     method: 'POST', body: JSON.stringify({ trackId: track.id, title: track.title, artist: track.artist }),
   }),
   rooms: () => request<RoomSummary[]>('/api/rooms'),
-  createRoom: (name: string) => request<RoomSummary>('/api/rooms', { method: 'POST', body: JSON.stringify({ name }) }),
+  createRoom: (name: string, id?: string) => request<RoomSummary>('/api/rooms', { method: 'POST', body: JSON.stringify({ name, id }) }),
+  room: (id: string) => request<RoomDetail>(`/api/rooms/${id}`),
+  updateRoom: (id: string, state: Partial<RoomPlaybackState>) => request<RoomDetail>(`/api/rooms/${id}/state`, {
+    method: 'PUT', body: JSON.stringify(state),
+  }),
 }

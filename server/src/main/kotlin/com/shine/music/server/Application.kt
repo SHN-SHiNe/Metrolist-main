@@ -23,11 +23,21 @@ import io.ktor.server.routing.put
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
+import io.ktor.client.plugins.websocket.webSocketSession
+import io.ktor.client.request.url
 import io.ktor.websocket.Frame
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -40,6 +50,7 @@ import kotlin.io.path.createDirectories
 fun Application.shineModule(
     config: AppConfig = AppConfig.fromEnvironment(),
     clock: () -> Long = System::currentTimeMillis,
+    sendspinBridge: SendspinBridge = config.sendspinBridgeUrl?.let(::HttpSendspinBridge) ?: InMemorySendspinBridge(),
 ) {
     config.dataDir.createDirectories()
     config.musicDir.createDirectories()
@@ -50,7 +61,7 @@ fun Application.shineModule(
     val scanner = LibraryScanner(config.musicDir, store, config.cacheDir, clock)
     val catalog = OnlineCatalog(store)
     val downloads = DownloadManager(config, store, scanner, catalog, clock)
-    val rooms = RoomHub(store, clock)
+    val rooms = RoomHub(store, catalog, sendspinBridge, clock)
     val maintenance = Maintenance(config, store, clock)
     val jsonCodec = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -73,6 +84,14 @@ fun Application.shineModule(
     }
 
     if (config.scanOnStart) launch(Dispatchers.IO) { runCatching { scanner.scan() } }
+    launch(Dispatchers.IO) {
+        while (isActive) {
+            val restored = runCatching { rooms.restore() }
+            if (restored.isSuccess) break
+            environment.log.error("Sendspin room restore failed; retrying", restored.exceptionOrNull())
+            delay(2_000)
+        }
+    }
     launch(Dispatchers.IO) {
         while (isActive) {
             runCatching { maintenance.runOnce() }.onFailure { environment.log.error("Maintenance failed", it) }
@@ -196,17 +215,60 @@ fun Application.shineModule(
         post("/api/rooms") {
             val request = call.receive<CreateRoomRequest>()
             require(request.name.isNotBlank()) { "room_name_required" }
-            call.respond(HttpStatusCode.Created, rooms.create(request.name))
+            request.id?.let { require(runCatching { java.util.UUID.fromString(it) }.isSuccess) { "invalid_room_id" } }
+            call.respond(HttpStatusCode.Created, rooms.create(request.name, request.id))
         }
-        webSocket("/ws/rooms/{roomId}") {
-            val id = call.parameters["roomId"] ?: return@webSocket
-            val room = rooms.join(id, this) ?: return@webSocket
+        post("/internal/sendspin/events") {
+            if (config.sendspinInternalToken == null || call.request.headers["X-SHiNe-Internal-Token"] != config.sendspinInternalToken) {
+                return@post call.respond(HttpStatusCode.NotFound)
+            }
+            rooms.reconcile(call.receive())
+            call.respond(MessageResponse("room_reconciled"))
+        }
+        get("/api/rooms/{roomId}") {
+            val id = call.parameters["roomId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            call.respond(rooms.detail(id) ?: return@get call.respond(HttpStatusCode.NotFound))
+        }
+        put("/api/rooms/{roomId}/state") {
+            val id = call.parameters["roomId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
+            call.respond(rooms.update(id, call.receive()) ?: return@put call.respond(HttpStatusCode.NotFound))
+        }
+        webSocket("/api/rooms/{roomId}/sendspin") {
+            val id = call.parameters["roomId"] ?: return@webSocket close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "room_required"))
+            val upstreamUrl = rooms.websocketUrl(id)
+                ?: return@webSocket close(CloseReason(CloseReason.Codes.TRY_AGAIN_LATER, "sendspin_unavailable"))
+            val proxy = HttpClient(CIO) { install(ClientWebSockets) }
+            val upstream = runCatching { proxy.webSocketSession { url(upstreamUrl) } }.getOrElse {
+                proxy.close()
+                return@webSocket close(CloseReason(CloseReason.Codes.TRY_AGAIN_LATER, "sendspin_unavailable"))
+            }
             try {
-                incoming.consumeEach { frame ->
-                    if (frame is Frame.Text) rooms.handle(room, this, rooms.decode(frame.readText()))
+                coroutineScope {
+                    val toUpstream = launch {
+                        incoming.consumeEach { frame ->
+                            when (frame) {
+                                is Frame.Text -> upstream.send(Frame.Text(frame.readText()))
+                                is Frame.Binary -> upstream.send(Frame.Binary(frame.fin, frame.data))
+                                else -> Unit
+                            }
+                        }
+                    }
+                    val toBrowser = launch {
+                        upstream.incoming.consumeEach { frame ->
+                            when (frame) {
+                                is Frame.Text -> send(Frame.Text(frame.readText()))
+                                is Frame.Binary -> send(Frame.Binary(frame.fin, frame.data))
+                                else -> Unit
+                            }
+                        }
+                    }
+                    toUpstream.invokeOnCompletion { toBrowser.cancel() }
+                    toBrowser.invokeOnCompletion { toUpstream.cancel() }
+                    joinAll(toUpstream, toBrowser)
                 }
             } finally {
-                rooms.leave(room, this)
+                upstream.close()
+                proxy.close()
             }
         }
 

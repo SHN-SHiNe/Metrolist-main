@@ -1,99 +1,133 @@
+import { SendspinPlayer } from '@sendspin/sendspin-js'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RoomEnvelope, RoomPlaybackState, Track } from './types'
+import { api } from './api'
+import { clampSendspinDelay, sendspinBaseUrl } from './sendspin'
+import type { RoomPlaybackState, Track } from './types'
 import type { PlayerController } from './usePlayer'
-import { estimateServerOffset, type ClockSample } from './sync'
 
 export function useRoomSync(player: PlayerController, tracks: Track[]) {
-  const socket = useRef<WebSocket | null>(null)
-  const samples = useRef<ClockSample[]>([])
-  const latestState = useRef<RoomPlaybackState | null>(null)
+  const sendspin = useRef<SendspinPlayer | null>(null)
+  const joinedRoom = useRef<string | null>(null)
   const playerRef = useRef(player)
   const tracksRef = useRef(tracks)
-  const serverOffsetRef = useRef(0)
-  const deviceDelayRef = useRef(0)
+  const metadataRef = useRef<{ title?: string | null; artist?: string | null; album?: string | null }>({})
   const [roomId, setRoomId] = useState<string | null>(null)
   const [members, setMembers] = useState(0)
+  const [queueIds, setQueueIds] = useState<string[]>([])
   const [status, setStatus] = useState<'offline' | 'connecting' | 'joined' | 'error'>('offline')
   const [serverOffset, setServerOffset] = useState(0)
-  const [deviceDelay, setDeviceDelayState] = useState(() => Number(localStorage.getItem('shine-device-delay') ?? 0))
+  const [deviceDelay, setDeviceDelayState] = useState(() => clampSendspinDelay(Number(localStorage.getItem('shine-device-delay') ?? 0)))
 
   useEffect(() => { playerRef.current = player }, [player])
   useEffect(() => { tracksRef.current = tracks }, [tracks])
-  useEffect(() => { serverOffsetRef.current = serverOffset }, [serverOffset])
-  useEffect(() => { deviceDelayRef.current = deviceDelay }, [deviceDelay])
+  useEffect(() => { sendspin.current?.setVolume(player.volume * 100) }, [player.volume])
 
   const leave = useCallback(() => {
-    socket.current?.close()
-    socket.current = null
-    latestState.current = null
+    joinedRoom.current = null
+    sendspin.current?.disconnect()
+    sendspin.current = null
+    metadataRef.current = {}
+    playerRef.current.leaveRoomMode()
     setRoomId(null)
     setStatus('offline')
     setMembers(0)
+    setQueueIds([])
+    setServerOffset(0)
   }, [])
 
-  const join = useCallback((id: string) => {
+  const reflect = useCallback(async (id: string) => {
+    const detail = await api.room(id)
+    if (joinedRoom.current !== id) return
+    setMembers(detail.summary.memberCount)
+    setQueueIds(detail.state.queue)
+    const progress = sendspin.current?.trackProgress
+    const metadata = metadataRef.current
+    const currentId = detail.state.currentTrackId
+    const knownTracks = tracksRef.current
+    const displayTracks = currentId && !knownTracks.some((track) => track.id === currentId)
+      ? [...knownTracks, {
+          id: currentId,
+          title: metadata.title || '同步房间正在播放',
+          artist: metadata.artist || 'Sendspin',
+          album: metadata.album || '',
+          durationMs: progress?.durationMs ?? 0,
+        }]
+      : knownTracks
+    playerRef.current.reflectRoomState(detail.state, displayTracks, progress?.positionMs, progress?.durationMs)
+    setServerOffset(sendspin.current?.syncInfo.syncErrorMs ?? 0)
+  }, [])
+
+  const join = useCallback(async (id: string, ready?: () => Promise<unknown>) => {
     leave()
-    void playerRef.current.enableAudio().catch(() => undefined)
     setStatus('connecting')
     setRoomId(id)
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${location.host}/ws/rooms/${id}`)
-    socket.current = ws
-    ws.addEventListener('open', () => {
+    joinedRoom.current = id
+    playerRef.current.enterRoomMode()
+    const sdk = new SendspinPlayer({
+      playerId: clientId(),
+      clientName: deviceName(),
+      baseUrl: sendspinBaseUrl(id, location.origin),
+      correctionMode: 'sync',
+      syncDelay: deviceDelay,
+      onStateChange: (state) => {
+        metadataRef.current = { ...metadataRef.current, ...state.serverState.metadata }
+        void reflect(id)
+      },
+      reconnect: {
+        onReconnecting: () => { if (joinedRoom.current === id) setStatus('connecting') },
+        onReconnected: () => { if (joinedRoom.current === id) setStatus('joined') },
+        onExhausted: () => { if (joinedRoom.current === id) setStatus('error') },
+      },
+    })
+    sendspin.current = sdk
+    const unlockPromise = sdk.unlock()
+    const readyPromise = ready?.()
+    try {
+      await unlockPromise
+      await readyPromise
+      await sdk.connect()
+      if (joinedRoom.current !== id) {
+        sdk.disconnect()
+        return
+      }
+      sdk.setVolume(playerRef.current.volume * 100)
       setStatus('joined')
-      const sentAt = Date.now()
-      ws.send(JSON.stringify({ type: 'ping', clientId: clientId(), clientTime: sentAt }))
-    })
-    ws.addEventListener('message', (event) => {
-      const message = JSON.parse(String(event.data)) as RoomEnvelope
-      setMembers(message.memberCount)
-      if (message.type === 'pong' && message.clientTime != null) {
-        samples.current = [...samples.current.slice(-9), { sentAt: message.clientTime, receivedAt: Date.now(), serverTime: message.serverTime }]
-        setServerOffset(estimateServerOffset(samples.current))
-      }
-      if (message.state && (message.type === 'snapshot' || message.type === 'state')) {
-        latestState.current = message.state
-        playerRef.current.applyRoomState(message.state, tracksRef.current, serverOffsetRef.current, deviceDelayRef.current)
-      }
-    })
-    ws.addEventListener('error', () => setStatus('error'))
-    ws.addEventListener('close', () => setStatus('offline'))
-  }, [leave])
+      await reflect(id)
+    } catch {
+      if (joinedRoom.current === id) setStatus('error')
+    }
+  }, [deviceDelay, leave, reflect])
 
   const command = useCallback((partial: Partial<RoomPlaybackState>) => {
-    if (socket.current?.readyState !== WebSocket.OPEN) return false
-    socket.current.send(JSON.stringify({
-      type: 'state', clientId: clientId(), ...partial,
-      effectiveAt: Date.now() + serverOffset + 900,
-    }))
+    const id = joinedRoom.current
+    if (!id) return false
+    void api.updateRoom(id, partial).then((detail) => {
+      if (joinedRoom.current !== id) return
+      playerRef.current.reflectRoomState(detail.state, tracksRef.current)
+      setMembers(detail.summary.memberCount)
+      setQueueIds(detail.state.queue)
+    }).catch(() => setStatus('error'))
     return true
-  }, [serverOffset])
+  }, [])
 
   const setDeviceDelay = useCallback((value: number) => {
-    setDeviceDelayState(value)
-    localStorage.setItem('shine-device-delay', String(value))
+    const next = clampSendspinDelay(value)
+    setDeviceDelayState(next)
+    localStorage.setItem('shine-device-delay', String(next))
+    sendspin.current?.setSyncDelay(next)
   }, [])
 
   useEffect(() => {
-    if (status !== 'joined') return
-    const ping = window.setInterval(() => {
-      if (socket.current?.readyState === WebSocket.OPEN) {
-        const sentAt = Date.now()
-        socket.current.send(JSON.stringify({ type: 'ping', clientId: clientId(), clientTime: sentAt }))
-      }
-    }, 5000)
-    const drift = window.setInterval(() => {
-      const state = latestState.current
-      if (!state?.playing) return
-      const expected = state.positionMs + Math.max(0, Date.now() + serverOffset - state.effectiveAt)
-      player.correctDrift(expected)
-    }, 3000)
-    return () => { window.clearInterval(ping); window.clearInterval(drift) }
-  }, [player, serverOffset, status])
+    if (!roomId || status === 'offline') return
+    const timer = window.setInterval(() => {
+      void reflect(roomId).catch(() => { if (joinedRoom.current === roomId) setStatus('error') })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [reflect, roomId, status])
 
   useEffect(() => leave, [leave])
 
-  return { roomId, members, status, serverOffset, deviceDelay, setDeviceDelay, join, leave, command }
+  return { roomId, members, queueIds, status, serverOffset, deviceDelay, setDeviceDelay, join, leave, command }
 }
 
 function clientId(): string {
@@ -103,4 +137,9 @@ function clientId(): string {
   const next = crypto.randomUUID()
   localStorage.setItem(key, next)
   return next
+}
+
+function deviceName(): string {
+  const mobile = /Android|iPhone|iPad/i.test(navigator.userAgent)
+  return `SHiNe Web · ${mobile ? '手机' : '电脑'}`
 }

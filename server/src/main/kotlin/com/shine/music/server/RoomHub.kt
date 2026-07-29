@@ -1,16 +1,14 @@
 package com.shine.music.server
 
-import io.ktor.server.websocket.DefaultWebSocketServerSession
-import io.ktor.websocket.Frame
-import io.ktor.websocket.send
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArraySet
 
 class RoomHub(
     private val store: MusicStore,
+    private val catalog: OnlineCatalog,
+    private val bridge: SendspinBridge,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -28,54 +26,97 @@ class RoomHub(
         }
     }
 
-    fun create(name: String): RoomSummary {
+    suspend fun restore() {
+        rooms.values.forEach { room -> room.lastBridgeRevision = sync(room, room.state, forcePosition = true).revision }
+    }
+
+    suspend fun create(name: String, requestedId: String? = null): RoomSummary {
         val state = RoomPlaybackState()
-        val summary = store.createRoom(name.trim(), json.encodeToString(state), clock())
-        rooms[summary.id] = RuntimeRoom(summary.id, summary.name, state, summary.version, summary.updatedAt)
+        val summary = store.createRoom(name.trim(), json.encodeToString(state), clock(), requestedId)
+        val room = RuntimeRoom(summary.id, summary.name, state, summary.version, summary.updatedAt)
+        rooms[summary.id] = room
+        try {
+            room.lastBridgeRevision = sync(room, state).revision
+        } catch (failure: Throwable) {
+            rooms.remove(summary.id)
+            store.deleteRoom(summary.id)
+            throw failure
+        }
         return summary
     }
 
-    fun list(): List<RoomSummary> = rooms.values.sortedByDescending { it.updatedAt }.map {
-        RoomSummary(it.id, it.name, it.clients.size, it.version, it.updatedAt)
+    suspend fun list(): List<RoomSummary> = rooms.values.sortedByDescending { it.updatedAt }.map { room ->
+        val members = runCatching { bridge.status(room.id)?.memberCount ?: 0 }.getOrDefault(0)
+        RoomSummary(room.id, room.name, members, room.version, room.updatedAt)
     }
 
-    suspend fun join(roomId: String, session: DefaultWebSocketServerSession): RuntimeRoom? {
+    suspend fun detail(roomId: String): RoomDetail? {
         val room = rooms[roomId] ?: return null
-        room.clients += session
-        broadcast(room, "snapshot")
-        return room
+        val status = runCatching { bridge.status(roomId) }.getOrNull()
+        val state = if (status != null && status.currentTrackId.isNotBlank()) {
+            room.state.copy(currentTrackId = status.currentTrackId, positionMs = status.positionMs, playing = status.playing)
+        } else room.state
+        return RoomDetail(RoomSummary(room.id, room.name, status?.memberCount ?: 0, room.version, room.updatedAt), state)
     }
 
-    suspend fun leave(room: RuntimeRoom, session: DefaultWebSocketServerSession) {
-        room.clients -= session
-        broadcast(room, "members")
-    }
-
-    suspend fun handle(room: RuntimeRoom, session: DefaultWebSocketServerSession, command: RoomCommand) {
-        if (command.type == "ping") {
-            session.send(json.encodeToString(RoomEnvelope("pong", room.id, room.version, null, clock(), room.clients.size, command.clientTime)))
-            return
-        }
+    suspend fun update(roomId: String, command: UpdateRoomStateRequest): RoomDetail? {
+        val room = rooms[roomId] ?: return null
         room.lock.withLock {
-            room.state = room.state.copy(
+            val nextState = room.state.copy(
                 queue = command.queue ?: room.state.queue,
                 currentTrackId = command.currentTrackId ?: room.state.currentTrackId,
-                positionMs = command.positionMs ?: room.state.positionMs,
+                positionMs = command.positionMs?.coerceAtLeast(0) ?: room.state.positionMs,
                 playing = command.playing ?: room.state.playing,
-                effectiveAt = command.effectiveAt ?: clock() + 750,
+                effectiveAt = 0,
             )
-            room.version++
-            room.updatedAt = clock()
-            store.saveRoom(room.id, json.encodeToString(room.state), room.version, room.updatedAt)
+            val bridgeStatus = sync(room, nextState, forcePosition = command.positionMs != null)
+            room.lastBridgeRevision = maxOf(room.lastBridgeRevision, bridgeStatus.revision)
+            val committedState = nextState.copy(
+                currentTrackId = bridgeStatus.currentTrackId.takeIf(String::isNotBlank) ?: nextState.currentTrackId,
+                positionMs = bridgeStatus.positionMs,
+                playing = bridgeStatus.playing,
+            )
+            val nextVersion = room.version + 1
+            val updatedAt = clock()
+            store.saveRoom(room.id, json.encodeToString(committedState), nextVersion, updatedAt)
+            room.state = committedState
+            room.version = nextVersion
+            room.updatedAt = updatedAt
         }
-        broadcast(room, "state")
+        return detail(roomId)
     }
 
-    fun decode(text: String): RoomCommand = json.decodeFromString(text)
+    suspend fun reconcile(status: SendspinRoomStatus) {
+        val room = rooms[status.id] ?: return
+        room.lock.withLock {
+            if (status.revision > 0 && status.revision <= room.lastBridgeRevision) return@withLock
+            if (status.revision > 0) room.lastBridgeRevision = status.revision
+            val currentTrackId = status.currentTrackId.takeIf(String::isNotBlank) ?: room.state.currentTrackId
+            val nextState = room.state.copy(
+                currentTrackId = currentTrackId,
+                positionMs = status.positionMs.coerceAtLeast(0),
+                playing = status.playing,
+            )
+            if (nextState == room.state) return@withLock
+            room.version++
+            room.updatedAt = clock()
+            room.state = nextState
+            store.saveRoom(room.id, json.encodeToString(nextState), room.version, room.updatedAt)
+        }
+    }
 
-    private suspend fun broadcast(room: RuntimeRoom, type: String) {
-        val text = json.encodeToString(RoomEnvelope(type, room.id, room.version, room.state, clock(), room.clients.size))
-        room.clients.forEach { session -> runCatching { session.send(Frame.Text(text)) }.onFailure { room.clients -= session } }
+    suspend fun websocketUrl(roomId: String): String? = if (rooms.containsKey(roomId)) bridge.websocketUrl(roomId) else null
+
+    private suspend fun sync(room: RuntimeRoom, state: RoomPlaybackState, forcePosition: Boolean = false): SendspinRoomStatus {
+        val resolved = state.queue.mapNotNull { id ->
+            val track = store.track(id)
+            val source = store.trackFile(id)?.toAbsolutePath()?.normalize()?.toString() ?: catalog.resolve(id) ?: return@mapNotNull null
+            SendspinTrack(id, source, track?.title ?: id, track?.artist ?: "在线音源", track?.album.orEmpty(), track?.artworkUrl.orEmpty(), track?.durationMs ?: 0)
+        }
+        return bridge.update(
+            room.id,
+            SendspinRoomRequest(room.name, resolved, state.currentTrackId.orEmpty(), state.positionMs, state.playing, forcePosition),
+        )
     }
 }
 
@@ -86,6 +127,6 @@ class RuntimeRoom(
     @Volatile var version: Long,
     @Volatile var updatedAt: Long,
 ) {
-    val clients = CopyOnWriteArraySet<DefaultWebSocketServerSession>()
     val lock = Mutex()
+    @Volatile var lastBridgeRevision: Long = 0
 }
