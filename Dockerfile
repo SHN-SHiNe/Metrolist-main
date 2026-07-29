@@ -43,9 +43,9 @@ COPY --from=server-build --chown=shine:shine /workspace/server/build/install/shi
 COPY --from=sendspin-build --chown=shine:shine /out/sendspin-bridge /app/bin/sendspin-bridge
 COPY --from=sendspin-build --chown=shine:shine /out/sendspin-go-LICENSE /app/licenses/sendspin-go-LICENSE
 COPY --from=web-build --chown=shine:shine /workspace/web/node_modules/@sendspin/sendspin-js/LICENSE /app/licenses/sendspin-js-LICENSE
-COPY --chown=shine:shine deploy/start-shine.sh /app/bin/start-shine.sh
+COPY --chown=shine:shine --chmod=0755 deploy/start-shine.sh /app/bin/start-shine.sh
 COPY --chown=shine:shine THIRD_PARTY_NOTICES.md /app/licenses/THIRD_PARTY_NOTICES.md
-RUN chmod +x /app/bin/sendspin-bridge /app/bin/start-shine.sh \
+RUN chmod +x /app/bin/sendspin-bridge \
     && mkdir -p /data /music /libraries /cache && chown -R shine:shine /data /music /libraries /cache
 USER shine
 ENV SHINE_HTTP_PORT=8767 \
