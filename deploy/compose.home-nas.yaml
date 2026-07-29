@@ -2,7 +2,7 @@ services:
   shine-music:
     build:
       context: .
-      platforms:
+      platforms: !override
         - linux/amd64
       args:
         GOPROXY: ${SHINE_GOPROXY:-https://goproxy.cn,direct}
