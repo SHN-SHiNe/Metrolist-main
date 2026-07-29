@@ -1,0 +1,13 @@
+{
+  "name": "SHiNe MUSIC",
+  "short_name": "SHiNe",
+  "description": "家庭 NAS 音乐服务",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111113",
+  "theme_color": "#ED5564",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

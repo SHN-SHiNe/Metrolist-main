@@ -1,0 +1,11 @@
+<configuration>
+    <property name="LOG_LEVEL" value="${SHINE_LOG_LEVEL:-INFO}"/>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>{"timestamp":"%date{ISO8601}","level":"%level","logger":"%logger{36}","message":"%replace(%msg){'&quot;','\\&quot;'}"}%n</pattern>
+        </encoder>
+    </appender>
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

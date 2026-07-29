@@ -6,9 +6,9 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.json.*
-import timber.log.Timber
+import com.metrolist.chinamusic.logging.MusicLog as Timber
 import java.security.MessageDigest
-import android.util.Base64
+import java.util.Base64
 import java.net.URLEncoder
 
 /**
@@ -506,7 +506,7 @@ class QQMusicSource : MusicSourceProvider {
             (SCRAMBLE_VALUES[i] xor hexByte).toByte()
         }
 
-        val b64Part = Base64.encodeToString(part3, Base64.NO_WRAP)
+        val b64Part = Base64.getEncoder().encodeToString(part3)
             .replace(Regex("[/+=\\\\]"), "")
 
         return "zzc${part1}${b64Part}${part2}".lowercase()

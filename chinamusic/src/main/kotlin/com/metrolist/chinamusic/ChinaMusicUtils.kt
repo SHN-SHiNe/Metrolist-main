@@ -24,7 +24,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import timber.log.Timber
+import com.metrolist.chinamusic.logging.MusicLog as Timber
 
 /**
  * Utility functions for Chinese music source integration
