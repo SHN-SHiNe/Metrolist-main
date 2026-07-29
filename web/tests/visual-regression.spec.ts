@@ -17,6 +17,22 @@ const tracks = Array.from({ length: 12 }, (_, index) => ({
 
 const playlist = { id: 'visual-playlist', name: '夜间驰放', version: 1, tracks: tracks.slice(0, 6), updatedAt: 1 }
 const similar = { seed: tracks[0], items: tracks.slice(1, 7).map((track, index) => ({ track, similarityPercent: 96 - index * 3, bpmDelta: index - 2, camelotDelta: index % 2 })) }
+const onlinePlaylists = {
+  items: [
+    { id: 'cloud-night', name: '云端夜间驰放', author: 'SHiNe Select', playCount: 182400, source: 'netease' },
+    { id: 'cloud-trance', name: '意境 Trance 长途', author: '浩南的收藏', playCount: 92800, source: 'netease' },
+    { id: 'cloud-focus', name: '专注但不打扰', author: '音乐生活家', playCount: 38600, source: 'netease' },
+  ],
+  total: 3, page: 1, limit: 20, allPages: 1, source: 'netease',
+}
+const onlinePlaylistDetail = {
+  id: onlinePlaylists.items[0].id,
+  name: onlinePlaylists.items[0].name,
+  author: onlinePlaylists.items[0].author,
+  description: '保持相近风格与情绪，让一整晚不必频繁切歌。',
+  tracks: tracks.slice(0, 6),
+  total: 6, page: 1, limit: 100, allPages: 1, source: 'netease',
+}
 
 test.describe('Android gold-standard mobile states', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -29,15 +45,17 @@ test.describe('Android gold-standard mobile states', () => {
     await mockProductState(page)
   })
 
-  test('01 home speed dial', async ({ page }) => {
-    await page.goto('/#home')
-    await expect(page).toHaveScreenshot('01-home-speed-dial.png', screenshotOptions)
+  test('01 domestic playlist discovery', async ({ page }) => {
+    await openOnlinePlaylists(page)
+    await expect(page).toHaveScreenshot('01-online-playlist-results.png', screenshotOptions)
   })
 
-  test('02 home second speed dial page', async ({ page }) => {
-    await page.goto('/#home')
-    await page.getByRole('button', { name: '第 2 页' }).click()
-    await expect(page).toHaveScreenshot('02-home-speed-dial-page-two.png', screenshotOptions)
+  test('02 domestic playlist detail', async ({ page }) => {
+    await openOnlinePlaylists(page)
+    await page.getByRole('button', { name: `打开歌单 ${onlinePlaylists.items[0].name}` }).click()
+    await expect(page.getByRole('heading', { name: onlinePlaylistDetail.name })).toBeVisible()
+    await page.locator('.online-playlist-browser.detail').evaluate((element) => element.scrollTo(0, 0))
+    await expect(page).toHaveScreenshot('02-online-playlist-detail.png', screenshotOptions)
   })
 
   test('03 service and about settings', async ({ page }) => {
@@ -141,6 +159,15 @@ async function openAdvanced(page: Page) {
   await expect(page.getByRole('heading', { name: /个条件/ })).toBeVisible()
 }
 
+async function openOnlinePlaylists(page: Page) {
+  await page.goto('/#search')
+  await page.getByRole('tab', { name: '国内歌单' }).click()
+  await page.getByLabel('在线搜索').fill('夜间驰放')
+  await page.getByRole('search').getByRole('button', { name: '搜索', exact: true }).click()
+  await expect(page.getByRole('heading', { name: /夜间驰放.*在线歌单/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: `打开歌单 ${onlinePlaylists.items[0].name}` })).toBeVisible()
+}
+
 async function mockProductState(page: Page) {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
@@ -155,6 +182,8 @@ async function mockProductState(page: Page) {
     else if (url.pathname === '/api/libraries') body = [{ id: 'nas', name: 'NAS 音乐', path: '/music', deviceType: 'local', readOnly: false, enabled: true, downloadTarget: true, status: 'online', trackCount: tracks.length, createdAt: 1, updatedAt: 1 }]
     else if (url.pathname === '/api/settings/sources') body = []
     else if (url.pathname === '/api/downloads') body = []
+    else if (url.pathname === '/api/search/playlists') body = onlinePlaylists
+    else if (url.pathname === '/api/search/playlists/detail') body = onlinePlaylistDetail
     else if (url.pathname === '/api/search') body = { items: tracks.slice(0, 6), total: 6, page: 1, limit: 50 }
     else if (url.pathname === '/api/analysis' && method === 'GET') body = { available: true, implementation: 'vibenet', total: 12, pending: 1, queued: 0, running: 1, completed: 11, failed: 0 }
     else if (url.pathname === '/api/library/advanced-search') body = { items: similar.items, totalCandidates: similar.items.length }

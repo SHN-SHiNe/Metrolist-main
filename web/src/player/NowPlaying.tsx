@@ -4,6 +4,7 @@ import type { PlayerController } from '../usePlayer'
 import { Icon } from '../components/Icon'
 import { RadarChart } from '../components/RadarChart'
 import { AlbumArt, formatTime } from '../components/TrackList'
+import { activeLyricIndex, lyricMatches, parseLyrics, seekTimeForLyric, selectedLyricText } from '../lyrics'
 
 type PlayerView = 'cover' | 'radar' | 'lyrics' | 'queue' | 'similar'
 
@@ -67,7 +68,7 @@ export function NowPlaying({ player, favorite, similar, similarLoading, onFavori
     <div className={`now-stage ${view}`} onPointerDown={(event) => { gestureStart.current = { x: event.clientX, y: event.clientY } }} onPointerUp={(event) => finishGesture(event.clientX, event.clientY)} onPointerCancel={() => { gestureStart.current = null }}>
       {view === 'cover' && <div className="now-cover"><AlbumArt title={player.current?.title ?? 'SHiNe'} artworkUrl={player.current?.artworkUrl} hero /><span className="swipe-hint">左右滑动切歌 · 上滑看相似音乐</span></div>}
       {view === 'radar' && <div className="now-radar"><RadarChart analysis={analysis} />{analysis?.status !== 'completed' && <button className="primary-button" onClick={onAnalyze}>{temporaryOnlineTrack ? '先下载入库后分析' : analysis?.status === 'queued' || analysis?.status === 'running' ? `分析中 ${Math.round((analysis.progress || 0) * 100)}%` : '分析这首歌'}</button>}</div>}
-      {view === 'lyrics' && <LyricsPanel track={player.current} />}
+      {view === 'lyrics' && <LyricsPanel track={player.current} positionSeconds={player.position} onSeek={onSeek} />}
       {view === 'queue' && <QueueEditor tracks={player.queue} currentIndex={player.index} playing={player.playing} onPlay={(track) => onPlaySimilar(track, player.queue)} onMove={onMoveQueue} onRemove={onRemoveQueue} />}
       {view === 'similar' && <SimilarMusic similar={similar} loading={similarLoading} onPlay={onPlaySimilar} />}
     </div>
@@ -91,16 +92,39 @@ export function QueueEditor({ tracks, currentIndex, playing, onPlay, onMove, onR
   </section>
 }
 
-export function LyricsPanel({ track }: { track: Track | null }) {
+export function LyricsPanel({ track, positionSeconds, onSeek }: { track: Track | null; positionSeconds?: number; onSeek?: (seconds: number) => void }) {
   const [editing, setEditing] = useState(false)
   const [lyrics, setLyrics] = useState('')
   const [draft, setDraft] = useState('')
+  const [query, setQuery] = useState('')
+  const [offsetMs, setOffsetMs] = useState(0)
+  const [selecting, setSelecting] = useState(false)
+  const [selectedLines, setSelectedLines] = useState<Set<number>>(() => new Set())
+  const [selectionNotice, setSelectionNotice] = useState('')
+  const lineRefs = useRef(new Map<number, HTMLElement>())
   useEffect(() => {
     const stored = track ? localStorage.getItem(`shine-lyrics:${track.id}`) ?? '' : ''
     setLyrics(stored)
     setDraft(stored)
+    setQuery('')
+    setSelecting(false)
+    setSelectedLines(new Set())
+    setSelectionNotice('')
+    const storedOffset = track ? Number(localStorage.getItem(`shine-lyrics-offset:${track.id}`) ?? 0) : 0
+    setOffsetMs(Number.isFinite(storedOffset) ? Math.max(-10000, Math.min(10000, storedOffset)) : 0)
     setEditing(false)
   }, [track?.id])
+  const parsed = useMemo(() => parseLyrics(lyrics), [lyrics])
+  const effectiveOffsetMs = parsed.embeddedOffsetMs + offsetMs
+  const activeIndex = positionSeconds == null ? -1 : activeLyricIndex(parsed.lines, positionSeconds, effectiveOffsetMs)
+  const visibleLines = useMemo(() => parsed.lines.map((line, index) => ({ line, index })).filter(({ line }) => lyricMatches(line, query)), [parsed.lines, query])
+  useEffect(() => {
+    if (activeIndex < 0 || query) return
+    const active = lineRefs.current.get(activeIndex)
+    if (!active) return
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    active.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' })
+  }, [activeIndex, query])
   const save = () => {
     if (!track) return
     const value = draft.trim()
@@ -109,11 +133,86 @@ export function LyricsPanel({ track }: { track: Track | null }) {
     setLyrics(value)
     setEditing(false)
   }
+  const changeOffset = (next: number) => {
+    if (!track) return
+    const clamped = Math.max(-10000, Math.min(10000, Math.round(next / 100) * 100))
+    setOffsetMs(clamped)
+    if (clamped) localStorage.setItem(`shine-lyrics-offset:${track.id}`, String(clamped))
+    else localStorage.removeItem(`shine-lyrics-offset:${track.id}`)
+  }
+  const jumpToLine = (index: number) => {
+    const seconds = seekTimeForLyric(parsed.lines[index], effectiveOffsetMs)
+    if (seconds != null) onSeek?.(seconds)
+  }
+  const toggleSelectedLine = (index: number) => setSelectedLines((current) => {
+    const next = new Set(current)
+    if (next.has(index)) next.delete(index); else next.add(index)
+    return next
+  })
+  const finishSelecting = () => {
+    setSelecting(false)
+    setSelectedLines(new Set())
+    setSelectionNotice('')
+  }
+  const copySelection = async (message = '所选歌词已复制') => {
+    const text = selectedLyricText(parsed.lines, selectedLines)
+    if (!text) return false
+    try {
+      await copyText(text)
+      setSelectionNotice(message)
+      return true
+    } catch {
+      setSelectionNotice('复制失败，请稍后重试')
+      return false
+    }
+  }
+  const shareSelection = async () => {
+    const text = selectedLyricText(parsed.lines, selectedLines)
+    if (!text || typeof navigator.share !== 'function') return
+    try {
+      await navigator.share({ title: track ? `${track.title} · ${track.artist}` : 'SHiNe MUSIC 歌词', text })
+      setSelectionNotice('已打开系统分享')
+    } catch {
+      await copySelection('分享未完成，歌词已复制')
+    }
+  }
   if (!track) return <div className="player-panel-empty"><Icon name="playlist" /><strong>还没有正在播放的歌曲</strong><span>播放一首歌后，这里会显示歌词。</span></div>
   return <section className="lyrics-panel" aria-label={`${track.title} 的歌词`}>
-    <header><span><strong>歌词</strong><small>{track.title} · {track.artist}</small></span>{!editing && lyrics && <button className="secondary-button" onClick={() => setEditing(true)}>编辑</button>}</header>
-    {editing ? <div className="lyrics-editor"><label htmlFor={`lyrics-${track.id}`}>歌词文本</label><textarea id={`lyrics-${track.id}`} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="在这里粘贴歌词；当前版本仅保存在这台浏览器。" /><p>当前版本仅保存在这台浏览器；NAS 共享歌词接口接入后可无缝迁移。</p><div><button className="secondary-button" onClick={() => { setDraft(lyrics); setEditing(false) }}>取消</button><button className="primary-button" onClick={save}>保存歌词</button></div></div> : lyrics ? <div className="lyrics-lines">{lyrics.split(/\r?\n/).filter(Boolean).map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}</div> : <div className="player-panel-empty"><Icon name="playlist" /><strong>这首歌还没有歌词</strong><span>可以先添加文本歌词，后续歌词服务返回内容时会在这里显示。</span><button className="primary-button" onClick={() => setEditing(true)}>添加歌词</button></div>}
+    <header><span><strong>歌词</strong><small>{track.title} · {track.artist}{parsed.timed ? ' · 同步歌词' : ''}</small></span>{!editing && lyrics && <span className="lyrics-header-actions">{selecting ? <button className="secondary-button" onClick={finishSelecting}>完成</button> : <><button className="secondary-button" onClick={() => { setSelecting(true); setSelectionNotice('') }}>选择</button><button className="secondary-button" onClick={() => { finishSelecting(); setEditing(true) }}>编辑</button></>}</span>}</header>
+    {editing ? <div className="lyrics-editor"><label htmlFor={`lyrics-${track.id}`}>歌词文本</label><textarea id={`lyrics-${track.id}`} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="粘贴普通歌词，或带 [00:12.34] 时间戳的 LRC 歌词。" /><p>支持 LRC 时间戳与 [offset:毫秒]；歌词仅保存在这台浏览器，NAS 共享歌词接口接入后可迁移。</p><div><button className="secondary-button" onClick={() => { setDraft(lyrics); setEditing(false) }}>取消</button><button className="primary-button" onClick={save}>保存歌词</button></div></div> : lyrics ? <>
+      <div className="lyrics-tools">
+        <label className="lyrics-search"><Icon name="search" /><input aria-label="搜索歌词" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索歌词" />{query && <button onClick={() => setQuery('')} aria-label="清除歌词搜索"><Icon name="close" /></button>}</label>
+        {parsed.timed && <div className="lyrics-offset" aria-label="整首歌词时间偏移"><button onClick={() => changeOffset(offsetMs - 500)} aria-label="歌词提前半秒">−0.5s</button><output aria-live="polite" title="正值让歌词稍后出现">偏移 {formatOffset(offsetMs)}</output><button onClick={() => changeOffset(offsetMs + 500)} aria-label="歌词延后半秒">+0.5s</button>{offsetMs !== 0 && <button className="lyrics-offset-reset" onClick={() => changeOffset(0)}>归零</button>}</div>}
+      </div>
+      {selecting && <div className="lyrics-selection-bar"><span aria-live="polite">已选择 {selectedLines.size} 行{selectionNotice ? ` · ${selectionNotice}` : ''}</span><button onClick={() => setSelectedLines(new Set(visibleLines.map(({ index }) => index)))} disabled={!visibleLines.length}>全选显示</button><button onClick={() => void copySelection()} disabled={!selectedLines.size}>复制</button>{typeof navigator.share === 'function' && <button onClick={() => void shareSelection()} disabled={!selectedLines.size}>分享</button>}</div>}
+      {visibleLines.length ? <div className={`lyrics-lines ${parsed.timed ? 'timed' : 'plain'}`} aria-live="off">{visibleLines.map(({ line, index }) => {
+        const className = `${index === activeIndex ? 'current' : index < activeIndex ? 'past' : ''} ${selectedLines.has(index) ? 'selected' : ''}`.trim()
+        if (selecting || (line.timeSeconds != null && onSeek)) return <button key={line.id} ref={(element) => { if (element) lineRefs.current.set(index, element); else lineRefs.current.delete(index) }} className={className} aria-current={index === activeIndex ? 'true' : undefined} aria-pressed={selecting ? selectedLines.has(index) : undefined} onClick={() => selecting ? toggleSelectedLine(index) : jumpToLine(index)}><span>{line.text}</span>{line.timeSeconds != null && <time>{formatTime((line.timeSeconds ?? 0) + effectiveOffsetMs / 1000)}</time>}</button>
+        return <p key={line.id} ref={(element) => { if (element) lineRefs.current.set(index, element); else lineRefs.current.delete(index) }} className={className} aria-current={index === activeIndex ? 'true' : undefined}>{line.text}</p>
+      })}</div> : <div className="lyrics-no-match"><strong>没有找到“{query}”</strong><button className="secondary-button" onClick={() => setQuery('')}>清除搜索</button></div>}
+    </> : <div className="player-panel-empty"><Icon name="playlist" /><strong>这首歌还没有歌词</strong><span>可以添加普通文本或 LRC 同步歌词。</span><button className="primary-button" onClick={() => setEditing(true)}>添加歌词</button></div>}
   </section>
+}
+
+function formatOffset(milliseconds: number) {
+  if (!milliseconds) return '0.0s'
+  return `${milliseconds > 0 ? '+' : '−'}${(Math.abs(milliseconds) / 1000).toFixed(1)}s`
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(value); return } catch { /* HTTP LAN fallback below */ }
+  }
+  const input = document.createElement('textarea')
+  input.value = value
+  input.setAttribute('readonly', '')
+  input.style.position = 'fixed'
+  input.style.opacity = '0'
+  document.body.appendChild(input)
+  input.select()
+  const copied = document.execCommand('copy')
+  input.remove()
+  if (!copied) throw new Error('clipboard unavailable')
 }
 
 export function AnalysisChips({ track, compact = false }: { track: Track | null; compact?: boolean }) {

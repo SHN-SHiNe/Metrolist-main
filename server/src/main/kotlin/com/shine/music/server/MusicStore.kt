@@ -312,6 +312,9 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         val orderBy = when (sort) {
             "title" -> "t.title COLLATE NOCASE, t.artist COLLATE NOCASE, t.album COLLATE NOCASE, t.id"
             "album" -> "t.album COLLATE NOCASE, t.artist COLLATE NOCASE, t.title COLLATE NOCASE, t.id"
+            "bpm" -> "CASE WHEN t.analysis_status='completed' AND t.bpm IS NOT NULL THEN 0 ELSE 1 END, t.bpm, t.title COLLATE NOCASE, t.id"
+            "key" -> "CASE WHEN t.analysis_status='completed' AND t.key_name IS NOT NULL THEN 0 ELSE 1 END, t.camelot_code COLLATE NOCASE, t.key_name COLLATE NOCASE, t.title COLLATE NOCASE, t.id"
+            "analysis" -> "CASE t.analysis_status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 WHEN 'pending' THEN 2 WHEN 'failed' THEN 3 WHEN 'unavailable' THEN 4 ELSE 5 END, t.analysis_progress DESC, t.title COLLATE NOCASE, t.id"
             else -> "t.artist COLLATE NOCASE, t.album COLLATE NOCASE, t.title COLLATE NOCASE, t.id"
         }
         db.autoCommit = false
@@ -593,6 +596,55 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         ).use { statement -> statement.setString(1, id); statement.executeUpdate() > 0 }
     }
 
+    /** Atomically starts the exact source version that was queued and returns its analysis lease. */
+    fun startAnalysis(id: String): AnalysisSource? = connection().use { db ->
+        db.prepareStatement(
+            """
+            UPDATE tracks
+            SET analysis_status='running',analysis_progress=0.1,analysis_message='准备分析'
+            WHERE id=? AND deleted_at IS NULL AND analysis_status='queued'
+            RETURNING file_path,file_size,modified_at
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setString(1, id)
+            statement.executeQuery().use { row ->
+                if (row.next()) AnalysisSource(Path.of(row.getString("file_path")), row.getLong("file_size"), row.getLong("modified_at")) else null
+            }
+        }
+    }
+
+    /** Writes state only while the caller still owns the running lease for this source version. */
+    fun updateRunningAnalysisState(
+        id: String,
+        expectedSource: AnalysisSource,
+        status: String,
+        progress: Float,
+        message: String?,
+    ): Boolean = connection().use { db ->
+        db.prepareStatement(
+            """
+            UPDATE tracks SET analysis_status=?,analysis_progress=?,analysis_message=?
+            WHERE id=? AND deleted_at IS NULL AND analysis_status='running'
+              AND file_path=? AND file_size=? AND modified_at=?
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setString(1, status)
+            statement.setFloat(2, progress.coerceIn(0f, 1f))
+            statement.setString(3, message)
+            statement.setString(4, id)
+            statement.setString(5, expectedSource.path.toString())
+            statement.setLong(6, expectedSource.size)
+            statement.setLong(7, expectedSource.modifiedAt)
+            statement.executeUpdate() > 0
+        }
+    }
+
+    fun resetQueuedAnalysis(id: String): Boolean = connection().use { db ->
+        db.prepareStatement(
+            "UPDATE tracks SET analysis_status='pending',analysis_progress=0,analysis_message=NULL WHERE id=? AND deleted_at IS NULL AND analysis_status='queued'",
+        ).use { statement -> statement.setString(1, id); statement.executeUpdate() > 0 }
+    }
+
     fun updateAnalysisState(id: String, status: String, progress: Float, message: String?) = connection().use { db ->
         db.prepareStatement(
             "UPDATE tracks SET analysis_status=?,analysis_progress=?,analysis_message=? WHERE id=? AND deleted_at IS NULL",
@@ -606,7 +658,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
     }
 
     fun saveAnalysis(id: String, result: AudioAnalysisResult, now: Long, expectedSource: AnalysisSource? = null) = connection().use { db ->
-        val sourceGuard = if (expectedSource == null) "" else " AND analysis_status='running' AND file_size=? AND modified_at=?"
+        val sourceGuard = if (expectedSource == null) "" else " AND analysis_status='running' AND file_path=? AND file_size=? AND modified_at=?"
         db.prepareStatement(
             """
             UPDATE tracks SET analysis_status='completed',analysis_progress=1,analysis_message='分析完成',
@@ -627,8 +679,9 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             statement.setLong(11, now)
             statement.setString(12, id)
             if (expectedSource != null) {
-                statement.setLong(13, expectedSource.size)
-                statement.setLong(14, expectedSource.modifiedAt)
+                statement.setString(13, expectedSource.path.toString())
+                statement.setLong(14, expectedSource.size)
+                statement.setLong(15, expectedSource.modifiedAt)
             }
             statement.executeUpdate() > 0
         }
@@ -924,6 +977,41 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         }
     }
 
+    /** Atomically claims one queued download so a fixed worker pool never executes it twice. */
+    fun claimQueuedDownload(now: Long): QueuedDownload? = connection().use { db ->
+        db.prepareStatement(
+            """
+            UPDATE download_jobs
+            SET status='downloading',error=NULL,updated_at=?
+            WHERE id=(
+                SELECT id FROM download_jobs
+                WHERE status='queued'
+                ORDER BY created_at,id
+                LIMIT 1
+            ) AND status='queued'
+            RETURNING *
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setLong(1, now)
+            statement.executeQuery().use { row ->
+                if (!row.next()) return@use null
+                val job = DownloadJob(
+                    row.getString("id"),
+                    row.getString("title"),
+                    row.getString("artist"),
+                    row.getString("status"),
+                    row.getString("error"),
+                    row.getLong("created_at"),
+                    row.getLong("updated_at"),
+                )
+                QueuedDownload(
+                    job,
+                    DownloadRequest(row.getString("track_id"), row.getString("url"), job.title, job.artist),
+                )
+            }
+        }
+    }
+
     fun saveResolvedDownloadUrl(id: String, url: String) = connection().use { db ->
         db.prepareStatement("UPDATE download_jobs SET url=? WHERE id=?").use {
             it.setString(1, url); it.setString(2, id); it.executeUpdate()
@@ -1101,6 +1189,8 @@ data class TrackFingerprint(val size: Long, val modifiedAt: Long)
 data class AnalysisSource(val path: Path, val size: Long, val modifiedAt: Long)
 
 data class StoredTrackLocation(val path: Path, val libraryId: String)
+
+data class QueuedDownload(val job: DownloadJob, val request: DownloadRequest)
 
 data class StoredRoom(val id: String, val name: String, val stateJson: String, val version: Long, val updatedAt: Long)
 

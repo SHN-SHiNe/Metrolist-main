@@ -1,4 +1,4 @@
-import type { AdvancedSearchRequest, AdvancedSearchResponse, AnalysisEnqueueResponse, AnalysisSummary, DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, OnlinePlaylistDetailResponse, OnlinePlaylistSearchResponse, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SimilarTracksResponse, SourceConfig, Track, TrackPage } from './types'
+import type { AdvancedSearchRequest, AdvancedSearchResponse, AnalysisEnqueueResponse, AnalysisSummary, DownloadJob, HistoryEntry, LibrarySort, MusicLibrary, MusicLibraryInput, OnlinePlaylistDetailResponse, OnlinePlaylistSearchResponse, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SimilarTracksResponse, SourceConfig, Track, TrackPage } from './types'
 import { LIBRARY_PAGE_SIZE } from './libraryPaging'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -15,7 +15,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  library: (offset = 0, q = '', sort: 'title' | 'artist' | 'album' = 'artist', libraryId = '') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}&libraryId=${encodeURIComponent(libraryId)}`),
+  library: (offset = 0, q = '', sort: LibrarySort = 'artist', libraryId = '') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}&libraryId=${encodeURIComponent(libraryId)}`),
   tracks: (ids: string[]) => request<Track[]>(`/api/tracks?ids=${encodeURIComponent(ids.join(','))}`),
   libraries: () => request<MusicLibrary[]>('/api/libraries'),
   createLibrary: (value: MusicLibraryInput) => request<MusicLibrary>('/api/libraries', { method: 'POST', body: JSON.stringify(value) }),
@@ -23,10 +23,10 @@ export const api = {
   scanLibrary: (id: string, allowEmpty = false) => request(`/api/libraries/${id}/scan?allowEmpty=${allowEmpty}`, { method: 'POST' }),
   scan: () => request('/api/scans', { method: 'POST' }),
   deleteTrack: (id: string) => request(`/api/library/${id}`, { method: 'DELETE' }),
-  similar: (id: string, limit = 20, recentTrackIds: string[] = []) => {
+  similar: (id: string, limit = 20, recentTrackIds: string[] = [], signal?: AbortSignal) => {
     const query = new URLSearchParams({ limit: String(limit) })
     recentTrackIds.forEach((recent) => query.append('recent', recent))
-    return request<SimilarTracksResponse>(`/api/library/${id}/similar?${query}`)
+    return request<SimilarTracksResponse>(`/api/library/${id}/similar?${query}`, { signal })
   },
   advancedSearch: (value: AdvancedSearchRequest) => request<AdvancedSearchResponse>('/api/library/advanced-search', {
     method: 'POST', body: JSON.stringify(value),
@@ -68,6 +68,9 @@ export const api = {
   room: (id: string) => request<RoomDetail>(`/api/rooms/${id}`),
   updateRoom: (id: string, state: Partial<RoomPlaybackState>) => request<RoomDetail>(`/api/rooms/${id}/state`, {
     method: 'PUT', body: JSON.stringify(state),
+  }),
+  autofillRoom: (id: string, recentTrackIds: string[] = [], limit = 12) => request<RoomDetail>(`/api/rooms/${id}/autofill`, {
+    method: 'POST', body: JSON.stringify({ recentTrackIds, limit }),
   }),
   deleteRoom: (id: string) => request<void>(`/api/rooms/${id}`, { method: 'DELETE' }),
 }

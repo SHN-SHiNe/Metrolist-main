@@ -43,7 +43,7 @@ class AnalysisManager(
             executor.execute { analyze(trackId) }
             true
         } catch (_: RejectedExecutionException) {
-            store.updateAnalysisState(trackId, "pending", 0f, null)
+            store.resetQueuedAnalysis(trackId)
             false
         }
     }
@@ -88,7 +88,7 @@ class AnalysisManager(
                 try {
                     queuedIds.forEach { trackId ->
                         if (closed.get()) {
-                            store.updateAnalysisState(trackId, "pending", 0f, null)
+                            store.resetQueuedAnalysis(trackId)
                         } else {
                             analyze(trackId)
                         }
@@ -102,7 +102,7 @@ class AnalysisManager(
             }
             queuedIds.size
         } catch (_: RejectedExecutionException) {
-            queuedIds.forEach { store.updateAnalysisState(it, "pending", 0f, null) }
+            queuedIds.forEach(store::resetQueuedAnalysis)
             drainRequested = false
             drainScheduled = false
             0
@@ -110,37 +110,44 @@ class AnalysisManager(
     }
 
     private fun analyze(trackId: String) {
+        var activeSource: AnalysisSource? = null
         try {
+            val source = store.startAnalysis(trackId) ?: return
+            activeSource = source
             val analyzer = checkNotNull(runtime.analyzer) { "analysis_runtime_unavailable" }
-            val source = store.analysisSource(trackId) ?: error("音乐文件不存在或已从曲库移除")
             val path = source.path
-            store.updateAnalysisState(trackId, "running", 0.10f, "准备分析")
             val result = analyzer.analyze(path) { progress, message ->
-                if (!closed.get()) store.updateAnalysisState(trackId, "running", progress, message)
+                if (!closed.get() && !store.updateRunningAnalysisState(trackId, source, "running", progress, message)) {
+                    throw StaleAnalysisLease
+                }
             }
             if (closed.get()) return
-            val sourceStillMatches = Files.isRegularFile(path) &&
-                Files.size(path) == source.size &&
-                Files.getLastModifiedTime(path).toMillis() == source.modifiedAt
+            val sourceStillMatches = runCatching {
+                Files.isRegularFile(path) &&
+                    Files.size(path) == source.size &&
+                    Files.getLastModifiedTime(path).toMillis() == source.modifiedAt
+            }.getOrDefault(false)
             if (!sourceStillMatches || !store.saveAnalysis(trackId, result, clock(), source)) {
                 logger.info("Discarded stale audio analysis for track {} because its source changed", trackId)
-                if (!closed.get()) store.updateAnalysisState(trackId, "pending", 0f, null)
+                if (!closed.get()) store.updateRunningAnalysisState(trackId, source, "pending", 0f, null)
             }
+        } catch (_: StaleAnalysisLease) {
+            logger.info("Stopped stale audio analysis for track {} because its source changed", trackId)
         } catch (error: InterruptedException) {
             Thread.currentThread().interrupt()
-            if (!closed.get()) store.updateAnalysisState(trackId, "pending", 0f, null)
+            if (!closed.get() && activeSource != null) store.updateRunningAnalysisState(trackId, activeSource, "pending", 0f, null)
         } catch (error: Exception) {
-            fail(trackId, error)
+            fail(trackId, activeSource, error)
         } catch (error: LinkageError) {
-            fail(trackId, error)
+            fail(trackId, activeSource, error)
         }
     }
 
-    private fun fail(trackId: String, error: Throwable) {
+    private fun fail(trackId: String, source: AnalysisSource?, error: Throwable) {
         if (closed.get()) return
         val message = safeMessage(error)
         logger.error("Audio analysis failed for track {}: {}", trackId, message, error)
-        store.updateAnalysisState(trackId, "failed", 0f, message)
+        if (source != null) store.updateRunningAnalysisState(trackId, source, "failed", 0f, message)
     }
 
     override fun close() {
@@ -172,4 +179,6 @@ class AnalysisManager(
         const val SHUTDOWN_TIMEOUT_SECONDS = 30L
         val logger = LoggerFactory.getLogger(AnalysisManager::class.java)
     }
+
+    private object StaleAnalysisLease : RuntimeException()
 }

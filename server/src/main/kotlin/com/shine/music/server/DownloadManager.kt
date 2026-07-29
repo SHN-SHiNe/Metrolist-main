@@ -3,6 +3,7 @@ package com.shine.music.server
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -27,15 +28,22 @@ class DownloadManager(
     private val libraries: MusicLibraryManager,
     private val onlineCatalog: OnlineCatalog,
     private val clock: () -> Long = System::currentTimeMillis,
+    maxConcurrentDownloads: Int = DEFAULT_MAX_CONCURRENT_DOWNLOADS,
+    private val taskProcessor: (suspend (DownloadJob, DownloadRequest) -> Unit)? = null,
     private val onTrackIndexed: () -> Unit = {},
 ) : AutoCloseable {
+    private val workerCount = maxConcurrentDownloads.also {
+        require(it in 1..MAX_CONCURRENT_DOWNLOADS) { "invalid_download_worker_count" }
+    }
     private val supervisor = SupervisorJob()
     private val scope = CoroutineScope(supervisor + Dispatchers.IO)
+    private val wakeups = Channel<Unit>(workerCount)
     private val http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(15)).build()
     private val closed = AtomicBoolean()
 
     init {
         store.failInterruptedDownloads(clock())
+        repeat(workerCount) { scope.launch { runWorker() } }
     }
 
     fun enqueue(request: DownloadRequest): DownloadJob {
@@ -44,7 +52,7 @@ class DownloadManager(
         val now = clock()
         val job = DownloadJob(UUID.randomUUID().toString(), request.title.trim(), request.artist.trim(), "queued", createdAt = now, updatedAt = now)
         store.saveDownload(job, request)
-        scope.launch { download(job, request) }
+        wakeWorkers()
         return job
     }
 
@@ -53,12 +61,38 @@ class DownloadManager(
         val (previous, request) = store.downloadForRetry(id) ?: throw IllegalArgumentException("failed_download_not_found")
         val queued = previous.copy(status = "queued", error = null, updatedAt = clock())
         store.saveDownload(queued)
-        scope.launch { download(queued, request) }
+        wakeWorkers()
         return queued
     }
 
+    private fun wakeWorkers() {
+        repeat(workerCount) { wakeups.trySend(Unit) }
+    }
+
+    private suspend fun runWorker() {
+        for (ignored in wakeups) {
+            while (!closed.get()) {
+                val task = try {
+                    store.claimQueuedDownload(clock()) ?: break
+                } catch (error: Exception) {
+                    logger.error("Unable to claim queued download", error)
+                    break
+                }
+                val processor = taskProcessor
+                if (processor == null) {
+                    download(task.job, task.request)
+                } else {
+                    try {
+                        processor(task.job, task.request)
+                    } catch (error: Throwable) {
+                        if (!closed.get()) update(task.job, "failed", error.message ?: error::class.simpleName)
+                    }
+                }
+            }
+        }
+    }
+
     private suspend fun download(job: DownloadJob, request: DownloadRequest) {
-        update(job, "downloading")
         var temporary: java.nio.file.Path? = null
         try {
             val url = request.url ?: onlineCatalog.resolve(request.trackId!!) ?: error("unable_to_resolve_track")
@@ -119,11 +153,14 @@ class DownloadManager(
     }
 
     private companion object {
+        const val DEFAULT_MAX_CONCURRENT_DOWNLOADS = 3
+        const val MAX_CONCURRENT_DOWNLOADS = 16
         val logger = LoggerFactory.getLogger(DownloadManager::class.java)
     }
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        wakeups.close()
         supervisor.cancel()
         http.shutdownNow()
         runBlocking { withTimeoutOrNull(5_000) { supervisor.join() } }

@@ -99,6 +99,15 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
     return () => controller.abort()
   }, [detailPage, detailRetry, selected])
 
+  useEffect(() => {
+    if (!selected) return
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0 })
+      document.querySelector<HTMLElement>('.main-content')?.scrollTo({ top: 0 })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [selected])
+
   const openPlaylist = (item: OnlinePlaylistSummary) => {
     setDetailPage(1)
     setSelected(item)
@@ -195,7 +204,7 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
   }
 
   if (selected) {
-    return <section className="online-playlist-browser" aria-labelledby={detailStatus === 'ready' && detail ? headingId : undefined} aria-label={detailStatus === 'ready' && detail ? undefined : `在线歌单 ${selected.name}`} aria-busy={detailStatus === 'loading'}>
+    return <section className="online-playlist-browser detail" aria-labelledby={detailStatus === 'ready' && detail ? headingId : undefined} aria-label={detailStatus === 'ready' && detail ? undefined : `在线歌单 ${selected.name}`} aria-busy={detailStatus === 'loading'}>
       <button className="back-button" onClick={() => setSelected(null)}><Icon name="back" />返回在线歌单</button>
       {detailStatus === 'loading' && <LoadingState label="正在读取歌单详情" />}
       {detailStatus === 'error' && <ErrorState message={detailError} onRetry={() => setDetailRetry((value) => value + 1)} />}

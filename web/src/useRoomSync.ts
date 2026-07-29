@@ -11,6 +11,8 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
   const joinedRoom = useRef<string | null>(null)
   const playerRef = useRef(player)
   const tracksRef = useRef(tracks)
+  const roomTrackCache = useRef(new Map<string, Track>())
+  const unresolvedRoomTracks = useRef(new Set<string>())
   const metadataRef = useRef<{ title?: string | null; artist?: string | null; album?: string | null }>({})
   const [roomId, setRoomId] = useState<string | null>(null)
   const [members, setMembers] = useState(0)
@@ -20,7 +22,13 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
   const [deviceDelay, setDeviceDelayState] = useState(() => clampSendspinDelay(Number(localStorage.getItem('shine-device-delay') ?? 0)))
 
   useEffect(() => { playerRef.current = player }, [player])
-  useEffect(() => { tracksRef.current = tracks }, [tracks])
+  useEffect(() => {
+    tracksRef.current = tracks
+    tracks.forEach((track) => {
+      roomTrackCache.current.set(track.id, track)
+      unresolvedRoomTracks.current.delete(track.id)
+    })
+  }, [tracks])
   useEffect(() => { sendspin.current?.setVolume(player.volume * 100) }, [player.volume])
 
   const leave = useCallback(() => {
@@ -34,6 +42,8 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
     setMembers(0)
     setQueueIds([])
     setServerOffset(0)
+    roomTrackCache.current.clear()
+    unresolvedRoomTracks.current.clear()
   }, [])
 
   const reflect = useCallback(async (id: string) => {
@@ -44,7 +54,15 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
     const progress = sendspin.current?.trackProgress
     const metadata = metadataRef.current
     const currentId = detail.state.currentTrackId
-    const knownTracks = tracksRef.current
+    const missingIds = detail.state.queue.filter((trackId) => !roomTrackCache.current.has(trackId) && !unresolvedRoomTracks.current.has(trackId)).slice(0, 100)
+    if (missingIds.length) {
+      const fetched = await api.tracks(missingIds).catch(() => [])
+      if (joinedRoom.current !== id) return
+      fetched.forEach((track) => roomTrackCache.current.set(track.id, track))
+      const fetchedIds = new Set(fetched.map((track) => track.id))
+      missingIds.filter((trackId) => !fetchedIds.has(trackId)).forEach((trackId) => unresolvedRoomTracks.current.add(trackId))
+    }
+    const knownTracks = [...roomTrackCache.current.values()]
     const displayTracks = currentId && !knownTracks.some((track) => track.id === currentId)
       ? [...knownTracks, {
           id: currentId,
@@ -112,6 +130,15 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
     return true
   }, [])
 
+  const autofill = useCallback(async (recentTrackIds: string[] = []) => {
+    const id = joinedRoom.current
+    if (!id) return null
+    const detail = await api.autofillRoom(id, recentTrackIds)
+    if (joinedRoom.current !== id) return null
+    await reflect(id)
+    return detail
+  }, [reflect])
+
   const setDeviceDelay = useCallback((value: number) => {
     const next = clampSendspinDelay(value)
     setDeviceDelayState(next)
@@ -129,7 +156,7 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
 
   useEffect(() => leave, [leave])
 
-  return { roomId, members, queueIds, status, serverOffset, deviceDelay, setDeviceDelay, join, leave, command }
+  return { roomId, members, queueIds, status, serverOffset, deviceDelay, setDeviceDelay, join, leave, command, autofill }
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {

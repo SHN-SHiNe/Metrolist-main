@@ -138,7 +138,7 @@ fun Application.shineModule(
             val query = call.request.queryParameters["q"]
             val offset = call.request.queryParameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
-            val sort = call.request.queryParameters["sort"]?.takeIf { it in setOf("title", "artist", "album") } ?: "artist"
+            val sort = call.request.queryParameters["sort"]?.takeIf { it in setOf("title", "artist", "album", "bpm", "key", "analysis") } ?: "artist"
             val libraryId = call.request.queryParameters["libraryId"]?.takeIf(String::isNotBlank)
             call.respond(store.listTracks(query, offset, limit, sort, libraryId))
         }
@@ -345,6 +345,13 @@ fun Application.shineModule(
         put("/api/rooms/{roomId}/state") {
             val id = call.parameters["roomId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
             call.respond(rooms.update(id, call.receive()) ?: return@put call.respond(HttpStatusCode.NotFound))
+        }
+        post("/api/rooms/{roomId}/autofill") {
+            val id = call.parameters["roomId"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+            val request = call.receive<RoomAutofillRequest>()
+            require(request.limit in 1..30) { "invalid_autofill_limit" }
+            val recent = request.recentTrackIds.map(String::trim).filter(String::isNotBlank).distinct().takeLast(12)
+            call.respond(rooms.autofill(id, recent, request.limit) ?: return@post call.respond(HttpStatusCode.NotFound))
         }
         delete("/api/rooms/{roomId}") {
             val id = call.parameters["roomId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)

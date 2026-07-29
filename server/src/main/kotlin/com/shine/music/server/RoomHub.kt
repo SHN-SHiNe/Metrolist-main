@@ -88,6 +88,44 @@ class RoomHub(
         return detail(roomId)
     }
 
+    /**
+     * Extends a room queue with NAS-computed similar tracks only while the current song is the
+     * final queue item. Every browser may safely request this near the end of a song: the room
+     * mutex makes the first request append tracks and all concurrent requests become no-ops.
+     */
+    suspend fun autofill(roomId: String, recentTrackIds: List<String>, limit: Int): RoomDetail? {
+        val room = rooms[roomId] ?: return null
+        room.lock.withLock {
+            if (room.deleted) return null
+            val currentId = room.state.currentTrackId ?: return@withLock
+            val currentIndex = room.state.queue.indexOf(currentId)
+            if (currentIndex < 0 || currentIndex != room.state.queue.lastIndex) return@withLock
+
+            val exclusions = (recentTrackIds + room.state.queue.takeLast(12)).takeLast(12).toSet()
+            var recommendations = store.similarTracks(currentId, exclusions, limit)
+            if (recommendations?.items.isNullOrEmpty() && exclusions.size > 1) {
+                recommendations = store.similarTracks(currentId, setOf(currentId), limit)
+            }
+            val known = room.state.queue.toMutableSet()
+            val additions = recommendations?.items.orEmpty().map { it.track.id }.filter(known::add)
+            if (additions.isEmpty()) return@withLock
+
+            val nextState = room.state.copy(queue = room.state.queue + additions, effectiveAt = 0)
+            val bridgeStatus = sync(room, nextState)
+            room.lastBridgeRevision = maxOf(room.lastBridgeRevision, bridgeStatus.revision)
+            val committedState = nextState.copy(
+                currentTrackId = bridgeStatus.currentTrackId.takeIf(String::isNotBlank) ?: nextState.currentTrackId,
+                positionMs = bridgeStatus.positionMs,
+                playing = bridgeStatus.playing,
+            )
+            room.version++
+            room.updatedAt = clock()
+            room.state = committedState
+            store.saveRoom(room.id, json.encodeToString(committedState), room.version, room.updatedAt)
+        }
+        return detail(roomId)
+    }
+
     suspend fun delete(roomId: String): Boolean {
         val room = rooms[roomId] ?: return false
         return room.lock.withLock {

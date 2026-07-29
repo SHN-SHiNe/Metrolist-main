@@ -59,6 +59,110 @@ test('large library loads pages while keeping the rendered row count bounded', a
   await expect(page.getByText('歌曲 450')).toBeVisible()
 })
 
+test('virtualized library remains reachable with list navigation keys', async ({ page }) => {
+  const tracks = Array.from({ length: 200 }, (_, index) => ({ id: `keyboard-${index}`, title: `键盘歌曲 ${index + 1}`, artist: '测试歌手', album: '大曲库', durationMs: 180_000 }))
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: tracks, total: tracks.length, offset: 0, limit: 200, revision: 1 }) })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  const viewport = page.getByLabel('曲目列表，使用方向键、翻页键、首页键和末页键浏览')
+  await expect(viewport).toHaveAttribute('tabindex', '0')
+  await viewport.focus()
+  await page.keyboard.press('ArrowDown')
+  await expect(page.locator('[data-track-index="1"]')).toBeFocused()
+  await page.keyboard.press('PageDown')
+  await expect.poll(async () => page.locator('.track-viewport').evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await page.keyboard.press('End')
+  await expect(page.locator('[data-track-index="199"]')).toBeFocused()
+  await expect.poll(() => page.locator('.track-viewport').evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await page.keyboard.press('Home')
+  await expect(page.locator('[data-track-index="0"]')).toBeFocused()
+  await expect.poll(() => page.locator('.track-viewport').evaluate((element) => element.scrollTop)).toBe(0)
+})
+
+test('track actions open by touch hold and desktop context menu without accidental playback', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  const track = { id: 'menu-track', title: '长按歌曲', artist: '家庭歌手', album: 'NAS 曲库', durationMs: 180_000 }
+  let favorite = false
+  let historyPosts = 0
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [track], total: 1, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname === '/api/favorites' && route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(favorite ? [track] : []) })
+    if (url.pathname === `/api/favorites/${track.id}` && route.request().method() === 'PUT') { favorite = true; return route.fulfill({ status: 204 }) }
+    if (url.pathname === '/api/history' && route.request().method() === 'POST') { historyPosts++; return route.fulfill({ status: 204 }) }
+    if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  const row = page.locator('.track-row').first()
+  await row.dispatchEvent('pointerdown', { pointerType: 'touch', pointerId: 7, button: 0, clientX: 120, clientY: 240 })
+  await expect(page.getByRole('menu', { name: '长按歌曲 的操作' })).toBeVisible({ timeout: 1200 })
+  await row.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 7, button: 0, clientX: 120, clientY: 240 })
+  expect(historyPosts).toBe(0)
+  await page.getByRole('menuitem', { name: '收藏', exact: true }).click()
+  await expect.poll(() => favorite).toBe(true)
+  await page.locator('.track-identity').first().click({ force: true })
+  expect(historyPosts).toBe(0)
+
+  await page.waitForTimeout(950)
+  await page.setViewportSize({ width: 1366, height: 768 })
+  await row.click({ button: 'right' })
+  await expect(page.locator('.track-context-menu.context')).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '取消收藏', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.track-context-menu')).toHaveCount(0)
+  await expect(row).toBeFocused()
+})
+
+test('joining a room aborts pending similar continuation before it can change the local queue', async ({ page }) => {
+  await page.addInitScript(() => {
+    const NativeAudio = window.Audio
+    const state = window as typeof window & { __shineTestAudio?: HTMLAudioElement }
+    const WrappedAudio = function (src?: string) {
+      const audio = new NativeAudio(src)
+      if (!state.__shineTestAudio) state.__shineTestAudio = audio
+      return audio
+    }
+    WrappedAudio.prototype = NativeAudio.prototype
+    Object.defineProperty(window, 'Audio', { configurable: true, writable: true, value: WrappedAudio })
+  })
+  const seed = { id: 'similar-seed', title: '种子歌曲', artist: '家庭歌手', album: 'NAS 曲库', durationMs: 180_000, analysis: { status: 'completed', progress: 1 } }
+  const continuation = { id: 'similar-next', title: '不应插入', artist: '家庭歌手', album: 'NAS 曲库', durationMs: 180_000, analysis: { status: 'completed', progress: 1 } }
+  const room = { id: 'race-room', name: '竞态房间', memberCount: 0, version: 0, updatedAt: 1 }
+  let releaseSimilar: (() => void) | undefined
+  const similarGate = new Promise<void>((resolve) => { releaseSimilar = resolve })
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [seed], total: 1, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname === `/api/library/${seed.id}/similar`) {
+      await similarGate
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ seed, items: [{ track: continuation, similarityPercent: 95 }] }) }).catch(() => undefined)
+      return
+    }
+    if (url.pathname === '/api/rooms' && route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify([room]) })
+    if (url.pathname === `/api/rooms/${room.id}`) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ summary: room, state: { queue: [], currentTrackId: null, positionMs: 0, playing: false, effectiveAt: 0 } }) })
+    if (url.pathname === '/api/history' && route.request().method() === 'POST') return route.fulfill({ status: 204 })
+    if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  await page.getByRole('button', { name: '播放 种子歌曲' }).first().click()
+  const similarRequest = page.waitForRequest((request) => request.url().includes(`/api/library/${seed.id}/similar`))
+  await page.evaluate(() => (window as typeof window & { __shineTestAudio?: HTMLAudioElement }).__shineTestAudio?.dispatchEvent(new Event('ended')))
+  await similarRequest
+  await page.evaluate(() => { location.hash = 'rooms' })
+  await page.getByRole('button', { name: '加入并启用声音' }).click()
+  await expect(page.getByRole('button', { name: '离开' })).toBeVisible()
+  releaseSimilar?.()
+  await page.waitForTimeout(350)
+  await expect(page.locator('.queue-editor-item')).toHaveCount(1)
+  await expect(page.locator('.queue-editor-item')).toContainText('种子歌曲')
+  await expect(page.locator('.queue-editor-item')).not.toContainText('不应插入')
+})
+
 test('music libraries are visible in settings and filter the NAS catalog', async ({ page }) => {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())

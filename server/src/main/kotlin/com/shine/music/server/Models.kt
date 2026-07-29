@@ -287,6 +287,12 @@ data class UpdateRoomStateRequest(
 )
 
 @Serializable
+data class RoomAutofillRequest(
+    val recentTrackIds: List<String> = emptyList(),
+    val limit: Int = 12,
+)
+
+@Serializable
 data class RoomDetail(val summary: RoomSummary, val state: RoomPlaybackState)
 
 @Serializable

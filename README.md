@@ -16,6 +16,8 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 - React + TypeScript 响应式 Web：手机端延续原 Android/Compose 的四主入口、迷你播放器与沉浸式全屏播放；PC 端将同一套信息架构展开为左侧导航、内容区、右侧队列和底部播放器。
 - 多音频库扫描，可管理 NAS 本地目录、USB 设备和网络挂载；支持 HTTP Range 流媒体、国内歌曲/歌单搜索、在线直放与单曲或整张歌单后台下载入库。
 - NAS 后台分析 BPM、调性/Camelot 与七维音乐特征，提供相似歌曲、雷达图、高级筛选和保持风格的连续续播；分析只读取三段有界采样，不会随单曲时长持续增加内存占用。
+- 曲库可切换“歌曲/分析”视图，按标题、歌手、专辑、BPM、调性或分析状态排序；大列表使用服务端分页与窗口化渲染。
+- 歌词支持普通文本和 LRC，同步行自动居中、点击跳转、整曲偏移、搜索、多选复制与系统分享；手机长按或 PC 右键可打开歌曲操作菜单。
 - 共享收藏、歌单与历史；访客免登录，因此局域网内所有用户均有修改权限。
 - 多个命名同步房间，以 [Sendspin](https://www.sendspin-audio.com/) 协议、官方 Go 服务端与官方 Web SDK 为同步底座；SHiNe 只负责房间、队列和曲库编排。
 - 浅色、深色、纯黑主题，键盘焦点、44px 触控目标和减少动态效果支持。
@@ -94,9 +96,9 @@ Sendspin 当前仍标注为 Public Preview。SHiNe 将它封装在独立桥接�
 - `/api/analysis`、`/api/library/{trackId}/similar`、`/api/library/advanced-search`、`/api/radio/next`
 - `/api/playlists`、`/api/favorites`、`/api/history`
 - `/api/downloads`、`/api/scans`、`/api/settings/sources`
-- `/api/rooms`、`/api/rooms/{roomId}/state`、`/api/rooms/{roomId}/sendspin`、`/api/health`
+- `/api/rooms`、`/api/rooms/{roomId}/state`、`/api/rooms/{roomId}/autofill`、`/api/rooms/{roomId}/sendspin`、`/api/health`
 
-音源密钥只保存在服务端，读取配置时返回脱敏值。流媒体支持 Range 请求、正确 Content-Type 和缓存头。
+音源密钥只保存在服务端，读取配置时返回脱敏值。流媒体支持 Range 请求、正确 Content-Type 和缓存头。在线下载由 SQLite 队列和固定 3 个 Worker 消费，整张歌单不会按歌曲数无限创建并发任务。
 
 ## 本地开发与测试
 

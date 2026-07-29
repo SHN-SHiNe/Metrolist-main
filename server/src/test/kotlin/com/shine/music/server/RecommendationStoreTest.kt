@@ -6,6 +6,7 @@ import kotlin.io.path.writeBytes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class RecommendationStoreTest {
     @Test
@@ -84,6 +85,36 @@ class RecommendationStoreTest {
     }
 
     @Test
+    fun `stale analysis worker cannot overwrite a newly queued or running source`() {
+        val root = Files.createTempDirectory("shine-analysis-stale-state")
+        val music = root.resolve("music")
+        Files.createDirectories(music)
+        val song = music.resolve("Song.mp3")
+        song.writeBytes(byteArrayOf(1))
+        MusicStore(root.resolve("data/library.db")).use { store ->
+            val scanner = LibraryScanner(music, store, root.resolve("cache")) { AudioMetadata("Song", "Artist", "", 1_000) }
+            scanner.scan()
+            val id = store.listTracks(null, 0, 1).items.single().id
+            assertTrue(store.setAnalysisQueued(id))
+            val oldSource = store.startAnalysis(id)!!
+
+            song.writeBytes(byteArrayOf(1, 2))
+            Files.setLastModifiedTime(song, FileTime.fromMillis(oldSource.modifiedAt + 2_000))
+            scanner.scan()
+            assertTrue(store.setAnalysisQueued(id))
+
+            assertFalse(store.updateRunningAnalysisState(id, oldSource, "failed", 0f, "旧任务失败"))
+            assertFalse(store.updateRunningAnalysisState(id, oldSource, "pending", 0f, null))
+            assertEquals("queued", store.track(id)!!.analysis.status)
+
+            val newSource = store.startAnalysis(id)!!
+            assertFalse(store.updateRunningAnalysisState(id, oldSource, "running", 0.8f, "旧任务进度"))
+            assertTrue(store.updateRunningAnalysisState(id, newSource, "running", 0.5f, "新任务进度"))
+            assertEquals("running", store.track(id)!!.analysis.status)
+        }
+    }
+
+    @Test
     fun `analysis progress does not invalidate stable library paging`() {
         val root = Files.createTempDirectory("shine-analysis-revision")
         val music = root.resolve("music")
@@ -122,6 +153,26 @@ class RecommendationStoreTest {
 
             assertEquals(2, response.totalCandidates)
             assertEquals(listOf("Exact"), response.items.map { it.track.title })
+        }
+    }
+
+    @Test
+    fun `library BPM sorting keeps analyzed tracks ordered before pending tracks`() {
+        val root = Files.createTempDirectory("shine-analysis-sort")
+        val music = root.resolve("music")
+        Files.createDirectories(music)
+        listOf("Pending.mp3", "Fast.mp3", "Slow.mp3").forEachIndexed { index, name ->
+            music.resolve(name).writeBytes(byteArrayOf(index.toByte()))
+        }
+        MusicStore(root.resolve("data/library.db")).use { store ->
+            LibraryScanner(music, store, root.resolve("cache")) { path ->
+                AudioMetadata(path.fileName.toString().removeSuffix(".mp3"), "Artist", "", 1_000)
+            }.scan()
+            val tracks = store.listTracks(null, 0, 10, "title").items.associateBy(Track::title)
+            store.saveAnalysis(tracks.getValue("Fast").id, result(bpm = 132f), 100)
+            store.saveAnalysis(tracks.getValue("Slow").id, result(bpm = 92f), 101)
+
+            assertEquals(listOf("Slow", "Fast", "Pending"), store.listTracks(null, 0, 10, "bpm").items.map(Track::title))
         }
     }
 
