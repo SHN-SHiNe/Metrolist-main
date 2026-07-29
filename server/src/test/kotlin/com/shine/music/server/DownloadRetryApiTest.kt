@@ -3,6 +3,7 @@ package com.shine.music.server
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.post
+import io.ktor.client.request.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.testApplication
@@ -15,7 +16,17 @@ class DownloadRetryApiTest {
     fun `failed download keeps its request and can be retried`() = testApplication {
         val root = Files.createTempDirectory("shine-download-retry")
         val config = AppConfig(root.resolve("data"), root.resolve("music"), root.resolve("cache"), scanOnStart = false)
-        val failed = DownloadJob("job-1", "测试歌曲", "测试歌手", "failed", "network", 1, 2)
+        val failed = DownloadJob(
+            "job-1",
+            "测试歌曲",
+            "测试歌手",
+            "failed",
+            "network",
+            1,
+            2,
+            downloadedBytes = 12_345,
+            totalBytes = 98_765,
+        )
         MusicStore(config.databasePath).use { store ->
             store.saveDownload(
                 failed,
@@ -28,6 +39,12 @@ class DownloadRetryApiTest {
         val response = client.post("/api/downloads/${failed.id}/retry")
 
         assertEquals(HttpStatusCode.Accepted, response.status)
-        assertEquals("queued", response.body<DownloadJob>().status)
+        val retried = response.body<DownloadJob>()
+        assertEquals("queued", retried.status)
+        assertEquals(0L, retried.downloadedBytes)
+        assertEquals(null, retried.totalBytes)
+        val persisted = client.get("/api/downloads").body<List<DownloadJob>>().single()
+        assertEquals(0L, persisted.downloadedBytes)
+        assertEquals(null, persisted.totalBytes)
     }
 }

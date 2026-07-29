@@ -213,6 +213,8 @@ data class DownloadJob(
     val error: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    val downloadedBytes: Long = 0,
+    val totalBytes: Long? = null,
 )
 
 @Serializable

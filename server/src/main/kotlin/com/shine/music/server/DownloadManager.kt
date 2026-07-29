@@ -10,13 +10,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
+import java.io.InputStream
 import java.net.InetAddress
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -59,7 +62,13 @@ class DownloadManager(
     fun retry(id: String): DownloadJob {
         check(!closed.get()) { "download_manager_closed" }
         val (previous, request) = store.downloadForRetry(id) ?: throw IllegalArgumentException("failed_download_not_found")
-        val queued = previous.copy(status = "queued", error = null, updatedAt = clock())
+        val queued = previous.copy(
+            status = "queued",
+            error = null,
+            updatedAt = clock(),
+            downloadedBytes = 0,
+            totalBytes = null,
+        )
         store.saveDownload(queued)
         wakeWorkers()
         return queued
@@ -110,14 +119,21 @@ class DownloadManager(
             )
             currentCoroutineContext().ensureActive()
             require(response.statusCode() in 200..299) { "download_http_${response.statusCode()}" }
+            val totalBytes = response.headers().firstValueAsLong("content-length").orElse(-1).takeIf { it > 0 }
+            store.updateDownloadProgress(job.id, downloadedBytes = 0, totalBytes = totalBytes, now = clock())
             val contentType = response.headers().firstValue("content-type").orElse("audio/mpeg").substringBefore(';')
             val extension = extensionFor(uri.path.substringAfterLast('.', ""), contentType)
             val filename = "${safe(request.artist)} - ${safe(request.title)}.$extension"
             val part = incomingDir.resolve("${job.id}.part")
             temporary = part
-            response.body().use { input -> Files.copy(input, part, StandardCopyOption.REPLACE_EXISTING) }
+            val downloadedBytes = response.body().use { input ->
+                copyDownloadStream(input, part, clock) { downloaded ->
+                    store.updateDownloadProgress(job.id, downloaded, totalBytes, clock())
+                }
+            }
             currentCoroutineContext().ensureActive()
-            require(Files.size(part) > 0) { "empty_download" }
+            require(downloadedBytes > 0) { "empty_download" }
+            require(totalBytes == null || downloadedBytes == totalBytes) { "incomplete_download" }
             val destination = Files.move(part, musicDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
             temporary = null
             libraries.indexDownloaded(library.id, destination)
@@ -131,7 +147,7 @@ class DownloadManager(
     }
 
     private fun update(job: DownloadJob, status: String, error: String? = null) {
-        store.saveDownload(job.copy(status = status, error = error, updatedAt = clock()))
+        store.updateDownloadStatus(job.id, status, error, clock())
     }
 
     private fun ensurePublicHost(uri: URI) {
@@ -166,3 +182,42 @@ class DownloadManager(
         runBlocking { withTimeoutOrNull(5_000) { supervisor.join() } }
     }
 }
+
+/** Copies a response body while reporting at most once per interval, plus one exact final update. */
+internal suspend fun copyDownloadStream(
+    input: InputStream,
+    destination: Path,
+    clock: () -> Long = System::currentTimeMillis,
+    onProgress: (Long) -> Unit,
+): Long {
+    var downloadedBytes = 0L
+    var lastReportedBytes = 0L
+    var lastReportedAt = clock()
+    val buffer = ByteArray(DOWNLOAD_COPY_BUFFER_BYTES)
+    Files.newOutputStream(
+        destination,
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING,
+        StandardOpenOption.WRITE,
+    ).use { output ->
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val read = input.read(buffer)
+            if (read < 0) break
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            downloadedBytes += read
+            val now = clock()
+            if (now - lastReportedAt >= DOWNLOAD_PROGRESS_INTERVAL_MS) {
+                onProgress(downloadedBytes)
+                lastReportedBytes = downloadedBytes
+                lastReportedAt = now
+            }
+        }
+    }
+    if (downloadedBytes != lastReportedBytes) onProgress(downloadedBytes)
+    return downloadedBytes
+}
+
+private const val DOWNLOAD_COPY_BUFFER_BYTES = 64 * 1024
+private const val DOWNLOAD_PROGRESS_INTERVAL_MS = 1_000L

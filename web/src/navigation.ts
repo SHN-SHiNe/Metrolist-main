@@ -1,4 +1,4 @@
-export type Section = 'home' | 'search' | 'library' | 'local' | 'rooms' | 'settings'
+export type Section = 'home' | 'search' | 'library' | 'local' | 'downloads' | 'rooms' | 'settings'
 
 export const mainNavigation = [
   { id: 'home', label: '首页', icon: 'home' },
@@ -8,7 +8,8 @@ export const mainNavigation = [
 ] as const
 
 export const roomNavigation = { id: 'rooms', label: '同步房间', icon: 'room' } as const
-export const desktopNavigation = [...mainNavigation, roomNavigation] as const
+export const downloadNavigation = { id: 'downloads', label: '下载任务', icon: 'download' } as const
+export const desktopNavigation = [...mainNavigation, downloadNavigation, roomNavigation] as const
 
 export function sectionFromHash(hash: string): Section {
   const value = hash.replace(/^#/, '')

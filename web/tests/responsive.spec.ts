@@ -427,6 +427,68 @@ test('online preview asks for download and never enters the NAS analysis queue',
   expect(await page.locator('.track-list').textContent()).not.toContain('云端试听')
 })
 
+test('download notification opens a live queue on mobile and the queue remains visible on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  const online = { id: 'download-demo', title: '正在回家', artist: '在线歌手', album: '搜索结果', durationMs: 180000, source: 'netease' }
+  let jobs: unknown[] = []
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const method = route.request().method()
+    let body: unknown = []
+    if (url.pathname === '/api/library') body = { items: [], total: 0, offset: 0, limit: 200, revision: 1 }
+    else if (url.pathname === '/api/search') body = { items: [online], total: 1, page: 1, limit: 50 }
+    else if (url.pathname === '/api/downloads' && method === 'GET') body = jobs
+    else if (url.pathname === '/api/downloads' && method === 'POST') {
+      const job = { id: 'job-live', title: online.title, artist: online.artist, status: 'downloading', downloadedBytes: 256 * 1024, totalBytes: 1024 * 1024, createdAt: Date.now(), updatedAt: Date.now() }
+      jobs = [job]
+      return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify(job) })
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/#search')
+  await page.getByLabel('在线搜索').fill('正在回家')
+  await page.locator('.search-box').getByRole('button', { name: '搜索', exact: true }).click()
+  await page.getByRole('button', { name: '下载 正在回家 到 NAS' }).click()
+  await expect(page.getByRole('status')).toContainText('已加入 NAS 下载队列')
+  await page.getByRole('button', { name: '查看下载' }).click()
+
+  await expect(page).toHaveURL(/#downloads$/)
+  await expect(page.getByRole('heading', { name: '下载到 NAS' })).toBeVisible()
+  await expect(page.getByText('25% · 256 KB / 1.0 MB')).toBeVisible()
+  await expect(page.getByRole('progressbar', { name: /正在回家：25%/ })).toHaveAttribute('max', String(1024 * 1024))
+  await expect(page.locator('.mobile-nav .nav-button')).toHaveCount(4)
+  await expect(page.locator('.mobile-nav')).not.toContainText('下载任务')
+
+  await page.setViewportSize({ width: 320, height: 720 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+
+  await page.setViewportSize({ width: 1366, height: 768 })
+  await expect(page.locator('.sidebar').getByRole('button', { name: '下载任务，1 个进行中' })).toBeVisible()
+})
+
+test('failed download can be retried from the queue', async ({ page }) => {
+  let job = { id: 'job-failed', title: '暂时失败的歌', artist: '在线歌手', status: 'failed', error: 'download_http_503', downloadedBytes: 64000, totalBytes: 1000000, createdAt: 10, updatedAt: 20 }
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const method = route.request().method()
+    let body: unknown = []
+    if (url.pathname === '/api/library') body = { items: [], total: 0, offset: 0, limit: 200, revision: 1 }
+    else if (url.pathname === '/api/downloads' && method === 'GET') body = [job]
+    else if (url.pathname === `/api/downloads/${job.id}/retry` && method === 'POST') {
+      job = { ...job, status: 'queued', error: undefined, downloadedBytes: 0, totalBytes: undefined, updatedAt: 30 }
+      body = job
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/#downloads')
+  await expect(page.getByText('音源返回异常状态 503')).toBeVisible()
+  await page.getByRole('button', { name: '重试', exact: true }).click()
+  await expect(page.getByText('等待中', { exact: true })).toBeVisible()
+  await expect(page.getByText('等待可用下载线程')).toBeVisible()
+})
+
 test('mobile home keeps the paged three-column speed dial with random play last', async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 })
   await page.route('**/api/**', async (route) => {

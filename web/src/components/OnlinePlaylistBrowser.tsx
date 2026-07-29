@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { api } from '../api'
 import { collectOnlinePlaylistTracks, formatPlayCount, normalizedPage, ONLINE_PLAYLIST_DETAIL_LIMIT } from '../onlinePlaylists'
-import type { OnlinePlaylistDetailResponse, OnlinePlaylistSummary, OnlineTrack, Track } from '../types'
+import type { DownloadJob, OnlinePlaylistDetailResponse, OnlinePlaylistSummary, OnlineTrack, Track } from '../types'
 import { AlbumArt, EmptyState, TrackList } from './TrackList'
 import { Icon } from './Icon'
 import { OnlineConfirmationDialog } from './OnlineConfirmationDialog'
@@ -15,10 +15,11 @@ export type OnlinePlaylistBrowserProps = {
   query: string
   source: string
   onPlay: (track: Track, queue: Track[]) => void
+  onDownload: (track: Track) => Promise<DownloadJob>
   onNotice: (value: string) => void
 }
 
-export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: OnlinePlaylistBrowserProps) {
+export function OnlinePlaylistBrowser({ query, source, onPlay, onDownload, onNotice }: OnlinePlaylistBrowserProps) {
   const headingId = useId()
   const normalizedQuery = query.trim()
   const [searchPage, setSearchPage] = useState(1)
@@ -147,7 +148,7 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
     if (downloadingIds.has(track.id) || wholeAction === 'download') return
     setDownloadingIds((current) => new Set(current).add(track.id))
     try {
-      await api.download(track)
+      await onDownload(track)
       onNotice(`《${track.title}》已加入 NAS 下载队列`)
     } catch (error) {
       onNotice(`《${track.title}》下载入队失败：${readError(error)}`)
@@ -213,7 +214,7 @@ export function OnlinePlaylistBrowser({ query, source, onPlay, onNotice }: Onlin
       for (const [index, track] of tracks.entries()) {
         setOperationMessage(`正在加入 NAS 下载队列：${index + 1} / ${tracks.length}`)
         try {
-          await api.download(track)
+          await onDownload(track)
           completed += 1
         } catch {
           failed += 1

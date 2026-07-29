@@ -148,12 +148,22 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                     """
                     CREATE TABLE IF NOT EXISTS download_jobs (
                         id TEXT PRIMARY KEY, title TEXT NOT NULL, artist TEXT NOT NULL, status TEXT NOT NULL,
-                        error TEXT, track_id TEXT, url TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+                        error TEXT, track_id TEXT, url TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+                        downloaded_bytes INTEGER NOT NULL DEFAULT 0, total_bytes INTEGER
                     )
                     """.trimIndent(),
                 )
                 runCatching { statement.execute("ALTER TABLE download_jobs ADD COLUMN track_id TEXT") }
                 runCatching { statement.execute("ALTER TABLE download_jobs ADD COLUMN url TEXT") }
+                val downloadColumns = statement.executeQuery("PRAGMA table_info(download_jobs)").use { rows ->
+                    buildSet { while (rows.next()) add(rows.getString("name")) }
+                }
+                if ("downloaded_bytes" !in downloadColumns) {
+                    statement.execute("ALTER TABLE download_jobs ADD COLUMN downloaded_bytes INTEGER NOT NULL DEFAULT 0")
+                }
+                if ("total_bytes" !in downloadColumns) {
+                    statement.execute("ALTER TABLE download_jobs ADD COLUMN total_bytes INTEGER")
+                }
                 statement.execute(
                     """
                     CREATE TABLE IF NOT EXISTS rooms (
@@ -1078,9 +1088,12 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
     }
 
     fun saveDownload(job: DownloadJob, request: DownloadRequest? = null) = connection().use { db ->
-        db.prepareStatement("INSERT INTO download_jobs(id,title,artist,status,error,track_id,url,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,error=excluded.error,updated_at=excluded.updated_at").use {
+        db.prepareStatement("INSERT INTO download_jobs(id,title,artist,status,error,track_id,url,created_at,updated_at,downloaded_bytes,total_bytes) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,error=excluded.error,updated_at=excluded.updated_at,downloaded_bytes=excluded.downloaded_bytes,total_bytes=excluded.total_bytes").use {
             it.setString(1, job.id); it.setString(2, job.title); it.setString(3, job.artist); it.setString(4, job.status); it.setString(5, job.error)
-            it.setString(6, request?.trackId); it.setString(7, request?.url); it.setLong(8, job.createdAt); it.setLong(9, job.updatedAt); it.executeUpdate()
+            it.setString(6, request?.trackId); it.setString(7, request?.url); it.setLong(8, job.createdAt); it.setLong(9, job.updatedAt)
+            it.setLong(10, job.downloadedBytes)
+            if (job.totalBytes == null) it.setNull(11, java.sql.Types.BIGINT) else it.setLong(11, job.totalBytes)
+            it.executeUpdate()
         }
     }
 
@@ -1089,7 +1102,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             statement.setString(1, id)
             statement.executeQuery().use { row ->
                 if (!row.next()) return@use null
-                val job = DownloadJob(row.getString("id"), row.getString("title"), row.getString("artist"), row.getString("status"), row.getString("error"), row.getLong("created_at"), row.getLong("updated_at"))
+                val job = row.toDownloadJob()
                 job to DownloadRequest(row.getString("track_id"), row.getString("url"), job.title, job.artist)
             }
         }
@@ -1113,15 +1126,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             statement.setLong(1, now)
             statement.executeQuery().use { row ->
                 if (!row.next()) return@use null
-                val job = DownloadJob(
-                    row.getString("id"),
-                    row.getString("title"),
-                    row.getString("artist"),
-                    row.getString("status"),
-                    row.getString("error"),
-                    row.getLong("created_at"),
-                    row.getLong("updated_at"),
-                )
+                val job = row.toDownloadJob()
                 QueuedDownload(
                     job,
                     DownloadRequest(row.getString("track_id"), row.getString("url"), job.title, job.artist),
@@ -1136,9 +1141,31 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         }
     }
 
+    fun updateDownloadProgress(id: String, downloadedBytes: Long, totalBytes: Long?, now: Long) = connection().use { db ->
+        db.prepareStatement(
+            "UPDATE download_jobs SET downloaded_bytes=?,total_bytes=?,updated_at=? WHERE id=? AND status='downloading'",
+        ).use { statement ->
+            statement.setLong(1, downloadedBytes)
+            if (totalBytes == null) statement.setNull(2, java.sql.Types.BIGINT) else statement.setLong(2, totalBytes)
+            statement.setLong(3, now)
+            statement.setString(4, id)
+            statement.executeUpdate()
+        }
+    }
+
+    fun updateDownloadStatus(id: String, status: String, error: String?, now: Long) = connection().use { db ->
+        db.prepareStatement("UPDATE download_jobs SET status=?,error=?,updated_at=? WHERE id=?").use { statement ->
+            statement.setString(1, status)
+            statement.setString(2, error)
+            statement.setLong(3, now)
+            statement.setString(4, id)
+            statement.executeUpdate()
+        }
+    }
+
     fun downloads(): List<DownloadJob> = connection().use { db ->
         db.createStatement().use { statement -> statement.executeQuery("SELECT * FROM download_jobs ORDER BY created_at DESC").use { rows -> buildList {
-            while (rows.next()) add(DownloadJob(rows.getString("id"), rows.getString("title"), rows.getString("artist"), rows.getString("status"), rows.getString("error"), rows.getLong("created_at"), rows.getLong("updated_at")))
+            while (rows.next()) add(rows.toDownloadJob())
         } } }
     }
 
@@ -1187,6 +1214,18 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
     }
 
     private fun ResultSet.toPlaylistSummary() = PlaylistSummary(getString("id"), getString("name"), getLong("version"), getInt("track_count"), getLong("updated_at"))
+
+    private fun ResultSet.toDownloadJob() = DownloadJob(
+        id = getString("id"),
+        title = getString("title"),
+        artist = getString("artist"),
+        status = getString("status"),
+        error = getString("error"),
+        createdAt = getLong("created_at"),
+        updatedAt = getLong("updated_at"),
+        downloadedBytes = getLong("downloaded_bytes"),
+        totalBytes = getLong("total_bytes").takeUnless { wasNull() },
+    )
 
     private fun ResultSet.toMusicLibrary() = MusicLibraryView(
         id = getString("id"),

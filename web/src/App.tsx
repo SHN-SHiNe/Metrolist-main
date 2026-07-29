@@ -10,6 +10,7 @@ import type { AnalysisSummary, DownloadJob, HistoryEntry, LibrarySort, LibrarySo
 import { usePlayer } from './usePlayer'
 import { useRoomSync } from './useRoomSync'
 import { AdvancedSearchPanel } from './components/AdvancedSearchPanel'
+import { DownloadQueuePage } from './components/DownloadQueuePage'
 import { Icon } from './components/Icon'
 import { LibraryAnalysisView } from './components/LibraryAnalysisView'
 import { OnlinePlaylistBrowser, sourceLabel } from './components/OnlinePlaylistBrowser'
@@ -60,6 +61,7 @@ export default function App() {
   const allTracks = useMemo(() => [...library, ...searchResults, ...favorites, ...history.map((entry) => entry.track), ...Object.values(similarByTrack).flatMap((response) => [response.seed, ...response.items.map((item) => item.track)])].filter((track, index, array) => array.findIndex((item) => item.id === track.id) === index), [favorites, history, library, searchResults, similarByTrack])
   const room = useRoomSync(player, allTracks)
   roomIdRef.current = room.roomId
+  const activeDownloadCount = downloads.filter((job) => job.status === 'queued' || job.status === 'downloading').length
 
   const refresh = useCallback(async () => {
     try {
@@ -83,6 +85,11 @@ export default function App() {
     }
   }, [])
 
+  const refreshDownloads = useCallback(async () => {
+    const downloadItems = await api.downloads()
+    setDownloads(downloadItems)
+  }, [])
+
   const rememberLibraryTracks = useCallback((tracks: Track[]) => setLibrary((current) => mergeTrackPage(current, tracks)), [])
   const updateKnownTrack = useCallback((track: Track) => {
     setLibrary((current) => current.some((item) => item.id === track.id) ? current.map((item) => item.id === track.id ? track : item) : current)
@@ -94,6 +101,12 @@ export default function App() {
   }, [player.hydrateTracks])
 
   useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshDownloads().catch(() => undefined)
+    }, activeDownloadCount ? 1_000 : 5_000)
+    return () => window.clearInterval(timer)
+  }, [activeDownloadCount, refreshDownloads])
   useEffect(() => { player.hydrateTracks(allTracks) }, [allTracks, player.hydrateTracks])
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -284,6 +297,12 @@ export default function App() {
     await refresh()
   }
 
+  const enqueueDownload = useCallback(async (track: Track) => {
+    const job = await api.download(track)
+    setDownloads((current) => [job, ...current.filter((item) => item.id !== job.id)])
+    return job
+  }, [])
+
   const analyzeTrack = async (original: Track) => {
     if (isTemporaryOnlineTrack(original)) {
       setNotice('在线临时歌曲需先下载入 NAS 曲库，再进行音乐画像分析')
@@ -423,7 +442,7 @@ export default function App() {
   return (
     <TrackActionsProvider value={trackMenuActions}>
     <div className={`app-shell ${queueOpen ? '' : 'queue-closed'}`}>
-      <DesktopShell active={section} onNavigate={navigate} queueOpen={queueOpen} queue={<>
+      <DesktopShell active={section} onNavigate={navigate} activeDownloads={activeDownloadCount} queueOpen={queueOpen} queue={<>
         <div className="panel-tabs" role="tablist" aria-label="播放侧栏"><button role="tab" aria-selected={queueTab === 'queue'} className={queueTab === 'queue' ? 'active' : ''} onClick={() => setQueueTab('queue')}>队列 <span>{room.roomId ? room.queueIds.length : player.queue.length}</span></button><button role="tab" aria-selected={queueTab === 'lyrics'} className={queueTab === 'lyrics' ? 'active' : ''} onClick={() => setQueueTab('lyrics')}>歌词</button><button role="tab" aria-selected={queueTab === 'similar'} className={queueTab === 'similar' ? 'active' : ''} onClick={() => { setQueueTab('similar'); if (player.current) void loadSimilar(player.current) }}>相似</button></div>
         {queueTab === 'queue' ? <QueueEditor compact tracks={player.queue} currentIndex={player.index} playing={player.playing} onPlay={playQueuedTrack} onMove={moveQueueItem} onRemove={removeQueueItem} /> : queueTab === 'lyrics' ? <LyricsPanel track={player.current} positionSeconds={player.position} onSeek={seekPlayback} /> : currentSimilar?.items.length ? <div className="panel-similar-list">{currentSimilar.items.map((item) => <button key={item.track.id} onClick={() => play(item.track, currentSimilar.items.map((match) => match.track))}><RadarChart analysis={item.track.analysis} compact /><span><strong>{item.track.title}</strong><small>{item.track.artist}</small><AnalysisChips track={item.track} compact /></span><em>{item.similarityPercent}%</em></button>)}</div> : <EmptyState compact title={similarLoadingId ? '正在计算相似音乐' : '还没有相似推荐'} body="完成曲目分析后，会按节拍、调性和七维听感延续播放。" />}
       </>} />
@@ -433,19 +452,21 @@ export default function App() {
           <div><p className="eyeline">SHiNe MUSIC</p><h1>{title}</h1></div>
           <div className="topbar-actions">
             <button className={`connection ${room.status}`} title={`Sendspin 自动时钟校准：NAS 时钟偏移 ${Math.round(room.serverOffset)}ms`} onClick={() => navigate('rooms')}><span className="status-dot" />{roomConnectionLabel(room)}</button>
+            <button className="topbar-icon download-shortcut" onClick={() => navigate('downloads')} aria-label={activeDownloadCount ? `打开下载任务，${activeDownloadCount} 个进行中` : '打开下载任务'}><Icon name="download" />{activeDownloadCount > 0 && <span>{activeDownloadCount > 99 ? '99+' : activeDownloadCount}</span>}</button>
             <button className="topbar-icon" onClick={() => navigate('settings')} aria-label="打开设置"><Icon name="settings" /></button>
             <button className="queue-toggle secondary-button" onClick={() => setQueueOpen((value) => !value)} aria-expanded={queueOpen} aria-controls="play-queue">{queueOpen ? '收起队列' : '展开队列'}</button>
           </div>
         </header>
-        {notice && <div className="notice" role="status"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="关闭提示">×</button></div>}
+        {notice && <div className="notice"><span role="status">{notice}</span><span className="notice-actions">{notice.includes('NAS 下载队列') && <button className="notice-link" onClick={() => { setNotice(null); navigate('downloads') }}>查看下载</button>}<button onClick={() => setNotice(null)} aria-label="关闭提示">×</button></span></div>}
         {loading ? <LoadingRows /> : (
           <div className="page-content">
             {section === 'home' && <HomePage history={history} favorites={favorites} library={library} libraryTotal={libraryTotal} playlists={playlists} similar={currentSimilar} current={player.current} onPlay={play} onNavigate={navigate} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} />}
-            {section === 'search' && <SearchPage key={searchPresentationKey} query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} favorites={favorites} onNotice={setNotice} />}
-            {section === 'library' && <LibraryHub playlists={playlists} favorites={favorites} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onFavorite={toggleFavorite} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'search' && <SearchPage key={searchPresentationKey} query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} onDownload={enqueueDownload} favorites={favorites} onNotice={setNotice} />}
+            {section === 'library' && <LibraryHub playlists={playlists} favorites={favorites} downloads={downloads} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onFavorite={toggleFavorite} onNavigate={navigate} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'local' && <LibraryPage libraries={libraries} initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onPollAnalysis={pollTrackAnalysis} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'downloads' && <DownloadQueuePage jobs={downloads} onRefresh={refreshDownloads} onRetry={async (id) => { try { await api.retryDownload(id); await refreshDownloads(); setNotice('下载任务已重新加入队列') } catch (error) { setNotice(readError(error)) } }} />}
             {section === 'rooms' && <RoomsPage rooms={rooms} room={room} onRefresh={refresh} onNotice={setNotice} />}
-            {section === 'settings' && <SettingsPage libraries={libraries} sources={sources} downloads={downloads} theme={theme} onTheme={setTheme} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'settings' && <SettingsPage libraries={libraries} sources={sources} downloads={downloads} theme={theme} onTheme={setTheme} onNavigate={navigate} onRefresh={refresh} onNotice={setNotice} />}
           </div>
         )}
       </main>
@@ -520,9 +541,9 @@ function useSpeedDialPageSize() {
   return size
 }
 
-function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, favorites, onNotice }: {
+function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, onDownload, favorites, onNotice }: {
   query: string; setQuery: (value: string) => void; results: Track[]; setResults: (value: Track[]) => void
-  onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; favorites: Track[]; onNotice: (value: string) => void
+  onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onDownload: (track: Track) => Promise<DownloadJob>; favorites: Track[]; onNotice: (value: string) => void
 }) {
   const [searching, setSearching] = useState(false)
   const [source, setSource] = useState(() => localStorage.getItem('shine-search-provider') || 'all')
@@ -559,7 +580,7 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
     } catch (error) { onNotice(readError(error)) } finally { setSearching(false) }
   }
   const download = async (track: Track) => {
-    try { await api.download(track); onNotice(`《${track.title}》已加入 NAS 下载队列`) } catch (error) { onNotice(readError(error)) }
+    try { await onDownload(track); onNotice(`《${track.title}》已加入 NAS 下载队列`) } catch (error) { onNotice(readError(error)) }
   }
   return <div className="search-page">
     <form className="search-box search-box-original" onSubmit={search} role="search"><button type="button" className="search-back" onClick={() => window.history.back()} aria-label="返回"><Icon name="back" /></button><Icon name="search" /><input value={query} onChange={(event) => { setQuery(event.target.value); if (!event.target.value) setHasSearched(false) }} placeholder={mode === 'library' ? '搜索曲库、歌手、专辑或文件名' : '搜索国内音乐…'} aria-label={mode === 'library' ? '曲库搜索' : '在线搜索'} />{query && <button type="button" className="search-clear" onClick={() => { setQuery(''); setResults([]); setHasSearched(false) }} aria-label="清除搜索"><Icon name="close" /></button>}<button className="primary-button" disabled={searching || mode === 'advanced'}>{searching ? '搜索中…' : '搜索'}</button></form>
@@ -568,7 +589,7 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
       {(mode === 'domesticTracks' || mode === 'domesticPlaylists') && <div className="source-chips" role="group" aria-label="国内音乐音源">{[['all', '聚合'], ['netease', '网易云'], ['qq', 'QQ'], ['kugou', '酷狗'], ['kuwo', '酷我'], ['migu', '咪咕']].map(([value, label]) => <button key={value} className={source === value ? 'active' : ''} aria-pressed={source === value} onClick={() => setSource(value)}>{label}</button>)}</div>}
       {!query.trim() && searchHistory.length > 0 && <section className="search-history"><div className="section-heading"><h2>搜索历史</h2><button className="text-button" onClick={() => { localStorage.removeItem('shine-search-history'); setSearchHistory([]) }}>清空</button></div><div className="history-chips">{searchHistory.map((item) => <button key={item} onClick={() => { setQuery(item); setHasSearched(true) }}>{item}</button>)}</div></section>}
       {mode === 'domesticPlaylists'
-        ? <OnlinePlaylistBrowser query={hasSearched ? query : ''} source={source} onPlay={onPlay} onNotice={onNotice} />
+        ? <OnlinePlaylistBrowser query={hasSearched ? query : ''} source={source} onPlay={onPlay} onDownload={onDownload} onNotice={onNotice} />
         : results.length
           ? <TrackList tracks={results} favorites={favorites} onPlay={mode === 'domesticTracks' ? (track, queue) => setPendingTrack({ track, queue }) : onPlay} onFavorite={onFavorite} trailingAction={mode === 'library' ? undefined : (track) => <button className="icon-button" onClick={() => void download(track)} title="下载到 NAS" aria-label={`下载 ${track.title} 到 NAS`}><Icon name="download" /></button>} />
           : query.trim() && hasSearched
@@ -586,10 +607,17 @@ function readSearchHistory(): string[] {
   } catch { return [] }
 }
 
-function LibraryHub({ playlists, favorites, selected, setSelected, library, onPlay, onFavorite, onRefresh, onNotice }: { playlists: PlaylistSummary[]; favorites: Track[]; selected: PlaylistDetail | null; setSelected: (value: PlaylistDetail | null) => void; library: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+function LibraryHub({ playlists, favorites, downloads, selected, setSelected, library, onPlay, onFavorite, onNavigate, onRefresh, onNotice }: { playlists: PlaylistSummary[]; favorites: Track[]; downloads: DownloadJob[]; selected: PlaylistDetail | null; setSelected: (value: PlaylistDetail | null) => void; library: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onNavigate: (section: Section) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
   const [tab, setTab] = useState<'playlists' | 'favorites'>('playlists')
   if (selected) return <PlaylistsPage playlists={playlists} selected={selected} setSelected={setSelected} library={library} onPlay={onPlay} onRefresh={onRefresh} onNotice={onNotice} />
+  const activeDownloads = downloads.filter((job) => job.status === 'queued' || job.status === 'downloading').length
+  const completedDownloads = downloads.filter((job) => job.status === 'completed').length
   return <>
+    <button className="library-download-entry" onClick={() => onNavigate('downloads')}>
+      <span className="library-download-icon"><Icon name="download" />{activeDownloads > 0 && <i aria-hidden="true" />}</span>
+      <span><strong>下载与缓存</strong><small>{activeDownloads ? `${activeDownloads} 个任务进行中，点击查看实时进度` : completedDownloads ? `${completedDownloads} 个任务已完成并写入 NAS` : '在线歌曲下载后会自动进入本地曲库'}</small></span>
+      <b>{activeDownloads || downloads.length}</b>
+    </button>
     <div className="library-tabs" role="tablist" aria-label="音乐库分类"><button role="tab" aria-selected={tab === 'playlists'} className={tab === 'playlists' ? 'active' : ''} onClick={() => setTab('playlists')}>播放列表</button><button role="tab" aria-selected={tab === 'favorites'} className={tab === 'favorites' ? 'active' : ''} onClick={() => setTab('favorites')}>已点赞</button></div>
     {tab === 'playlists' ? <PlaylistsPage playlists={playlists} selected={null} setSelected={setSelected} library={library} onPlay={onPlay} onRefresh={onRefresh} onNotice={onNotice} /> : <TrackSection title="已点赞" subtitle={`${favorites.length} 首 · 家庭共享`} tracks={favorites} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} />}
   </>
@@ -805,7 +833,7 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
   </>
 }
 
-function SettingsPage({ libraries, sources, downloads, theme, onTheme, onRefresh, onNotice }: { libraries: MusicLibrary[]; sources: SourceConfig[]; downloads: DownloadJob[]; theme: Theme; onTheme: (value: Theme) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+function SettingsPage({ libraries, sources, downloads, theme, onTheme, onNavigate, onRefresh, onNotice }: { libraries: MusicLibrary[]; sources: SourceConfig[]; downloads: DownloadJob[]; theme: Theme; onTheme: (value: Theme) => void; onNavigate: (section: Section) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
   const [form, setForm] = useState({ name: '', apiUrl: '', apiKey: '' })
   const [libraryForm, setLibraryForm] = useState<MusicLibraryInput>({ name: '', path: '/libraries/', deviceType: 'local', readOnly: true, enabled: true, downloadTarget: false })
   const save = async (event: FormEvent) => {
@@ -825,7 +853,7 @@ function SettingsPage({ libraries, sources, downloads, theme, onTheme, onRefresh
     <section className="settings-section"><h2>外观</h2><p>选择浅色、深色或适合 OLED 的纯黑主题。</p><div className="theme-options" role="group" aria-label="界面主题">{(['light', 'dark', 'black'] as Theme[]).map((value) => <button key={value} className={theme === value ? 'active' : ''} onClick={() => onTheme(value)} aria-pressed={theme === value}>{({ light: '浅色', dark: '深色', black: '纯黑' })[value]}</button>)}</div></section>
     <section className="settings-section libraries-section"><h2>音频库</h2><p>统一管理 NAS、USB 硬盘和网络挂载。设备掉线时保留曲库索引，不会将音乐误判为已删除。</p><form className="settings-form library-create" onSubmit={addLibrary}><label>名称<input required value={libraryForm.name} onChange={(event) => setLibraryForm({ ...libraryForm, name: event.target.value })} placeholder="例如：客厅 USB 硬盘" /></label><label>容器内路径<input required value={libraryForm.path} onChange={(event) => setLibraryForm({ ...libraryForm, path: event.target.value })} placeholder="/libraries/living-room" /></label><label>设备类型<select value={libraryForm.deviceType} onChange={(event) => setLibraryForm({ ...libraryForm, deviceType: event.target.value as MusicLibraryInput['deviceType'] })}><option value="local">NAS 本地</option><option value="usb">USB 设备</option><option value="network">网络挂载</option><option value="cloud">云盘挂载</option></select></label><label className="check-label"><input type="checkbox" checked={libraryForm.readOnly} onChange={(event) => setLibraryForm({ ...libraryForm, readOnly: event.target.checked, downloadTarget: event.target.checked ? false : libraryForm.downloadTarget })} />只读保护</label><label className="check-label"><input type="checkbox" disabled={libraryForm.readOnly} checked={libraryForm.downloadTarget} onChange={(event) => setLibraryForm({ ...libraryForm, downloadTarget: event.target.checked })} />设为在线下载目标</label><button className="primary-button">添加音频库</button></form><div className="library-list">{libraries.map((library) => <LibraryEditor key={library.id} library={library} onRefresh={onRefresh} onNotice={onNotice} />)}</div></section>
     <section className="settings-section"><h2>音乐源</h2><p>密钥只保存在 NAS，页面只显示末四位。</p><form className="settings-form" onSubmit={save}><label>名称<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>API 地址<input required type="url" value={form.apiUrl} onChange={(event) => setForm({ ...form, apiUrl: event.target.value })} /></label><label>API 密钥<input required type="password" value={form.apiKey} onChange={(event) => setForm({ ...form, apiKey: event.target.value })} /></label><button className="primary-button">保存音乐源</button></form>{sources.map((source) => <div className="source-row" key={source.id}><span><strong>{source.name}</strong><small>{source.apiUrl}</small></span><code>{source.apiKeyMasked}</code></div>)}</section>
-    <section className="settings-section"><h2>下载任务</h2><p>完成后自动扫描并进入 NAS 曲库；失败任务可以重试。</p>{downloads.length ? downloads.map((job) => <div className="download-row" key={job.id}><span><strong>{job.title}</strong><small>{job.artist}</small></span>{job.status === 'failed' ? <button className="secondary-button" onClick={async () => { try { await api.retryDownload(job.id); await onRefresh() } catch (error) { onNotice(readError(error)) } }}>重试</button> : <StatusBadge status={job.status} />}</div>) : <EmptyState compact title="暂无下载" body="在线搜索歌曲后可以加入下载队列。" />}</section>
+    <section className="settings-section"><h2>下载与缓存</h2><p>下载进度已独立显示；完成后自动扫描并进入 NAS 曲库，失败任务可以从任务页重试。</p><button className="secondary-button settings-download-link" onClick={() => onNavigate('downloads')}><Icon name="download" />打开下载任务{downloads.some((job) => job.status === 'queued' || job.status === 'downloading') ? ` · ${downloads.filter((job) => job.status === 'queued' || job.status === 'downloading').length} 个进行中` : ''}</button></section>
     <section className="settings-section"><h2>HTTP 模式</h2><p>当前局域网入口以普通 Web 运行。切换受信任 HTTPS 后即可验收完整 PWA 安装与音频输出设备选择。</p></section>
   </div>
 }
@@ -863,11 +891,6 @@ function roomConnectionLabel(room: ReturnType<typeof useRoomSync>) {
 
 function LoadingRows() {
   return <div className="loading-rows" aria-label="加载中">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const labels: Record<string, string> = { queued: '等待中', downloading: '下载中', completed: '已完成', failed: '失败' }
-  return <span className={`status-badge ${status}`}>{labels[status] ?? status}</span>
 }
 
 async function copyText(value: string) {

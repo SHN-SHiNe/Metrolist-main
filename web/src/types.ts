@@ -136,7 +136,17 @@ export type PlaylistSummary = { id: string; name: string; version: number; track
 export type PlaylistDetail = { id: string; name: string; version: number; tracks: Track[]; updatedAt: number }
 export type HistoryEntry = { id: number; track: Track; playedAt: number }
 export type SourceConfig = { id: string; name: string; apiUrl: string; apiKeyMasked: string; enabled: boolean; updatedAt: number }
-export type DownloadJob = { id: string; title: string; artist: string; status: string; error?: string; createdAt: number; updatedAt: number }
+export type DownloadJob = {
+  id: string
+  title: string
+  artist: string
+  status: string
+  error?: string
+  createdAt: number
+  updatedAt: number
+  downloadedBytes?: number
+  totalBytes?: number | null
+}
 export type SearchResponse = { items: OnlineTrack[]; total: number; page: number; limit: number }
 export type RoomSummary = { id: string; name: string; memberCount: number; version: number; updatedAt: number }
 export type RoomPlaybackState = { queue: string[]; currentTrackId: string | null; positionMs: number; playing: boolean; effectiveAt: number }
