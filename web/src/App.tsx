@@ -1,8 +1,9 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api } from './api'
 import { LIBRARY_PAGE_SIZE, mergeTrackPage } from './libraryPaging'
 import { desktopNavigation, sectionFromHash, type Section } from './navigation'
 import { randomId } from './randomId'
+import { pageFromScroll, pageOffset } from './pager'
 import { appendRoomTrack, insertRoomTrackNext, moveRoomTrack, removeRoomTrack } from './roomQueue'
 import { mergeSimilarQueue, recentTrackIds } from './similarAutoplay'
 import { appendTrackOnce, isTemporaryOnlineTrack, TrackActionsProvider, type TrackMenuActionFactory } from './trackActions'
@@ -20,6 +21,7 @@ import { RadarChart } from './components/RadarChart'
 import { DesktopShell, MobileShell } from './layout/Shells'
 import { NowPlaying, AnalysisChips, LyricsPanel, QueueEditor } from './player/NowPlaying'
 import { PlayerBar } from './player/PlayerBar'
+import shineLogoUrl from '../../SHiNe.png'
 
 type Theme = 'light' | 'dark' | 'black'
 
@@ -49,6 +51,9 @@ export default function App() {
   const [queueTab, setQueueTab] = useState<'queue' | 'lyrics' | 'similar'>('queue')
   const [similarByTrack, setSimilarByTrack] = useState<Record<string, SimilarTracksResponse>>({})
   const [similarLoadingId, setSimilarLoadingId] = useState<string | null>(null)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [pullRefreshing, setPullRefreshing] = useState(false)
+  const pullStart = useRef<number | null>(null)
   const sessionRecent = useRef<string[]>([])
   const autoPrefetched = useRef<string | null>(null)
   const roomAutoPrefetched = useRef<string | null>(null)
@@ -119,8 +124,20 @@ export default function App() {
   }, [])
 
   const navigate = (next: Section) => {
+    if (next === section) {
+      document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     location.hash = next
     setSection(next)
+  }
+  const finishPullRefresh = () => {
+    pullStart.current = null
+    if (pullDistance < 58 || pullRefreshing) { setPullDistance(0); return }
+    setPullRefreshing(true)
+    setPullDistance(48)
+    void refresh().finally(() => { setPullRefreshing(false); setPullDistance(0) })
   }
 
   const rememberPlayed = useCallback((id: string) => {
@@ -436,7 +453,7 @@ export default function App() {
     })
   }
 
-  const title = navItems.find((item) => item.id === section)?.label ?? '设置'
+  const title = navItems.find((item) => item.id === section)?.label ?? ({ history: '历史记录', stats: '收听统计', settings: '设置' } as Partial<Record<Section, string>>)[section] ?? 'SHiNe MUSIC'
   const currentSimilar = player.current ? similarByTrack[player.current.id] ?? null : null
 
   return (
@@ -447,12 +464,15 @@ export default function App() {
         {queueTab === 'queue' ? <QueueEditor compact tracks={player.queue} currentIndex={player.index} playing={player.playing} onPlay={playQueuedTrack} onMove={moveQueueItem} onRemove={removeQueueItem} /> : queueTab === 'lyrics' ? <LyricsPanel track={player.current} positionSeconds={player.position} onSeek={seekPlayback} /> : currentSimilar?.items.length ? <div className="panel-similar-list">{currentSimilar.items.map((item) => <button key={item.track.id} onClick={() => play(item.track, currentSimilar.items.map((match) => match.track))}><RadarChart analysis={item.track.analysis} compact /><span><strong>{item.track.title}</strong><small>{item.track.artist}</small><AnalysisChips track={item.track} compact /></span><em>{item.similarityPercent}%</em></button>)}</div> : <EmptyState compact title={similarLoadingId ? '正在计算相似音乐' : '还没有相似推荐'} body="完成曲目分析后，会按节拍、调性和七维听感延续播放。" />}
       </>} />
 
-      <main className="main-content" id="main-content">
+      <main className="main-content" id="main-content" onPointerDown={(event) => { if (section === 'home' && event.pointerType === 'touch' && window.scrollY <= 0 && event.currentTarget.scrollTop <= 0) pullStart.current = event.clientY }} onPointerMove={(event) => { if (pullStart.current === null) return; const distance = event.clientY - pullStart.current; if (distance > 0) setPullDistance(Math.min(82, distance * .42)) }} onPointerUp={finishPullRefresh} onPointerCancel={() => { pullStart.current = null; setPullDistance(0) }}>
+        {section === 'home' && <div className={`pull-refresh ${pullRefreshing ? 'refreshing' : ''}`} style={{ transform: `translate(-50%, ${pullDistance - 48}px)`, opacity: pullDistance ? 1 : 0 }} role="status" aria-live="polite"><Icon name="refresh" /><span>{pullRefreshing ? '正在刷新' : pullDistance >= 58 ? '松开刷新' : '下拉刷新'}</span></div>}
         <header className="topbar">
-          <div><p className="eyeline">SHiNe MUSIC</p><h1>{title}</h1></div>
+          <h1>{title}</h1>
           <div className="topbar-actions">
             <button className={`connection ${room.status}`} title={`Sendspin 自动时钟校准：NAS 时钟偏移 ${Math.round(room.serverOffset)}ms`} onClick={() => navigate('rooms')}><span className="status-dot" />{roomConnectionLabel(room)}</button>
             <button className="topbar-icon download-shortcut" onClick={() => navigate('downloads')} aria-label={activeDownloadCount ? `打开下载任务，${activeDownloadCount} 个进行中` : '打开下载任务'}><Icon name="download" />{activeDownloadCount > 0 && <span>{activeDownloadCount > 99 ? '99+' : activeDownloadCount}</span>}</button>
+            <button className="topbar-icon original-top-action" onClick={() => navigate('history')} aria-label="打开播放历史"><Icon name="history" /></button>
+            <button className="topbar-icon original-top-action" onClick={() => navigate('stats')} aria-label="打开收听统计"><Icon name="stats" /></button>
             <button className="topbar-icon" onClick={() => navigate('settings')} aria-label="打开设置"><Icon name="settings" /></button>
             <button className="queue-toggle secondary-button" onClick={() => setQueueOpen((value) => !value)} aria-expanded={queueOpen} aria-controls="play-queue">{queueOpen ? '收起队列' : '展开队列'}</button>
           </div>
@@ -460,12 +480,14 @@ export default function App() {
         {notice && <div className="notice"><span role="status">{notice}</span><span className="notice-actions">{notice.includes('NAS 下载队列') && <button className="notice-link" onClick={() => { setNotice(null); navigate('downloads') }}>查看下载</button>}<button onClick={() => setNotice(null)} aria-label="关闭提示">×</button></span></div>}
         {loading ? <LoadingRows /> : (
           <div className="page-content">
-            {section === 'home' && <HomePage history={history} favorites={favorites} library={library} libraryTotal={libraryTotal} playlists={playlists} similar={currentSimilar} current={player.current} onPlay={play} onNavigate={navigate} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} />}
+            {section === 'home' && <HomePage history={history} favorites={favorites} library={library} libraryTotal={libraryTotal} playlists={playlists} similar={currentSimilar} current={player.current} playing={player.playing} onPlay={play} onNavigate={navigate} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} />}
             {section === 'search' && <SearchPage key={searchPresentationKey} query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} onDownload={enqueueDownload} favorites={favorites} onNotice={setNotice} />}
             {section === 'library' && <LibraryHub playlists={playlists} favorites={favorites} downloads={downloads} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onFavorite={toggleFavorite} onNavigate={navigate} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'local' && <LibraryPage libraries={libraries} initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onPollAnalysis={pollTrackAnalysis} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'downloads' && <DownloadQueuePage jobs={downloads} onRefresh={refreshDownloads} onRetry={async (id) => { try { await api.retryDownload(id); await refreshDownloads(); setNotice('下载任务已重新加入队列') } catch (error) { setNotice(readError(error)) } }} />}
             {section === 'rooms' && <RoomsPage rooms={rooms} room={room} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'history' && <HistoryPage history={history} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} />}
+            {section === 'stats' && <StatsPage history={history} library={library} favorites={favorites} />}
             {section === 'settings' && <SettingsPage libraries={libraries} sources={sources} downloads={downloads} theme={theme} onTheme={setTheme} onNavigate={navigate} onRefresh={refresh} onNotice={setNotice} />}
           </div>
         )}
@@ -479,7 +501,7 @@ export default function App() {
   )
 }
 
-function HomePage({ history, favorites, library, libraryTotal, playlists, current, similar, onPlay, onNavigate, onLoadSimilar }: { history: HistoryEntry[]; favorites: Track[]; library: Track[]; libraryTotal: number; playlists: PlaylistSummary[]; current: Track | null; similar: SimilarTracksResponse | null; onPlay: (track: Track, queue: Track[]) => void; onNavigate: (section: Section) => void; onLoadSimilar: () => void }) {
+function HomePage({ history, favorites, library, libraryTotal, playlists, current, playing, similar, onPlay, onNavigate, onLoadSimilar }: { history: HistoryEntry[]; favorites: Track[]; library: Track[]; libraryTotal: number; playlists: PlaylistSummary[]; current: Track | null; playing: boolean; similar: SimilarTracksResponse | null; onPlay: (track: Track, queue: Track[]) => void; onNavigate: (section: Section) => void; onLoadSimilar: () => void }) {
   const recent = history.slice(0, 8).map((entry) => entry.track)
   const recommendations = similar?.items.map((item) => item.track) ?? library.filter((track) => track.analysis?.status === 'completed').slice(0, 10)
   const recommendationBadges = new Map(similar?.items.map((item) => [item.track.id, `${item.similarityPercent}% 相似`]) ?? [])
@@ -489,6 +511,7 @@ function HomePage({ history, favorites, library, libraryTotal, playlists, curren
   const forgotten = favorites.length > 4 ? [...favorites].reverse().slice(0, 8) : []
   const pageSize = useSpeedDialPageSize()
   const [dialPage, setDialPage] = useState(0)
+  const dialViewport = useRef<HTMLDivElement>(null)
   const randomize = () => {
     if (!library.length) return
     const shuffled = [...library]
@@ -512,22 +535,29 @@ function HomePage({ history, favorites, library, libraryTotal, playlists, curren
   const dialItems = [...dialBase.slice(0, firstPageEnd), randomDial, ...dialBase.slice(firstPageEnd)]
   const pageCount = Math.max(1, Math.ceil(dialItems.length / pageSize))
   const safePage = Math.min(dialPage, pageCount - 1)
-  const visibleDialItems = dialItems.slice(safePage * pageSize, safePage * pageSize + pageSize)
+  const dialPages = Array.from({ length: pageCount }, (_, page) => dialItems.slice(page * pageSize, page * pageSize + pageSize))
   useEffect(() => { if (dialPage >= pageCount) setDialPage(pageCount - 1) }, [dialPage, pageCount])
+  const goToDialPage = (page: number) => {
+    const viewport = dialViewport.current
+    const nextPage = Math.min(pageCount - 1, Math.max(0, page))
+    setDialPage(nextPage)
+    if (viewport) viewport.scrollTo({ left: pageOffset(nextPage, viewport.clientWidth, pageCount), behavior: 'smooth' })
+  }
   return <>
-    <section className="home-greeting">
-      <div><span className="section-kicker">SHiNe MUSIC</span><h2>听点什么？</h2><p>{libraryTotal} 首音乐已在家里的 NAS 上准备好</p></div>
-      {library[0] && <button className="round-play" onClick={() => onPlay(library[0], library)} aria-label="播放 NAS 曲库"><Icon name="play" /></button>}
-    </section>
-    <section className="content-rail speed-dial"><div className="section-heading"><div><h2>快速访问</h2><p>左右翻页，第一屏末位始终是随机播放</p></div></div><div className="quick-grid" aria-label={`快速访问，第 ${safePage + 1} 页，共 ${pageCount} 页`}>{visibleDialItems.map((item) => <button key={item.id} onClick={item.action} disabled={item.id === 'random' && !library.length}><span className={`quick-art ${item.className}`}>{item.art}</span><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div><div className="speed-dial-pages" aria-label="快速访问页码">{Array.from({ length: pageCount }, (_, index) => <button key={index} className={safePage === index ? 'active' : ''} aria-label={`第 ${index + 1} 页`} aria-current={safePage === index ? 'page' : undefined} onClick={() => setDialPage(index)} />)}</div></section>
-    <AlbumRow title="Quick Picks" tracks={quickPicks} onPlay={onPlay} />
-    <AlbumRow title="每日发现" tracks={daily} onPlay={onPlay} />
+    <section className="content-rail speed-dial"><div className="section-heading"><h2>快速访问</h2></div><div ref={dialViewport} className="speed-dial-viewport" aria-label={`快速访问，第 ${safePage + 1} 页，共 ${pageCount} 页`} onScroll={(event) => setDialPage(pageFromScroll(event.currentTarget.scrollLeft, event.currentTarget.clientWidth, pageCount))}>{dialPages.map((items, page) => <div className="quick-grid speed-dial-page" style={{ gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))` }} key={page} aria-label={`快速访问第 ${page + 1} 页`}>{items.map((item) => <button key={item.id} onClick={item.action} disabled={item.id === 'random' && !library.length}><span className={`quick-art ${item.className}`}>{item.art}</span><strong>{item.label}</strong><small>{item.detail}</small></button>)}</div>)}</div><div className="speed-dial-pages" aria-label="快速访问页码">{Array.from({ length: pageCount }, (_, index) => <button key={index} className={safePage === index ? 'active' : ''} aria-label={`第 ${index + 1} 页`} aria-current={safePage === index ? 'page' : undefined} onClick={() => goToDialPage(index)} />)}</div></section>
+    <HomeSongRail title="Quick Picks" tracks={quickPicks} current={current} playing={playing} onPlay={onPlay} />
     <AlbumRow title="继续聆听" tracks={(recent.length ? recent : favorites).slice(0, 8)} onPlay={onPlay} />
+    <AlbumRow title="每日发现" tracks={daily} onPlay={onPlay} />
     {playlists.length > 0 && <section className="content-rail"><div className="section-heading"><div><h2>账号歌单</h2><p>局域网内共享，任何设备都能继续整理</p></div><button className="text-button" onClick={() => onNavigate('library')}>查看全部</button></div><div className="home-playlist-row">{playlists.slice(0, 8).map((playlist) => <button key={playlist.id} onClick={() => onNavigate('library')}><span className="quick-art playlists"><Icon name="playlist" /></span><strong>{playlist.name}</strong><small>{playlist.trackCount} 首</small></button>)}</div></section>}
     <section className="content-rail"><div className="section-heading"><div><h2>相似推荐</h2><p>{current ? `延续《${current.title}》的节拍、调性与听感` : '播放一首已分析音乐后，从这里自然续播'}</p></div>{current && <button className="text-button" onClick={onLoadSimilar}><Icon name="sparkles" />重新计算</button>}</div><AlbumRow title="" tracks={recommendations} badges={recommendationBadges} onPlay={onPlay} />{!recommendations.length && <EmptyState compact title="等待音乐画像" body="NAS 完成曲目分析后，相似推荐会出现在这里。" />}</section>
     <AlbumRow title="情绪与风格" tracks={analyzed.slice(0, 10)} onPlay={onPlay} />
     <AlbumRow title="遗忘收藏" tracks={forgotten} onPlay={onPlay} />
   </>
+}
+
+function HomeSongRail({ title, tracks, current, playing, onPlay }: { title: string; tracks: Track[]; current: Track | null; playing: boolean; onPlay: (track: Track, queue: Track[]) => void }) {
+  if (!tracks.length) return null
+  return <section className="content-rail home-song-section"><div className="section-heading"><h2>{title}</h2><button className="text-button" onClick={() => onPlay(tracks[0], tracks)}><Icon name="play" />全部播放</button></div><div className="home-song-rail" aria-label={title}>{tracks.map((track) => { const active = current?.id === track.id; return <button key={track.id} className={active ? 'active' : ''} onClick={() => onPlay(track, tracks)}><span className="home-song-art"><AlbumArt title={track.title} artworkUrl={track.artworkUrl} small />{active && <i><Icon name={playing ? 'pause' : 'play'} /></i>}</span><span><strong>{track.title}</strong><small>{track.artist}{track.album ? ` · ${track.album}` : ''}</small></span><b aria-hidden="true">•••</b></button> })}</div></section>
 }
 
 function useSpeedDialPageSize() {
@@ -608,18 +638,35 @@ function readSearchHistory(): string[] {
 }
 
 function LibraryHub({ playlists, favorites, downloads, selected, setSelected, library, onPlay, onFavorite, onNavigate, onRefresh, onNotice }: { playlists: PlaylistSummary[]; favorites: Track[]; downloads: DownloadJob[]; selected: PlaylistDetail | null; setSelected: (value: PlaylistDetail | null) => void; library: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onNavigate: (section: Section) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
-  const [tab, setTab] = useState<'playlists' | 'favorites'>('playlists')
+  const [tab, setTab] = useState<'overview' | 'favorites'>('overview')
+  const [filter, setFilter] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [name, setName] = useState('')
   if (selected) return <PlaylistsPage playlists={playlists} selected={selected} setSelected={setSelected} library={library} onPlay={onPlay} onRefresh={onRefresh} onNotice={onNotice} />
   const activeDownloads = downloads.filter((job) => job.status === 'queued' || job.status === 'downloading').length
   const completedDownloads = downloads.filter((job) => job.status === 'completed').length
+  const visiblePlaylists = playlists.filter((playlist) => playlist.name.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()))
+  const openPlaylist = async (id: string) => { try { setSelected(await api.playlist(id)) } catch (error) { onNotice(readError(error)) } }
+  const create = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!name.trim()) return
+    try { await api.createPlaylist(name); setName(''); setShowCreate(false); await onRefresh() } catch (error) { onNotice(readError(error)) }
+  }
+  if (tab === 'favorites') return <><button className="back-button" onClick={() => setTab('overview')}><Icon name="back" />返回媒体库</button><TrackSection title="已点赞" subtitle={`${favorites.length} 首 · 家庭共享`} tracks={favorites} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} /></>
   return <>
-    <button className="library-download-entry" onClick={() => onNavigate('downloads')}>
-      <span className="library-download-icon"><Icon name="download" />{activeDownloads > 0 && <i aria-hidden="true" />}</span>
-      <span><strong>下载与缓存</strong><small>{activeDownloads ? `${activeDownloads} 个任务进行中，点击查看实时进度` : completedDownloads ? `${completedDownloads} 个任务已完成并写入 NAS` : '在线歌曲下载后会自动进入本地曲库'}</small></span>
-      <b>{activeDownloads || downloads.length}</b>
-    </button>
-    <div className="library-tabs" role="tablist" aria-label="音乐库分类"><button role="tab" aria-selected={tab === 'playlists'} className={tab === 'playlists' ? 'active' : ''} onClick={() => setTab('playlists')}>播放列表</button><button role="tab" aria-selected={tab === 'favorites'} className={tab === 'favorites' ? 'active' : ''} onClick={() => setTab('favorites')}>已点赞</button></div>
-    {tab === 'playlists' ? <PlaylistsPage playlists={playlists} selected={null} setSelected={setSelected} library={library} onPlay={onPlay} onRefresh={onRefresh} onNotice={onNotice} /> : <TrackSection title="已点赞" subtitle={`${favorites.length} 首 · 家庭共享`} tracks={favorites} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} />}
+    <div className="library-overview-toolbar"><label className="filter-field"><Icon name="search" /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="搜索播放列表" aria-label="搜索播放列表" /></label><span>{visiblePlaylists.length + 4} 个播放列表</span><button className="icon-button" aria-label="列表视图"><Icon name="playlist" /></button></div>
+    <div className="library-overview-list">
+      {!filter && <>
+        <button className="library-overview-row" onClick={() => setTab('favorites')}><span className="library-row-art liked"><Icon name="heart" /></span><span><strong>已点赞</strong><small>{favorites.length} 首歌曲 · 家庭共享</small></span><b>›</b></button>
+        <button className="library-overview-row" onClick={() => onNavigate('downloads')}><span className="library-row-art downloaded"><Icon name="download" />{activeDownloads > 0 && <i />}</span><span><strong>已下载</strong><small>{activeDownloads ? `${activeDownloads} 个任务进行中` : `${completedDownloads} 个任务已完成`}</small></span><b>›</b></button>
+        <button className="library-overview-row" onClick={() => onNavigate('local')}><span className="library-row-art covers">{library.slice(0, 4).map((track) => <AlbumArt key={track.id} title={track.title} artworkUrl={track.artworkUrl} small />)}</span><span><strong>NAS 曲库</strong><small>{library.length} 首音乐</small></span><b>›</b></button>
+        <button className="library-overview-row" disabled={!library.length} onClick={() => { const top = library.slice(0, 50); if (top[0]) onPlay(top[0], top) }}><span className="library-row-art top"><Icon name="stats" /></span><span><strong>我的最爱 50</strong><small>根据当前曲库快速播放</small></span><b>›</b></button>
+      </>}
+      {visiblePlaylists.map((playlist) => <button className="library-overview-row" key={playlist.id} onClick={() => void openPlaylist(playlist.id)}><span className="library-row-art playlist"><Icon name="playlist" /></span><span><strong>{playlist.name}</strong><small>{playlist.trackCount} 首歌曲 · 共享歌单</small></span><b>•••</b></button>)}
+    </div>
+    {!visiblePlaylists.length && filter && <EmptyState compact title="没有匹配的播放列表" body="换一个名称继续搜索。" />}
+    {showCreate && <form className="inline-create library-inline-create" onSubmit={create}><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="新歌单名称" aria-label="新歌单名称" /><button type="button" className="secondary-button" onClick={() => setShowCreate(false)}>取消</button><button className="primary-button">创建</button></form>}
+    <button className="library-create-fab" onClick={() => setShowCreate(true)} aria-label="创建歌单">＋</button>
   </>
 }
 
@@ -833,7 +880,42 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
   </>
 }
 
+function HistoryPage({ history, favorites, onPlay, onFavorite }: { history: HistoryEntry[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void }) {
+  const tracks = history.map((entry) => entry.track)
+  const days = history.reduce<Record<string, HistoryEntry[]>>((groups, entry) => {
+    const key = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(entry.playedAt))
+    ;(groups[key] ??= []).push(entry)
+    return groups
+  }, {})
+  if (!history.length) return <EmptyState title="还没有播放历史" body="从首页、搜索或 NAS 曲库播放音乐后，会按日期保留在这里。" />
+  return <div className="history-page">{Object.entries(days).map(([day, entries]) => <section className="track-section" key={day}><div className="section-heading"><div><h2>{day}</h2><p>{entries.length} 次播放</p></div><button className="round-play" onClick={() => onPlay(entries[0].track, tracks)} aria-label={`播放${day}的历史记录`}><Icon name="play" /></button></div><TrackList tracks={entries.map((entry) => entry.track)} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} /></section>)}</div>
+}
+
+function StatsPage({ history, library, favorites }: { history: HistoryEntry[]; library: Track[]; favorites: Track[] }) {
+  const totalSeconds = history.reduce((sum, entry) => sum + entry.track.durationMs / 1000, 0)
+  const artistCounts = history.reduce<Record<string, number>>((counts, entry) => {
+    const artist = entry.track.artist || '未知艺术家'
+    counts[artist] = (counts[artist] ?? 0) + 1
+    return counts
+  }, {})
+  const topArtists = Object.entries(artistCounts).sort((a, b) => b[1] - a[1]).slice(0, 6)
+  const analyzed = library.filter((track) => track.analysis?.status === 'completed')
+  const bpmTracks = analyzed.filter((track) => track.analysis?.bpm)
+  const averageBpm = bpmTracks.length ? Math.round(bpmTracks.reduce((sum, track) => sum + (track.analysis?.bpm ?? 0), 0) / bpmTracks.length) : 0
+  return <div className="stats-page">
+    <section className="stats-summary" aria-label="收听概览"><div><strong>{history.length}</strong><span>播放次数</span></div><div><strong>{formatListeningTime(totalSeconds)}</strong><span>预计收听</span></div><div><strong>{favorites.length}</strong><span>已点赞</span></div><div><strong>{library.length}</strong><span>曲库歌曲</span></div></section>
+    <section className="stats-list"><div className="section-heading"><div><h2>最常听的艺术家</h2><p>根据共享播放历史统计</p></div></div>{topArtists.length ? topArtists.map(([artist, count], index) => <div className="stats-artist" key={artist}><b>{index + 1}</b><span><strong>{artist}</strong><small>{count} 次播放</small></span><i style={{ width: `${Math.max(12, count / topArtists[0][1] * 100)}%` }} /></div>) : <EmptyState compact title="等待收听数据" body="播放几首音乐后，这里会逐渐形成你的收听概览。" />}</section>
+    <section className="stats-list"><div className="section-heading"><div><h2>音乐画像概览</h2><p>NAS 曲库的分析覆盖情况</p></div></div><div className="stats-analysis"><span><strong>{analyzed.length}</strong><small>已完成分析</small></span><span><strong>{averageBpm || '—'}</strong><small>平均 BPM</small></span><span><strong>{library.length ? `${Math.round(analyzed.length / library.length * 100)}%` : '0%'}</strong><small>分析覆盖率</small></span></div></section>
+  </div>
+}
+
+function formatListeningTime(seconds: number) {
+  if (seconds < 3600) return `${Math.round(seconds / 60)} 分钟`
+  return `${Math.round(seconds / 3600 * 10) / 10} 小时`
+}
+
 function SettingsPage({ libraries, sources, downloads, theme, onTheme, onNavigate, onRefresh, onNotice }: { libraries: MusicLibrary[]; sources: SourceConfig[]; downloads: DownloadJob[]; theme: Theme; onTheme: (value: Theme) => void; onNavigate: (section: Section) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+  const [panel, setPanel] = useState<'main' | 'appearance' | 'libraries' | 'sources' | 'about'>('main')
   const [form, setForm] = useState({ name: '', apiUrl: '', apiKey: '' })
   const [libraryForm, setLibraryForm] = useState<MusicLibraryInput>({ name: '', path: '/libraries/', deviceType: 'local', readOnly: true, enabled: true, downloadTarget: false })
   const save = async (event: FormEvent) => {
@@ -849,13 +931,25 @@ function SettingsPage({ libraries, sources, downloads, theme, onTheme, onNavigat
       onNotice('音频库已添加，可以开始扫描')
     } catch (error) { onNotice(readError(error)) }
   }
-  return <div className="settings-layout">
-    <section className="settings-section"><h2>外观</h2><p>选择浅色、深色或适合 OLED 的纯黑主题。</p><div className="theme-options" role="group" aria-label="界面主题">{(['light', 'dark', 'black'] as Theme[]).map((value) => <button key={value} className={theme === value ? 'active' : ''} onClick={() => onTheme(value)} aria-pressed={theme === value}>{({ light: '浅色', dark: '深色', black: '纯黑' })[value]}</button>)}</div></section>
-    <section className="settings-section libraries-section"><h2>音频库</h2><p>统一管理 NAS、USB 硬盘和网络挂载。设备掉线时保留曲库索引，不会将音乐误判为已删除。</p><form className="settings-form library-create" onSubmit={addLibrary}><label>名称<input required value={libraryForm.name} onChange={(event) => setLibraryForm({ ...libraryForm, name: event.target.value })} placeholder="例如：客厅 USB 硬盘" /></label><label>容器内路径<input required value={libraryForm.path} onChange={(event) => setLibraryForm({ ...libraryForm, path: event.target.value })} placeholder="/libraries/living-room" /></label><label>设备类型<select value={libraryForm.deviceType} onChange={(event) => setLibraryForm({ ...libraryForm, deviceType: event.target.value as MusicLibraryInput['deviceType'] })}><option value="local">NAS 本地</option><option value="usb">USB 设备</option><option value="network">网络挂载</option><option value="cloud">云盘挂载</option></select></label><label className="check-label"><input type="checkbox" checked={libraryForm.readOnly} onChange={(event) => setLibraryForm({ ...libraryForm, readOnly: event.target.checked, downloadTarget: event.target.checked ? false : libraryForm.downloadTarget })} />只读保护</label><label className="check-label"><input type="checkbox" disabled={libraryForm.readOnly} checked={libraryForm.downloadTarget} onChange={(event) => setLibraryForm({ ...libraryForm, downloadTarget: event.target.checked })} />设为在线下载目标</label><button className="primary-button">添加音频库</button></form><div className="library-list">{libraries.map((library) => <LibraryEditor key={library.id} library={library} onRefresh={onRefresh} onNotice={onNotice} />)}</div></section>
-    <section className="settings-section"><h2>音乐源</h2><p>密钥只保存在 NAS，页面只显示末四位。</p><form className="settings-form" onSubmit={save}><label>名称<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>API 地址<input required type="url" value={form.apiUrl} onChange={(event) => setForm({ ...form, apiUrl: event.target.value })} /></label><label>API 密钥<input required type="password" value={form.apiKey} onChange={(event) => setForm({ ...form, apiKey: event.target.value })} /></label><button className="primary-button">保存音乐源</button></form>{sources.map((source) => <div className="source-row" key={source.id}><span><strong>{source.name}</strong><small>{source.apiUrl}</small></span><code>{source.apiKeyMasked}</code></div>)}</section>
-    <section className="settings-section"><h2>下载与缓存</h2><p>下载进度已独立显示；完成后自动扫描并进入 NAS 曲库，失败任务可以从任务页重试。</p><button className="secondary-button settings-download-link" onClick={() => onNavigate('downloads')}><Icon name="download" />打开下载任务{downloads.some((job) => job.status === 'queued' || job.status === 'downloading') ? ` · ${downloads.filter((job) => job.status === 'queued' || job.status === 'downloading').length} 个进行中` : ''}</button></section>
-    <section className="settings-section"><h2>HTTP 模式</h2><p>当前局域网入口以普通 Web 运行。切换受信任 HTTPS 后即可验收完整 PWA 安装与音频输出设备选择。</p></section>
+  if (panel === 'main') return <div className="settings-home">
+    <SettingsGroup title="界面"><SettingsRow icon="sparkles" title="外观" detail="主题、纯黑模式与界面色彩" onClick={() => setPanel('appearance')} /></SettingsGroup>
+    <SettingsGroup title="内容"><SettingsRow icon="storage" title="音频库" detail={`${libraries.length} 个 NAS、USB 或网络音乐库`} onClick={() => setPanel('libraries')} /><SettingsRow icon="search" title="音乐源" detail={`${sources.length} 个在线搜索与下载来源`} onClick={() => setPanel('sources')} /></SettingsGroup>
+    <SettingsGroup title="播放与同步"><SettingsRow icon="download" title="下载与缓存" detail={downloads.some((job) => job.status === 'queued' || job.status === 'downloading') ? `${downloads.filter((job) => job.status === 'queued' || job.status === 'downloading').length} 个任务进行中` : '查看下载任务与失败重试'} onClick={() => onNavigate('downloads')} /><SettingsRow icon="room" title="同步房间" detail="Sendspin 多设备同步播放" onClick={() => onNavigate('rooms')} /></SettingsGroup>
+    <SettingsGroup title="关于"><SettingsRow icon="album" title="关于 SHiNe MUSIC" detail="版本、运行模式与项目信息" onClick={() => setPanel('about')} /></SettingsGroup>
   </div>
+  const back = <button className="settings-back back-button" onClick={() => setPanel('main')}><Icon name="back" />返回设置</button>
+  if (panel === 'appearance') return <>{back}<section className="settings-section settings-detail"><h2>外观</h2><p>沿用原版 Material 3 色彩逻辑，选择浅色、深色或适合 OLED 的纯黑主题。</p><div className="theme-options" role="group" aria-label="界面主题">{(['light', 'dark', 'black'] as Theme[]).map((value) => <button key={value} className={theme === value ? 'active' : ''} onClick={() => onTheme(value)} aria-pressed={theme === value}>{({ light: '浅色', dark: '深色', black: '纯黑' })[value]}</button>)}</div></section></>
+  if (panel === 'libraries') return <>{back}<section className="settings-section libraries-section settings-detail"><h2>音频库</h2><p>统一管理 NAS、USB 硬盘和网络挂载。设备掉线时保留曲库索引，不会将音乐误判为已删除。</p><form className="settings-form library-create" onSubmit={addLibrary}><label>名称<input required value={libraryForm.name} onChange={(event) => setLibraryForm({ ...libraryForm, name: event.target.value })} placeholder="例如：客厅 USB 硬盘" /></label><label>容器内路径<input required value={libraryForm.path} onChange={(event) => setLibraryForm({ ...libraryForm, path: event.target.value })} placeholder="/libraries/living-room" /></label><label>设备类型<select value={libraryForm.deviceType} onChange={(event) => setLibraryForm({ ...libraryForm, deviceType: event.target.value as MusicLibraryInput['deviceType'] })}><option value="local">NAS 本地</option><option value="usb">USB 设备</option><option value="network">网络挂载</option><option value="cloud">云盘挂载</option></select></label><label className="check-label"><input type="checkbox" checked={libraryForm.readOnly} onChange={(event) => setLibraryForm({ ...libraryForm, readOnly: event.target.checked, downloadTarget: event.target.checked ? false : libraryForm.downloadTarget })} />只读保护</label><label className="check-label"><input type="checkbox" disabled={libraryForm.readOnly} checked={libraryForm.downloadTarget} onChange={(event) => setLibraryForm({ ...libraryForm, downloadTarget: event.target.checked })} />设为在线下载目标</label><button className="primary-button">添加音频库</button></form><div className="library-list">{libraries.map((library) => <LibraryEditor key={library.id} library={library} onRefresh={onRefresh} onNotice={onNotice} />)}</div></section></>
+  if (panel === 'sources') return <>{back}<section className="settings-section settings-detail"><h2>音乐源</h2><p>密钥只保存在 NAS，页面只显示末四位。</p><form className="settings-form" onSubmit={save}><label>名称<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>API 地址<input required type="url" value={form.apiUrl} onChange={(event) => setForm({ ...form, apiUrl: event.target.value })} /></label><label>API 密钥<input required type="password" value={form.apiKey} onChange={(event) => setForm({ ...form, apiKey: event.target.value })} /></label><button className="primary-button">保存音乐源</button></form>{sources.map((source) => <div className="source-row" key={source.id}><span><strong>{source.name}</strong><small>{source.apiUrl}</small></span><code>{source.apiKeyMasked}</code></div>)}</section></>
+  return <>{back}<section className="about-page"><div className="about-product"><img src={shineLogoUrl} alt="SHiNe MUSIC" /><span><h2>SHiNe MUSIC</h2><p>NAS Web Edition</p><small>原版移动端体验 · 多设备共享</small></span></div><div className="about-copy"><h2>熟悉的 SHiNe，现在运行在你的 NAS</h2><p>手机端界面以原 Android/Compose 版本为准复现；NAS 负责曲库、共享数据和下载，Sendspin 仅承担同步播放底座。</p></div><div className="about-facts"><span><strong>Web</strong><small>React + TypeScript</small></span><span><strong>HTTP</strong><small>局域网普通网页模式</small></span><span><strong>Sendspin</strong><small>多设备同步播放</small></span></div></section></>
+}
+
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="settings-group"><h2>{title}</h2><div>{children}</div></section>
+}
+
+function SettingsRow({ icon, title, detail, onClick }: { icon: Parameters<typeof Icon>[0]['name']; title: string; detail: string; onClick: () => void }) {
+  return <button className="settings-row" onClick={onClick}><i><Icon name={icon} /></i><span><strong>{title}</strong><small>{detail}</small></span><b aria-hidden="true">›</b></button>
 }
 
 function LibraryEditor({ library, onRefresh, onNotice }: { library: MusicLibrary; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {

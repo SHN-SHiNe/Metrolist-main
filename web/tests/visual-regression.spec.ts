@@ -65,7 +65,8 @@ test.describe('Android gold-standard mobile states', () => {
 
   test('03 service and about settings', async ({ page }) => {
     await page.goto('/#settings')
-    await page.getByRole('heading', { name: 'HTTP 模式' }).scrollIntoViewIfNeeded()
+    await page.getByRole('button', { name: /关于 SHiNe MUSIC/ }).click()
+    await page.getByRole('heading', { name: 'SHiNe MUSIC' }).scrollIntoViewIfNeeded()
     await expect(page).toHaveScreenshot('03-settings-service-info.png', screenshotOptions)
   })
 
@@ -163,7 +164,7 @@ test.describe('Android gold-standard mobile states', () => {
   })
 })
 
-const screenshotOptions = { animations: 'disabled' as const, caret: 'hide' as const, maxDiffPixelRatio: 0.08 }
+const screenshotOptions = { animations: 'disabled' as const, caret: 'hide' as const, maxDiffPixelRatio: 0.02 }
 
 async function openPlayer(page: Page, title: string) {
   await page.goto('/#local')

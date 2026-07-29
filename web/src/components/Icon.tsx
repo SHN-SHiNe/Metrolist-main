@@ -1,4 +1,4 @@
-export type IconName = 'home' | 'search' | 'library' | 'storage' | 'heart' | 'playlist' | 'room' | 'settings' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash' | 'radar' | 'sparkles' | 'queue' | 'close' | 'back' | 'share' | 'artist' | 'album'
+export type IconName = 'home' | 'search' | 'library' | 'storage' | 'heart' | 'playlist' | 'room' | 'settings' | 'history' | 'stats' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash' | 'radar' | 'sparkles' | 'queue' | 'close' | 'back' | 'share' | 'artist' | 'album'
 
 const paths: Record<IconName, string> = {
   home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z',
@@ -9,6 +9,8 @@ const paths: Record<IconName, string> = {
   playlist: 'M4 6h11M4 11h11M4 16h7m7-3v8m-4-4h8',
   room: 'M4 14a8 8 0 0 1 16 0m-12 0a4 4 0 0 1 8 0m-4 0v.01',
   settings: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5 2-1.2-2-3.5-2.2.7a8 8 0 0 0-1.2-.7l-.5-2.3h-4l-.5 2.3a8 8 0 0 0-1.2.7l-2.2-.7-2 3.5 2 1.2v1.4l-2 1.2 2 3.5 2.2-.7 1.2.7.5 2.3h4l.5-2.3 1.2-.7 2.2.7 2-3.5-2-1.2z',
+  history: 'M4 4v5h5M5.2 8.3A8 8 0 1 1 4 13m8-5v5l3 2',
+  stats: 'M5 20V10m7 10V4m7 16v-7',
   play: 'm9 7 9 5-9 5z', pause: 'M8 6h3v12H8zm5 0h3v12h-3z',
   previous: 'M7 6h2v12H7zm3 6 8-6v12z', next: 'M15 6h2v12h-2zm-1 6-8 6V6z',
   volume: 'M4 10v4h4l5 4V6l-5 4zm12-1a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10',

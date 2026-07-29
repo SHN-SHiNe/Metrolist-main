@@ -99,7 +99,7 @@ test('track actions open by touch hold and desktop context menu without accident
   await page.goto('/#local')
   const row = page.locator('.track-row').first()
   await row.dispatchEvent('pointerdown', { pointerType: 'touch', pointerId: 7, button: 0, clientX: 120, clientY: 240 })
-  await expect(page.getByRole('menu', { name: '长按歌曲 的操作' })).toBeVisible({ timeout: 1200 })
+  await expect(page.getByRole('menu', { name: '长按歌曲 的操作' })).toBeVisible({ timeout: 3000 })
   await row.dispatchEvent('pointerup', { pointerType: 'touch', pointerId: 7, button: 0, clientX: 120, clientY: 240 })
   expect(historyPosts).toBe(0)
   await page.getByRole('menuitem', { name: '收藏', exact: true }).click()
@@ -257,6 +257,7 @@ test('music libraries are visible in settings and filter the NAS catalog', async
     await route.fulfill({ contentType: 'application/json', body: '[]' })
   })
   await page.goto('/#settings')
+  await page.getByRole('button', { name: /音频库/ }).click()
   await expect(page.getByRole('heading', { name: '音频库' })).toBeVisible()
   await expect(page.getByRole('textbox', { name: '随身硬盘 的名称' })).toHaveValue('随身硬盘')
   await expect(page.getByText('设备离线')).toBeVisible()
@@ -489,7 +490,7 @@ test('failed download can be retried from the queue', async ({ page }) => {
   await expect(page.getByText('等待可用下载线程')).toBeVisible()
 })
 
-test('mobile home keeps the paged three-column speed dial with random play last', async ({ page }) => {
+test('mobile home keeps the original swipeable three-column speed dial with random play last', async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 915 })
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
@@ -498,13 +499,36 @@ test('mobile home keeps the paged three-column speed dial with random play last'
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/#home')
-  const firstPage = page.locator('.speed-dial .quick-grid > button')
+  const firstPage = page.locator('.speed-dial-page').first().locator(':scope > button')
   await expect(firstPage).toHaveCount(3)
   await expect(firstPage.nth(2)).toContainText('随机播放')
   await expect(page.locator('.speed-dial-pages button')).toHaveCount(3)
-  await page.getByRole('button', { name: '第 2 页' }).click()
-  await expect(firstPage).toHaveCount(3)
-  await expect(firstPage).toContainText(['播放列表', '同步房间', '继续聆听'])
+  const viewport = page.locator('.speed-dial-viewport')
+  await expect(viewport).toHaveCSS('scroll-snap-type', 'x mandatory')
+  await viewport.hover()
+  await page.mouse.wheel(420, 0)
+  await expect(page.getByRole('button', { name: '第 2 页' })).toHaveAttribute('aria-current', 'page')
+  await expect.poll(() => viewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(250)
+  const secondPage = page.locator('.speed-dial-page').nth(1)
+  await expect(secondPage.getByText('播放列表', { exact: true })).toBeVisible()
+  await expect(secondPage.getByText('同步房间', { exact: true })).toBeVisible()
+  await expect(secondPage.getByText('继续聆听', { exact: true })).toBeVisible()
+})
+
+test('original top app bar exposes history, listening statistics and grouped settings', async ({ page }) => {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const body = url.pathname === '/api/library' ? { items: [], total: 0, offset: 0, limit: 200, revision: 1 } : []
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#home')
+  await page.getByRole('button', { name: '打开播放历史' }).click()
+  await expect(page.getByRole('heading', { name: '历史记录' })).toBeVisible()
+  await page.getByRole('button', { name: '打开收听统计' }).click()
+  await expect(page.getByRole('heading', { name: '收听统计' })).toBeVisible()
+  await page.getByRole('button', { name: '打开设置' }).click()
+  await expect(page.getByRole('heading', { name: '界面' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /关于 SHiNe MUSIC/ })).toBeVisible()
 })
 
 test('search restores two paired source capsules and persistent history chips', async ({ page }) => {

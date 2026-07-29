@@ -10,7 +10,9 @@ type PlayerView = 'cover' | 'radar' | 'lyrics' | 'queue' | 'similar'
 
 export function NowPlaying({ player, favorite, similar, similarLoading, onFavorite, onToggle, onPrevious, onNext, onSeek, onClose, onLoadSimilar, onAnalyze, onPlaySimilar, onMoveQueue, onRemoveQueue }: { player: PlayerController; favorite: boolean; similar: SimilarTracksResponse | null; similarLoading: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onClose: () => void; onLoadSimilar: () => void; onAnalyze: () => void; onPlaySimilar: (track: Track, queue: Track[]) => void; onMoveQueue: (index: number, delta: -1 | 1) => void; onRemoveQueue: (index: number) => void }) {
   const [view, setView] = useState<PlayerView>('cover')
-  const gestureStart = useRef<{ x: number; y: number } | null>(null)
+  const gestureStart = useRef<{ x: number; y: number; at: number } | null>(null)
+  const longPressTimer = useRef<number | null>(null)
+  const longPressed = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
@@ -19,6 +21,9 @@ export function NowPlaying({ player, favorite, similar, similarLoading, onFavori
   const analysis = player.current?.analysis
   const temporaryOnlineTrack = player.current?.id.toLowerCase().startsWith('online-') ?? false
   useEffect(() => setView('cover'), [player.current?.id])
+  useEffect(() => () => {
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current)
+  }, [])
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
@@ -51,11 +56,29 @@ export function NowPlaying({ player, favorite, similar, similarLoading, onFavori
   const finishGesture = (x: number, y: number) => {
     const start = gestureStart.current
     gestureStart.current = null
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
     if (!start) return
+    if (longPressed.current) { longPressed.current = false; return }
     const horizontal = x - start.x
     const vertical = y - start.y
     if (vertical < -64 && Math.abs(vertical) > Math.abs(horizontal)) selectView('similar')
+    else if (vertical > 72 && Math.abs(vertical) > Math.abs(horizontal)) onClose()
     else if (Math.abs(horizontal) > 64) horizontal < 0 ? onNext() : onPrevious()
+    else if (Math.hypot(horizontal, vertical) < 12 && Date.now() - start.at < 500 && (view === 'cover' || view === 'radar')) setView(view === 'cover' ? 'radar' : 'cover')
+  }
+  const startGesture = (x: number, y: number) => {
+    gestureStart.current = { x, y, at: Date.now() }
+    longPressed.current = false
+    if (view === 'cover' || view === 'radar') longPressTimer.current = window.setTimeout(() => {
+      longPressed.current = true
+      onAnalyze()
+    }, 620)
+  }
+  const cancelGesture = () => {
+    gestureStart.current = null
+    if (longPressTimer.current !== null) window.clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
   }
   const style = {
     '--player-color': palette,
@@ -64,8 +87,7 @@ export function NowPlaying({ player, favorite, similar, similarLoading, onFavori
   return <div ref={dialogRef} className="now-playing" style={style} role="dialog" aria-modal="true" aria-labelledby="now-playing-title" tabIndex={-1}>
     <div className="now-backdrop" aria-hidden="true" />
     <header className="now-top"><button ref={closeRef} className="close-now-playing" onClick={onClose} aria-label="关闭"><Icon name="back" /></button><div className="now-heading"><strong id="now-playing-title">正在播放</strong><span>{player.current?.album || 'NAS 音乐'}</span></div><button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={onFavorite} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button></header>
-    <div className="now-tabs" role="tablist" aria-label="播放器视图">{([['cover', '封面', '封面'], ['lyrics', '歌词', '歌词'], ['queue', '队列', '队列'], ['radar', '画像', '音乐画像'], ['similar', '相似', '相似音乐']] as const).map(([id, label, accessibleLabel]) => <button key={id} role="tab" aria-label={accessibleLabel} aria-selected={view === id} className={view === id ? 'active' : ''} onClick={() => selectView(id)}>{label}</button>)}</div>
-    <div className={`now-stage ${view}`} onPointerDown={(event) => { gestureStart.current = { x: event.clientX, y: event.clientY } }} onPointerUp={(event) => finishGesture(event.clientX, event.clientY)} onPointerCancel={() => { gestureStart.current = null }}>
+    <div className={`now-stage ${view}`} onPointerDown={(event) => { if (!(event.target as HTMLElement).closest('button,input,textarea')) startGesture(event.clientX, event.clientY) }} onPointerUp={(event) => finishGesture(event.clientX, event.clientY)} onPointerCancel={cancelGesture} onPointerLeave={(event) => { const start = gestureStart.current; if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 18 && longPressTimer.current !== null) { window.clearTimeout(longPressTimer.current); longPressTimer.current = null } }} onDoubleClick={(event) => { if ((event.target as HTMLElement).closest('button,input,textarea')) return; const bounds = event.currentTarget.getBoundingClientRect(); onSeek(Math.max(0, Math.min(player.duration, player.position + (event.clientX < bounds.left + bounds.width / 2 ? -10 : 10)))) }}>
       {view === 'cover' && <div className="now-cover"><AlbumArt title={player.current?.title ?? 'SHiNe'} artworkUrl={player.current?.artworkUrl} hero /><span className="swipe-hint">左右滑动切歌 · 上滑看相似音乐</span></div>}
       {view === 'radar' && <div className="now-radar"><RadarChart analysis={analysis} />{analysis?.status !== 'completed' && <button className="primary-button" onClick={onAnalyze}>{temporaryOnlineTrack ? '先下载入库后分析' : analysis?.status === 'queued' || analysis?.status === 'running' ? `分析中 ${Math.round((analysis.progress || 0) * 100)}%` : '分析这首歌'}</button>}</div>}
       {view === 'lyrics' && <LyricsPanel track={player.current} positionSeconds={player.position} onSeek={onSeek} />}
@@ -76,6 +98,7 @@ export function NowPlaying({ player, favorite, similar, similarLoading, onFavori
       <div className="now-meta"><span><h2>{player.current?.title || '还没有播放音乐'}</h2><p>{player.current?.artist || '从曲库选一首歌开始'}</p></span><AnalysisChips track={player.current} /></div>
       <div className="now-progress"><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.position)}</span><span>{formatTime(player.duration)}</span></div>
       <div className="now-controls"><button onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle}><Icon name={player.playing ? 'pause' : 'play'} /><span>{player.playing ? '暂停' : '播放'}</span></button><button onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div>
+      <div className="now-tabs" role="tablist" aria-label="播放器工具栏">{([['queue', '队列', 'queue', '队列'], ['similar', '相似', 'sparkles', '相似音乐'], ['cover', '封面', 'album', '封面'], ['radar', '画像', 'radar', '音乐画像'], ['lyrics', '歌词', 'playlist', '歌词']] as const).map(([id, label, icon, accessibleLabel]) => <button key={id} role="tab" aria-label={accessibleLabel} aria-selected={view === id} className={view === id ? 'active' : ''} onClick={() => selectView(id)}><Icon name={icon} /><span>{label}</span></button>)}</div>
     </section>
   </div>
 }
