@@ -88,3 +88,26 @@ test('music libraries are visible in settings and filter the NAS catalog', async
   await expect(page.getByText('移动歌曲')).toBeVisible()
   await expect(page.getByText('本地歌曲')).not.toBeVisible()
 })
+
+test('sync room creation works when HTTP does not expose crypto.randomUUID', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: undefined })
+  })
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [], total: 0, offset: 0, limit: 200, revision: 1 }) })
+    }
+    if (url.pathname === '/api/rooms' && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() as { id: string; name: string }
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: body.id, name: body.name, memberCount: 0, version: 0, updatedAt: 1 }) })
+    }
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#rooms')
+  const createRequest = page.waitForRequest((request) => request.url().endsWith('/api/rooms') && request.method() === 'POST')
+  await page.getByRole('button', { name: '创建并加入' }).click()
+  const body = (await createRequest).postDataJSON() as { id: string; name: string }
+  expect(body.name).toBe('全屋同步')
+  expect(body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+})
