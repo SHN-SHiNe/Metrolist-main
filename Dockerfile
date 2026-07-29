@@ -15,8 +15,12 @@ RUN gradle -p server installDist --no-daemon
 
 FROM golang:1.24-alpine AS sendspin-build
 ARG GOPROXY=https://proxy.golang.org,direct
+ARG ALPINE_MIRROR=
 ENV GOPROXY=${GOPROXY}
-RUN apk add --no-cache gcc musl-dev opus-dev pkgconf
+RUN if [ -n "$ALPINE_MIRROR" ]; then \
+        sed -i "s#https://dl-cdn.alpinelinux.org/alpine#$ALPINE_MIRROR#g" /etc/apk/repositories; \
+    fi \
+    && apk add --no-cache gcc musl-dev opus-dev pkgconf
 RUN apk add --no-cache opusfile-dev
 WORKDIR /workspace/sendspin-bridge
 COPY sendspin-bridge/go.mod sendspin-bridge/go.sum ./
@@ -26,7 +30,11 @@ RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/sendspin-bridge . 
     && cp /go/pkg/mod/github.com/\!sendspin/sendspin-go@v1.8.2/LICENSE /out/sendspin-go-LICENSE
 
 FROM eclipse-temurin:21-jre-alpine
-RUN apk add --no-cache curl ffmpeg opus tini \
+ARG ALPINE_MIRROR=
+RUN if [ -n "$ALPINE_MIRROR" ]; then \
+        sed -i "s#https://dl-cdn.alpinelinux.org/alpine#$ALPINE_MIRROR#g" /etc/apk/repositories; \
+    fi \
+    && apk add --no-cache curl ffmpeg opus tini \
     && addgroup -g 1000 shine \
     && adduser -D -u 1000 -G shine shine
 RUN apk add --no-cache opusfile
