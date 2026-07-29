@@ -111,3 +111,28 @@ test('sync room creation works when HTTP does not expose crypto.randomUUID', asy
   expect(body.name).toBe('全屋同步')
   expect(body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
 })
+
+test('a visitor can delete a shared sync room', async ({ page }) => {
+  const room = { id: '00000000-0000-4000-8000-000000000099', name: '临时房间', memberCount: 0, version: 0, updatedAt: 1 }
+  let deleted = false
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [], total: 0, offset: 0, limit: 200, revision: 1 }) })
+    }
+    if (url.pathname === '/api/rooms' && route.request().method() === 'GET') {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(deleted ? [] : [room]) })
+    }
+    if (url.pathname === `/api/rooms/${room.id}` && route.request().method() === 'DELETE') {
+      deleted = true
+      return route.fulfill({ status: 204 })
+    }
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  page.on('dialog', (dialog) => void dialog.accept())
+  await page.goto('/#rooms')
+  await expect(page.getByText('临时房间')).toBeVisible()
+  await page.getByRole('button', { name: '删除房间 临时房间' }).click()
+  await expect(page.getByText('临时房间')).not.toBeVisible()
+  await expect(page.getByText('同步房间已删除')).toBeVisible()
+})

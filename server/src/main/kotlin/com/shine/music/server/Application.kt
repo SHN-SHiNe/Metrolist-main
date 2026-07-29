@@ -254,6 +254,11 @@ fun Application.shineModule(
             val id = call.parameters["roomId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
             call.respond(rooms.update(id, call.receive()) ?: return@put call.respond(HttpStatusCode.NotFound))
         }
+        delete("/api/rooms/{roomId}") {
+            val id = call.parameters["roomId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
+            if (!rooms.delete(id)) return@delete call.respond(HttpStatusCode.NotFound)
+            call.respond(HttpStatusCode.NoContent)
+        }
         webSocket("/api/rooms/{roomId}/sendspin") {
             val id = call.parameters["roomId"] ?: return@webSocket close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "room_required"))
             val upstreamUrl = rooms.websocketUrl(id)
@@ -293,7 +298,15 @@ fun Application.shineModule(
             }
         }
 
-        staticResources("/", "web", index = "index.html")
+        staticResources("/", "web", index = "index.html") {
+            modify { resource, call ->
+                val immutable = resource.path.contains("/assets/")
+                call.response.header(
+                    HttpHeaders.CacheControl,
+                    if (immutable) "public, max-age=31536000, immutable" else "no-cache, must-revalidate",
+                )
+            }
+        }
     }
 }
 

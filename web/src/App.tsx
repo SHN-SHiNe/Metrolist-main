@@ -358,10 +358,22 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
       await onRefresh()
     } catch (error) { onNotice(readError(error)) }
   }
+  const join = async (id: string) => {
+    try { await room.join(id) } catch (error) { onNotice(readError(error)) }
+  }
+  const remove = async (item: RoomSummary) => {
+    if (!window.confirm(`确定删除同步房间“${item.name}”吗？房间内设备会立即断开。`)) return
+    try {
+      await api.deleteRoom(item.id)
+      if (room.roomId === item.id) room.leave()
+      await onRefresh()
+      onNotice('同步房间已删除')
+    } catch (error) { onNotice(readError(error)) }
+  }
   return <>
     <section className="room-intro"><div><h2>让不同设备连接的音响一起播放</h2><p>同步由 Sendspin 负责。每台设备需主动加入并启用声音，蓝牙链路可用静态延迟校准。</p></div><span className="latency-readout">同步误差 {Math.round(room.serverOffset)} ms</span></section>
     <form className="inline-create" onSubmit={create}><input value={name} onChange={(event) => setName(event.target.value)} aria-label="房间名称" /><button className="primary-button">创建并加入</button></form>
-    <div className="room-list">{rooms.map((item) => <div key={item.id} className={`room-row ${room.roomId === item.id ? 'active' : ''}`}><span className="speaker-glyph"><Icon name="speaker" /></span><div><strong>{item.name}</strong><small>{item.memberCount} 台设备在线</small></div>{room.roomId === item.id ? <button className="secondary-button" onClick={room.leave}>离开</button> : <button className="primary-button" onClick={() => void room.join(item.id)}>加入并启用声音</button>}</div>)}</div>
+    <div className="room-list">{rooms.map((item) => <div key={item.id} className={`room-row ${room.roomId === item.id ? 'active' : ''}`}><span className="speaker-glyph"><Icon name="speaker" /></span><div><strong>{item.name}</strong><small>{item.memberCount} 台设备在线</small></div><span className="room-actions">{room.roomId === item.id ? <button className="secondary-button" onClick={room.leave}>离开</button> : <button className="primary-button" onClick={() => void join(item.id)}>加入并启用声音</button>}<button className="icon-button danger-button" onClick={() => void remove(item)} aria-label={`删除房间 ${item.name}`} title="删除房间"><Icon name="trash" /></button></span></div>)}</div>
     <label className="delay-control"><span>本设备输出延迟补偿 <b>{room.deviceDelay} ms</b></span><input type="range" min="0" max="5000" step="10" value={room.deviceDelay} onChange={(event) => room.setDeviceDelay(Number(event.target.value))} /></label>
   </>
 }
@@ -478,13 +490,15 @@ function PlayerBar({ player, room, favorite, onFavorite, onToggle, onPrevious, o
 function roomConnectionLabel(room: ReturnType<typeof useRoomSync>) {
   if (!room.roomId) return '独立播放'
   if (room.status === 'joined') return `${room.members} 台设备同步中`
-  return room.status === 'connecting' ? 'Sendspin 正在重连' : 'Sendspin 连接异常'
+  if (room.status === 'connecting') return 'Sendspin 正在连接'
+  return room.status === 'reconnecting' ? 'Sendspin 正在重连' : 'Sendspin 连接异常'
 }
 
 function roomPlayerLabel(room: ReturnType<typeof useRoomSync>) {
   if (!room.roomId) return '本机'
   if (room.status === 'joined') return `${room.members} 台同步`
-  return room.status === 'connecting' ? '重连中' : '同步异常'
+  if (room.status === 'connecting') return '连接中'
+  return room.status === 'reconnecting' ? '重连中' : '同步异常'
 }
 
 function NowPlaying({ player, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onClose }: { player: ReturnType<typeof usePlayer>; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onClose: () => void }) {

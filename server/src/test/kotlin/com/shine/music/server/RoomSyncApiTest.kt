@@ -3,6 +3,7 @@ package com.shine.music.server
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -14,9 +15,33 @@ import io.ktor.server.testing.testApplication
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RoomSyncApiTest {
+    @Test
+    fun `visitor can delete a room and stop its Sendspin bridge`() = testApplication {
+        val root = Files.createTempDirectory("shine-room-delete-test")
+        val bridge = InMemorySendspinBridge()
+        application {
+            shineModule(
+                AppConfig(root.resolve("data"), root.resolve("music"), root.resolve("cache"), scanOnStart = false),
+                sendspinBridge = bridge,
+            )
+        }
+        val client = createClient { install(ContentNegotiation) { json() } }
+        val room = client.post("/api/rooms") {
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(CreateRoomRequest("待删除房间"))
+        }.body<RoomSummary>()
+
+        assertEquals(io.ktor.http.HttpStatusCode.NoContent, client.delete("/api/rooms/${room.id}").status)
+        assertEquals(io.ktor.http.HttpStatusCode.NotFound, client.get("/api/rooms/${room.id}").status)
+        assertTrue(client.get("/api/rooms").body<List<RoomSummary>>().none { it.id == room.id })
+        assertNull(bridge.status(room.id))
+        assertEquals(io.ktor.http.HttpStatusCode.NotFound, client.delete("/api/rooms/${room.id}").status)
+    }
+
     @Test
     fun `room state is persisted and forwarded to the Sendspin bridge`() = testApplication {
         val root = Files.createTempDirectory("shine-room-test")

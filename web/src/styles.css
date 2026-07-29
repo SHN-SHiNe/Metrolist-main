@@ -183,6 +183,9 @@ h2 { font-size: 1.25rem; line-height: 1.3; letter-spacing: -.015em; }
 .room-row.active { background: #302329; }
 .room-row > div { display: flex; flex-direction: column; }
 .room-row small { margin-top: 4px; color: var(--muted); }
+.room-actions { display: flex; align-items: center; gap: 8px; }
+.danger-button { color: #ff8b94; }
+.danger-button:hover { color: #fff; background: #7a2730; }
 .speaker-glyph { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); }
 .delay-control { padding: 18px 20px; border-radius: 12px; display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr); align-items: center; gap: 20px; background: var(--surface); }
 .delay-control b { color: var(--accent); }
@@ -317,7 +320,8 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; }
   .search-box .primary-button { width: 100%; }
   .inline-create input { width: 100%; }
   .room-row { grid-template-columns: 44px minmax(0, 1fr); }
-  .room-row .primary-button, .room-row .secondary-button { grid-column: 1 / -1; width: 100%; }
+  .room-actions { grid-column: 1 / -1; width: 100%; }
+  .room-actions .primary-button, .room-actions .secondary-button { flex: 1; }
   .delay-control { grid-template-columns: 1fr; }
   .settings-layout { grid-template-columns: 1fr; }
   .settings-section:last-child, .libraries-section { grid-column: auto; }

@@ -15,7 +15,7 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
   const [roomId, setRoomId] = useState<string | null>(null)
   const [members, setMembers] = useState(0)
   const [queueIds, setQueueIds] = useState<string[]>([])
-  const [status, setStatus] = useState<'offline' | 'connecting' | 'joined' | 'error'>('offline')
+  const [status, setStatus] = useState<'offline' | 'connecting' | 'joined' | 'reconnecting' | 'error'>('offline')
   const [serverOffset, setServerOffset] = useState(0)
   const [deviceDelay, setDeviceDelayState] = useState(() => clampSendspinDelay(Number(localStorage.getItem('shine-device-delay') ?? 0)))
 
@@ -76,14 +76,17 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
           void reflect(id)
         },
         reconnect: {
-          onReconnecting: () => { if (joinedRoom.current === id) setStatus('connecting') },
+          onReconnecting: () => { if (joinedRoom.current === id) setStatus('reconnecting') },
           onReconnected: () => { if (joinedRoom.current === id) setStatus('joined') },
           onExhausted: () => { if (joinedRoom.current === id) setStatus('error') },
         },
       })
       sendspin.current = sdk
-      await Promise.all([sdk.unlock(), ready?.()])
-      await sdk.connect()
+      await withTimeout(
+        Promise.all([sdk.unlock(), ready?.()]).then(() => sdk.connect()),
+        12_000,
+        '连接 Sendspin 超时，请刷新页面后重试',
+      )
       if (joinedRoom.current !== id) {
         sdk.disconnect()
         return
@@ -127,6 +130,16 @@ export function useRoomSync(player: PlayerController, tracks: Track[]) {
   useEffect(() => leave, [leave])
 
   return { roomId, members, queueIds, status, serverOffset, deviceDelay, setDeviceDelay, join, leave, command }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+    promise.then(
+      (value) => { window.clearTimeout(timeout); resolve(value) },
+      (error) => { window.clearTimeout(timeout); reject(error) },
+    )
+  })
 }
 
 function clientId(): string {

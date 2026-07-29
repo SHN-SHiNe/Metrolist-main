@@ -10,6 +10,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const payload = await response.json().catch(() => null) as { error?: string } | null
     throw new Error(payload?.error ?? `${response.status} ${response.statusText}`)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -47,4 +48,5 @@ export const api = {
   updateRoom: (id: string, state: Partial<RoomPlaybackState>) => request<RoomDetail>(`/api/rooms/${id}/state`, {
     method: 'PUT', body: JSON.stringify(state),
   }),
+  deleteRoom: (id: string) => request<void>(`/api/rooms/${id}`, { method: 'DELETE' }),
 }

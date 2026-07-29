@@ -52,6 +52,7 @@ class RoomHub(
 
     suspend fun detail(roomId: String): RoomDetail? {
         val room = rooms[roomId] ?: return null
+        if (room.deleted) return null
         val status = runCatching { bridge.status(roomId) }.getOrNull()
         val state = if (status != null && status.currentTrackId.isNotBlank()) {
             room.state.copy(currentTrackId = status.currentTrackId, positionMs = status.positionMs, playing = status.playing)
@@ -62,6 +63,7 @@ class RoomHub(
     suspend fun update(roomId: String, command: UpdateRoomStateRequest): RoomDetail? {
         val room = rooms[roomId] ?: return null
         room.lock.withLock {
+            if (room.deleted) return null
             val nextState = room.state.copy(
                 queue = command.queue ?: room.state.queue,
                 currentTrackId = command.currentTrackId ?: room.state.currentTrackId,
@@ -86,9 +88,27 @@ class RoomHub(
         return detail(roomId)
     }
 
+    suspend fun delete(roomId: String): Boolean {
+        val room = rooms[roomId] ?: return false
+        return room.lock.withLock {
+            if (room.deleted) return@withLock false
+            room.deleted = true
+            try {
+                bridge.delete(roomId)
+                store.deleteRoom(roomId)
+                rooms.remove(roomId, room)
+                true
+            } catch (failure: Throwable) {
+                room.deleted = false
+                throw failure
+            }
+        }
+    }
+
     suspend fun reconcile(status: SendspinRoomStatus) {
         val room = rooms[status.id] ?: return
         room.lock.withLock {
+            if (room.deleted) return@withLock
             if (status.revision > 0 && status.revision <= room.lastBridgeRevision) return@withLock
             if (status.revision > 0) room.lastBridgeRevision = status.revision
             val currentTrackId = status.currentTrackId.takeIf(String::isNotBlank) ?: room.state.currentTrackId
@@ -105,7 +125,7 @@ class RoomHub(
         }
     }
 
-    suspend fun websocketUrl(roomId: String): String? = if (rooms.containsKey(roomId)) bridge.websocketUrl(roomId) else null
+    suspend fun websocketUrl(roomId: String): String? = rooms[roomId]?.takeUnless { it.deleted }?.let { bridge.websocketUrl(roomId) }
 
     private suspend fun sync(room: RuntimeRoom, state: RoomPlaybackState, forcePosition: Boolean = false): SendspinRoomStatus {
         val resolved = state.queue.mapNotNull { id ->
@@ -129,4 +149,5 @@ class RuntimeRoom(
 ) {
     val lock = Mutex()
     @Volatile var lastBridgeRevision: Long = 0
+    @Volatile var deleted: Boolean = false
 }

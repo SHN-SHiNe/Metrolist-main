@@ -47,6 +47,7 @@ interface SendspinBridge {
     suspend fun update(roomId: String, request: SendspinRoomRequest): SendspinRoomStatus
     suspend fun status(roomId: String): SendspinRoomStatus?
     suspend fun websocketUrl(roomId: String): String?
+    suspend fun delete(roomId: String): Boolean
 }
 
 class HttpSendspinBridge(
@@ -78,6 +79,18 @@ class HttpSendspinBridge(
         "ws://127.0.0.1:${it.port}/sendspin"
     }
 
+    override suspend fun delete(roomId: String): Boolean = withContext(Dispatchers.IO) {
+        val response = client.send(
+            HttpRequest.newBuilder(roomUri(roomId)).DELETE().build(),
+            HttpResponse.BodyHandlers.discarding(),
+        )
+        when (response.statusCode()) {
+            404 -> false
+            in 200..299 -> true
+            else -> error("sendspin_bridge_${response.statusCode()}")
+        }
+    }
+
     private fun roomUri(roomId: String) = URI.create("$baseUrl/rooms/$roomId")
 }
 
@@ -92,4 +105,5 @@ class InMemorySendspinBridge : SendspinBridge {
     }
     override suspend fun status(roomId: String) = rooms[roomId]?.second
     override suspend fun websocketUrl(roomId: String): String? = null
+    override suspend fun delete(roomId: String) = rooms.remove(roomId) != null
 }
