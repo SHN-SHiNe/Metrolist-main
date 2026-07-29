@@ -254,6 +254,7 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; }
 .settings-form { margin-top: 20px; display: grid; gap: 12px; }
 .settings-form label { display: grid; gap: 7px; color: var(--muted); font-size: .78rem; }
 .settings-form input, .settings-form select { min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); }
+.settings-form .settings-control, .library-summary .settings-control { box-sizing: border-box; height: 48px; min-height: 48px; font-size: 16px; line-height: 1.25; }
 .settings-form .check-label { min-height: 44px; display: flex; align-items: center; gap: 10px; }
 .settings-form .check-label input { width: 20px; min-height: 20px; accent-color: var(--accent); }
 .library-create { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; }
@@ -265,6 +266,8 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; }
 .library-summary input { min-height: 38px; padding: 0 10px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--text); font-weight: 700; }
 .library-summary input:focus { border-color: var(--accent); outline: 0; background: var(--surface-3); }
 .library-summary select { width: fit-content; min-height: 34px; padding: 0 30px 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-3); color: var(--text); }
+.library-summary input.settings-control { height: 48px; min-height: 48px; }
+.library-summary select.settings-control { height: 48px; min-height: 48px; }
 .library-summary small, .library-error { color: var(--muted); overflow-wrap: anywhere; }
 .library-error { display: block; margin: 8px 10px 0; }
 .library-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
