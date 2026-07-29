@@ -63,7 +63,10 @@ fun Application.shineModule(
     val store = openStoreWithRecovery(config, clock())
     val libraries = MusicLibraryManager(config, store, clock)
     val catalog = OnlineCatalog(store)
-    val downloads = DownloadManager(store, libraries, catalog, clock)
+    val analyses = AnalysisManager(store, clock = clock)
+    val downloads = DownloadManager(store, libraries, catalog, clock) {
+        if (config.analysisOnScan) analyses.enqueueMissing()
+    }
     val rooms = RoomHub(store, catalog, sendspinBridge, clock)
     val maintenance = Maintenance(config, store, clock)
     val jsonCodec = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -90,10 +93,19 @@ fun Application.shineModule(
     }
     monitor.subscribe(ApplicationStopped) {
         downloads.close()
+        analyses.close()
         store.close()
     }
 
-    if (config.scanOnStart) launch(Dispatchers.IO) { runCatching { libraries.scanAll() } }
+    if (config.scanOnStart) {
+        launch(Dispatchers.IO) {
+            runCatching { libraries.scanAll() }
+                .onSuccess { if (config.analysisOnScan) analyses.enqueueMissing() }
+                .onFailure { environment.log.error("Startup library scan failed", it) }
+        }
+    } else if (config.analysisOnScan) {
+        launch(Dispatchers.IO) { analyses.enqueueMissing() }
+    }
     launch(Dispatchers.IO) {
         while (isActive) {
             val restored = runCatching { rooms.restore() }
@@ -122,8 +134,65 @@ fun Application.shineModule(
             val libraryId = call.request.queryParameters["libraryId"]?.takeIf(String::isNotBlank)
             call.respond(store.listTracks(query, offset, limit, sort, libraryId))
         }
+        get("/api/tracks") {
+            val ids = call.request.queryParameters["ids"].orEmpty().split(',').map(String::trim).filter(String::isNotBlank).distinct()
+            require(ids.isNotEmpty() && ids.size <= 100) { "track_ids_required" }
+            call.respond(store.tracks(ids))
+        }
+        get("/api/library/{trackId}/similar") {
+            val id = call.parameters["trackId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 30
+            val recent = call.request.queryParameters.getAll("recent").orEmpty()
+                .flatMap { value -> value.split(',') }
+                .map(String::trim).filter(String::isNotBlank).take(12).toSet()
+            call.respond(store.similarTracks(id, recent, limit) ?: return@get call.respond(HttpStatusCode.NotFound))
+        }
+        post("/api/library/advanced-search") {
+            val request = call.receive<AdvancedSearchRequest>()
+            call.respond(withContext(Dispatchers.IO) { store.advancedSearch(request) })
+        }
+        get("/api/analysis") {
+            call.respond(analyses.summary())
+        }
+        post("/api/analysis") {
+            if (!analyses.available) {
+                return@post call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    mapOf("error" to (analyses.unavailableReason ?: "analysis_unavailable")),
+                )
+            }
+            val request = call.receive<AnalysisEnqueueRequest>()
+            val trackIds = request.trackIds.map(String::trim).filter(String::isNotBlank).distinct()
+            require(trackIds.size <= 500) { "too_many_track_ids" }
+            require(request.missingOnly || trackIds.isNotEmpty()) { "track_ids_required_for_force_analysis" }
+            if (trackIds.isNotEmpty() && store.tracks(trackIds).size != trackIds.size) {
+                throw NoSuchElementException("track_not_in_library")
+            }
+            val queued = if (trackIds.isEmpty()) {
+                analyses.enqueueMissing()
+            } else {
+                analyses.enqueue(trackIds, force = !request.missingOnly)
+            }
+            call.respond(HttpStatusCode.Accepted, AnalysisEnqueueResponse(queued, draining = trackIds.isEmpty()))
+        }
+        post("/api/radio/next") {
+            val request = call.receive<RadioNextRequest>()
+            val recent = request.recentTrackIds.take(12)
+            var next = store.similarTracks(request.currentTrackId, recent.toSet(), 1)
+                ?: return@post call.respond(HttpStatusCode.NotFound)
+            if (next.items.isEmpty() && recent.size > 1) {
+                next = store.similarTracks(request.currentTrackId, setOf(recent[1]), 1)
+                    ?: return@post call.respond(HttpStatusCode.NotFound)
+            }
+            val item = next.items.firstOrNull() ?: return@post call.respond(HttpStatusCode.NotFound, mapOf("error" to "no_similar_track"))
+            call.respond(item)
+        }
         get("/api/scans") { call.respond(store.scans()) }
-        post("/api/scans") { call.respond(withContext(Dispatchers.IO) { libraries.scanAll() }) }
+        post("/api/scans") {
+            val result = withContext(Dispatchers.IO) { libraries.scanAll() }
+            if (config.analysisOnScan) analyses.enqueueMissing()
+            call.respond(result)
+        }
         get("/api/libraries") { call.respond(libraries.list()) }
         post("/api/libraries") {
             call.respond(HttpStatusCode.Created, libraries.create(call.receive()))
@@ -135,7 +204,9 @@ fun Application.shineModule(
         post("/api/libraries/{libraryId}/scan") {
             val id = call.parameters["libraryId"] ?: return@post call.respond(HttpStatusCode.BadRequest)
             val allowEmpty = call.request.queryParameters["allowEmpty"]?.toBooleanStrictOrNull() ?: false
-            call.respond(withContext(Dispatchers.IO) { libraries.scan(id, allowEmpty) })
+            val result = withContext(Dispatchers.IO) { libraries.scan(id, allowEmpty) }
+            if (config.analysisOnScan) analyses.enqueueMissing()
+            call.respond(result)
         }
         delete("/api/library/{trackId}") {
             val id = call.parameters["trackId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)

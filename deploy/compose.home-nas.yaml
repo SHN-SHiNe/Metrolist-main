@@ -6,7 +6,8 @@ services:
         - linux/amd64
       args:
         GOPROXY: ${SHINE_GOPROXY:-https://goproxy.cn,direct}
-        ALPINE_MIRROR: ${SHINE_ALPINE_MIRROR:-https://mirrors.aliyun.com/alpine}
+        DEBIAN_MIRROR: ${SHINE_DEBIAN_MIRROR:-https://mirrors.aliyun.com/debian}
+        UBUNTU_MIRROR: ${SHINE_UBUNTU_MIRROR:-https://mirrors.aliyun.com/ubuntu}
     volumes:
       - /vol1/1000/shine-music/data:/data
       - /vol1/1000/2.Music:/music

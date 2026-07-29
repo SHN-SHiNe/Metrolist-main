@@ -59,6 +59,24 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                     """.trimIndent(),
                 )
                 runCatching { statement.execute("ALTER TABLE tracks ADD COLUMN library_id TEXT NOT NULL DEFAULT 'default'") }
+                listOf(
+                    "analysis_status TEXT NOT NULL DEFAULT 'pending'",
+                    "analysis_progress REAL NOT NULL DEFAULT 0",
+                    "analysis_message TEXT",
+                    "bpm REAL",
+                    "key_name TEXT",
+                    "camelot_code TEXT",
+                    "valence REAL",
+                    "energy REAL",
+                    "danceability REAL",
+                    "acousticness REAL",
+                    "instrumentalness REAL",
+                    "liveness REAL",
+                    "speechiness REAL",
+                    "analyzed_at INTEGER",
+                ).forEach { definition ->
+                    runCatching { statement.execute("ALTER TABLE tracks ADD COLUMN $definition") }
+                }
                 statement.execute(
                     """
                     CREATE TABLE IF NOT EXISTS music_libraries (
@@ -141,10 +159,12 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                 statement.execute("INSERT OR IGNORE INTO library_revision(id,revision) VALUES(1,0)")
                 statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_revision_insert AFTER INSERT ON tracks BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END")
                 statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_revision_delete AFTER DELETE ON tracks BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END")
+                statement.execute("DROP TRIGGER IF EXISTS tracks_revision_update")
                 statement.execute(
                     """
                     CREATE TRIGGER IF NOT EXISTS tracks_revision_update
-                    AFTER UPDATE OF title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,deleted_at ON tracks
+                    AFTER UPDATE OF title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,deleted_at,
+                      library_id ON tracks
                     WHEN OLD.title IS NOT NEW.title OR OLD.artist IS NOT NEW.artist OR OLD.album IS NOT NEW.album
                       OR OLD.duration_ms IS NOT NEW.duration_ms OR OLD.mime_type IS NOT NEW.mime_type
                       OR OLD.file_path IS NOT NEW.file_path OR OLD.file_size IS NOT NEW.file_size
@@ -161,6 +181,9 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_title_sort ON tracks(library_id, deleted_at, title COLLATE NOCASE, artist COLLATE NOCASE, album COLLATE NOCASE, id)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_artist_sort ON tracks(library_id, deleted_at, artist COLLATE NOCASE, album COLLATE NOCASE, title COLLATE NOCASE, id)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_album_sort ON tracks(library_id, deleted_at, album COLLATE NOCASE, artist COLLATE NOCASE, title COLLATE NOCASE, id)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_analysis_status ON tracks(deleted_at, analysis_status, modified_at)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_similarity_prefilter ON tracks(deleted_at, analysis_status, bpm, camelot_code)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_similarity_key_prefilter ON tracks(deleted_at, analysis_status, camelot_code, bpm)")
                 statement.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_music_libraries_download_target ON music_libraries(download_target) WHERE download_target=1")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_history_played_at ON history(played_at DESC)")
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_playlist_items_track ON playlist_items(track_id)")
@@ -329,6 +352,17 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         }
     }
 
+    fun analysisSource(id: String): AnalysisSource? = connection().use { db ->
+        db.prepareStatement(
+            "SELECT file_path,file_size,modified_at FROM tracks WHERE id=? AND deleted_at IS NULL",
+        ).use { statement ->
+            statement.setString(1, id)
+            statement.executeQuery().use { row ->
+                if (row.next()) AnalysisSource(Path.of(row.getString("file_path")), row.getLong("file_size"), row.getLong("modified_at")) else null
+            }
+        }
+    }
+
     fun track(id: String): Track? = connection().use { db ->
         db.prepareStatement(
             "SELECT t.*, EXISTS(SELECT 1 FROM favorites f WHERE f.track_id=t.id) AS favorite FROM tracks t WHERE t.id=? AND t.deleted_at IS NULL",
@@ -336,6 +370,256 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             statement.setString(1, id)
             statement.executeQuery().use { row -> if (row.next()) row.toTrack() else null }
         }
+    }
+
+    fun tracks(ids: List<String>): List<Track> {
+        if (ids.isEmpty()) return emptyList()
+        val uniqueIds = ids.distinct().take(500)
+        val placeholders = uniqueIds.joinToString(",") { "?" }
+        return connection().use { db ->
+            db.prepareStatement(
+                "SELECT t.*, EXISTS(SELECT 1 FROM favorites f WHERE f.track_id=t.id) AS favorite FROM tracks t WHERE t.deleted_at IS NULL AND t.id IN ($placeholders)",
+            ).use { statement ->
+                uniqueIds.forEachIndexed { index, id -> statement.setString(index + 1, id) }
+                val byId = statement.executeQuery().use { rows -> buildMap { while (rows.next()) put(rows.getString("id"), rows.toTrack()) } }
+                uniqueIds.mapNotNull(byId::get)
+            }
+        }
+    }
+
+    fun featureVector(id: String): TrackFeatureVector? = connection().use { db ->
+        db.prepareStatement("SELECT * FROM tracks WHERE id=? AND deleted_at IS NULL").use { statement ->
+            statement.setString(1, id)
+            statement.executeQuery().use { row -> if (row.next()) row.toFeatureVector() else null }
+        }
+    }
+
+    fun similarityCandidates(seed: TrackFeatureVector, limit: Int = 100): List<TrackFeatureVector> {
+        val bpm = seed.bpm?.takeIf { it > 0f } ?: return emptyList()
+        val emotion = seed.emotionVector().map { value -> value?.let(::normalizeMetric) ?: return emptyList() }
+        val compatibleCodes = seed.keyName?.compatibleCamelotKeys().orEmpty().mapNotNull(::camelotLabel).sorted()
+        val keyWhere = if (compatibleCodes.isEmpty()) "" else " AND camelot_code IN (${compatibleCodes.joinToString(",") { "?" }})"
+        val dimensions = listOf("valence", "energy", "danceability", "acousticness", "instrumentalness", "liveness", "speechiness")
+        val distanceOrder = dimensions.joinToString(" + ") { column -> "(($column - ?) * ($column - ?))" }
+        return connection().use { db ->
+            db.prepareStatement(
+                """
+                SELECT * FROM tracks
+                WHERE deleted_at IS NULL AND id<>? AND analysis_status='completed'
+                  AND bpm BETWEEN ? AND ?
+                  AND valence IS NOT NULL AND energy IS NOT NULL AND danceability IS NOT NULL
+                  AND acousticness IS NOT NULL AND instrumentalness IS NOT NULL
+                  AND liveness IS NOT NULL AND speechiness IS NOT NULL
+                  $keyWhere
+                ORDER BY $distanceOrder, id
+                LIMIT ?
+                """.trimIndent(),
+            ).use { statement ->
+                statement.setString(1, seed.trackId)
+                statement.setFloat(2, bpm - 5f)
+                statement.setFloat(3, bpm + 5f)
+                var parameter = 4
+                compatibleCodes.forEach { code -> statement.setString(parameter++, code) }
+                emotion.forEach { value ->
+                    statement.setFloat(parameter++, value)
+                    statement.setFloat(parameter++, value)
+                }
+                statement.setInt(parameter, limit.coerceIn(1, 500))
+                statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.toFeatureVector()) } }
+            }
+        }
+    }
+
+    fun similarTracks(id: String, recentIds: Set<String> = emptySet(), limit: Int = 30): SimilarTracksResponse? {
+        val seedTrack = track(id) ?: return null
+        val seed = featureVector(id) ?: return SimilarTracksResponse(seedTrack, emptyList())
+        val candidateLimit = (limit.coerceIn(1, 100) + recentIds.size.coerceAtMost(12)).coerceAtMost(112)
+        val ranked = TrackSimilarity.rank(seed, similarityCandidates(seed, candidateLimit).filterNot { it.trackId in recentIds }, limit)
+        val tracks = tracks(ranked.map(RankedTrack::trackId)).associateBy(Track::id)
+        return SimilarTracksResponse(
+            seed = seedTrack,
+            items = ranked.mapNotNull { match ->
+                tracks[match.trackId]?.let { track ->
+                    SimilarTrack(track, match.similarityPercent, match.bpmDelta, match.camelotDelta)
+                }
+            },
+        )
+    }
+
+    fun advancedSearch(request: AdvancedSearchRequest): AdvancedSearchResponse {
+        val clauses = mutableListOf("deleted_at IS NULL", "analysis_status='completed'")
+        val whereBinders = mutableListOf<(java.sql.PreparedStatement, Int) -> Unit>()
+        val scoreExpressions = mutableListOf<String>()
+        val scoreBinders = mutableListOf<(java.sql.PreparedStatement, Int) -> Unit>()
+        val text = request.text.trim()
+        if (text.isNotEmpty()) {
+            clauses += "(title LIKE ? ESCAPE '\\' OR artist LIKE ? ESCAPE '\\' OR album LIKE ? ESCAPE '\\')"
+            val value = "%${text.replace("%", "\\%").replace("_", "\\_")}%"
+            repeat(3) { whereBinders += { statement, index -> statement.setString(index, value) } }
+        }
+        request.bpm?.let { target ->
+            require(target.isFinite() && target > 0f) { "invalid_bpm" }
+            val tolerance = request.bpmTolerance.coerceAtLeast(0f)
+            clauses += "bpm BETWEEN ? AND ?"
+            whereBinders += { statement, index -> statement.setFloat(index, target - tolerance) }
+            whereBinders += { statement, index -> statement.setFloat(index, target + tolerance) }
+            scoreExpressions += "(ABS(bpm - ?) / ?)"
+            scoreBinders += { statement, index -> statement.setFloat(index, target) }
+            scoreBinders += { statement, index -> statement.setFloat(index, tolerance.coerceAtLeast(1f)) }
+        }
+        val requestedKey = request.keyName?.trim()?.takeIf(String::isNotEmpty)
+        val selectedKey = requestedKey?.canonicalMusicKey()?.let(::musicKeyToCamelot)
+        require(requestedKey == null || selectedKey != null) { "invalid_key" }
+        selectedKey?.let { selected ->
+            val codes = AdvancedTrackSearch.matchingCamelot(selected, request.keyTolerance).sortedWith(compareBy({ it.first }, { it.second }))
+            clauses += "camelot_code IN (${codes.joinToString(",") { "?" }})"
+            codes.forEach { (number, mode) -> whereBinders += { statement, index -> statement.setString(index, "$number$mode") } }
+            scoreExpressions += "(CASE camelot_code ${codes.joinToString(" ") { "WHEN ? THEN ?" }} ELSE 1000 END)"
+            codes.forEach { candidate ->
+                val code = "${candidate.first}${candidate.second}"
+                val distance = AdvancedTrackSearch.keyDistance(candidate, selected)
+                scoreBinders += { statement, index -> statement.setString(index, code) }
+                scoreBinders += { statement, index -> statement.setFloat(index, distance) }
+            }
+        }
+        val emotionFilters = listOf(
+            "valence" to request.valence,
+            "energy" to request.energy,
+            "danceability" to request.danceability,
+            "acousticness" to request.acousticness,
+            "instrumentalness" to request.instrumentalness,
+            "liveness" to request.liveness,
+            "speechiness" to request.speechiness,
+        )
+        val emotionTolerance = request.emotionTolerance.coerceIn(0f, 1f)
+        emotionFilters.forEach { (column, target) ->
+            target ?: return@forEach
+            require(target.isFinite()) { "invalid_emotion_target" }
+            val normalized = target.coerceIn(0f, 1f)
+            clauses += "$column BETWEEN ? AND ?"
+            whereBinders += { statement, index -> statement.setFloat(index, normalized - emotionTolerance) }
+            whereBinders += { statement, index -> statement.setFloat(index, normalized + emotionTolerance) }
+            scoreExpressions += "(ABS($column - ?) / ?)"
+            scoreBinders += { statement, index -> statement.setFloat(index, normalized) }
+            scoreBinders += { statement, index -> statement.setFloat(index, emotionTolerance.coerceAtLeast(0.001f)) }
+        }
+
+        fun bind(statement: java.sql.PreparedStatement, binders: List<(java.sql.PreparedStatement, Int) -> Unit>, start: Int = 1): Int {
+            var parameter = start
+            binders.forEach { binder -> binder(statement, parameter++) }
+            return parameter
+        }
+
+        val where = clauses.joinToString(" AND ")
+        val resultLimit = request.limit.coerceIn(1, 200)
+        val ordering = if (scoreExpressions.isEmpty()) "id" else "(${scoreExpressions.joinToString(" + ")}) / ${scoreExpressions.size}, id"
+        val (candidates, totalCandidates) = connection().use { db ->
+            db.prepareStatement("SELECT *,COUNT(*) OVER() AS total_candidates FROM tracks WHERE $where ORDER BY $ordering LIMIT ?").use { statement ->
+                var parameter = bind(statement, whereBinders)
+                parameter = bind(statement, scoreBinders, parameter)
+                statement.setInt(parameter, resultLimit)
+                statement.executeQuery().use { rows ->
+                    var total = 0
+                    val items = buildList {
+                        while (rows.next()) {
+                            if (isEmpty()) total = rows.getInt("total_candidates")
+                            add(rows.toFeatureVector())
+                        }
+                    }
+                    items to total
+                }
+            }
+        }
+        val ranked = AdvancedTrackSearch.rank(candidates, request).take(resultLimit)
+        val tracks = tracks(ranked.map(AdvancedRankedTrack::trackId)).associateBy(Track::id)
+        return AdvancedSearchResponse(
+            items = ranked.mapNotNull { match -> tracks[match.trackId]?.let { AdvancedSearchItem(it, match.similarityPercent) } },
+            totalCandidates = totalCandidates,
+        )
+    }
+
+    fun resetInterruptedAnalysis() = connection().use { db ->
+        db.prepareStatement(
+            "UPDATE tracks SET analysis_status='pending',analysis_progress=0,analysis_message=NULL WHERE deleted_at IS NULL AND analysis_status IN ('queued','running')",
+        ).use { it.executeUpdate() }
+    }
+
+    fun pendingAnalysisTrackIds(limit: Int = 10_000, includeFailed: Boolean = true): List<String> = connection().use { db ->
+        val statuses = if (includeFailed) "('pending','failed')" else "('pending')"
+        db.prepareStatement(
+            "SELECT id FROM tracks WHERE deleted_at IS NULL AND analysis_status IN $statuses ORDER BY modified_at DESC LIMIT ?",
+        ).use { statement ->
+            statement.setInt(1, limit.coerceIn(1, 100_000))
+            statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+        }
+    }
+
+    fun setAnalysisQueued(id: String, force: Boolean = false): Boolean = connection().use { db ->
+        val condition = if (force) "analysis_status NOT IN ('queued','running')" else "analysis_status IN ('pending','failed')"
+        db.prepareStatement(
+            "UPDATE tracks SET analysis_status='queued',analysis_progress=0.05,analysis_message='等待分析' WHERE id=? AND deleted_at IS NULL AND $condition",
+        ).use { statement -> statement.setString(1, id); statement.executeUpdate() > 0 }
+    }
+
+    fun updateAnalysisState(id: String, status: String, progress: Float, message: String?) = connection().use { db ->
+        db.prepareStatement(
+            "UPDATE tracks SET analysis_status=?,analysis_progress=?,analysis_message=? WHERE id=? AND deleted_at IS NULL",
+        ).use { statement ->
+            statement.setString(1, status)
+            statement.setFloat(2, progress.coerceIn(0f, 1f))
+            statement.setString(3, message)
+            statement.setString(4, id)
+            statement.executeUpdate() > 0
+        }
+    }
+
+    fun saveAnalysis(id: String, result: AudioAnalysisResult, now: Long, expectedSource: AnalysisSource? = null) = connection().use { db ->
+        val sourceGuard = if (expectedSource == null) "" else " AND analysis_status='running' AND file_size=? AND modified_at=?"
+        db.prepareStatement(
+            """
+            UPDATE tracks SET analysis_status='completed',analysis_progress=1,analysis_message='分析完成',
+              bpm=?,key_name=?,camelot_code=?,valence=?,energy=?,danceability=?,acousticness=?,instrumentalness=?,liveness=?,speechiness=?,analyzed_at=?
+            WHERE id=? AND deleted_at IS NULL$sourceGuard
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setFloat(1, result.bpm)
+            statement.setString(2, result.keyName)
+            statement.setString(3, camelotLabel(result.keyName))
+            statement.setFloat(4, normalizeMetric(result.valence))
+            statement.setFloat(5, normalizeMetric(result.energy))
+            statement.setFloat(6, normalizeMetric(result.danceability))
+            statement.setFloat(7, normalizeMetric(result.acousticness))
+            statement.setFloat(8, normalizeMetric(result.instrumentalness))
+            statement.setFloat(9, normalizeMetric(result.liveness))
+            statement.setFloat(10, normalizeMetric(result.speechiness))
+            statement.setLong(11, now)
+            statement.setString(12, id)
+            if (expectedSource != null) {
+                statement.setLong(13, expectedSource.size)
+                statement.setLong(14, expectedSource.modifiedAt)
+            }
+            statement.executeUpdate() > 0
+        }
+    }
+
+    fun analysisSummary(available: Boolean, implementation: String, unavailableReason: String? = null): AnalysisSummary = connection().use { db ->
+        val counts = mutableMapOf<String, Int>()
+        db.createStatement().use { statement ->
+            statement.executeQuery("SELECT analysis_status,COUNT(*) count FROM tracks WHERE deleted_at IS NULL GROUP BY analysis_status").use { rows ->
+                while (rows.next()) counts[rows.getString("analysis_status")] = rows.getInt("count")
+            }
+        }
+        AnalysisSummary(
+            available = available,
+            implementation = implementation,
+            unavailableReason = unavailableReason,
+            total = counts.values.sum(),
+            pending = counts["pending"] ?: 0,
+            queued = counts["queued"] ?: 0,
+            running = counts["running"] ?: 0,
+            completed = counts["completed"] ?: 0,
+            failed = counts["failed"] ?: 0,
+        )
     }
 
     fun markTrackDeleted(id: String, now: Long): Boolean = connection().use { db ->
@@ -726,7 +1010,40 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         artworkUrl = "/api/media/${getString("id")}/artwork",
         favorite = getBoolean("favorite"),
         libraryId = getString("library_id"),
+        analysis = TrackAnalysis(
+            status = getString("analysis_status") ?: "pending",
+            progress = getFloat("analysis_progress"),
+            message = getString("analysis_message"),
+            bpm = nullableFloat("bpm"),
+            keyName = getString("key_name"),
+            camelot = getString("camelot_code") ?: camelotLabel(getString("key_name")),
+            valence = nullableFloat("valence"),
+            energy = nullableFloat("energy"),
+            danceability = nullableFloat("danceability"),
+            acousticness = nullableFloat("acousticness"),
+            instrumentalness = nullableFloat("instrumentalness"),
+            liveness = nullableFloat("liveness"),
+            speechiness = nullableFloat("speechiness"),
+            analyzedAt = getLong("analyzed_at").takeUnless { wasNull() },
+        ),
     )
+
+    private fun ResultSet.toFeatureVector() = TrackFeatureVector(
+        trackId = getString("id"),
+        bpm = nullableFloat("bpm"),
+        keyName = getString("key_name"),
+        valence = nullableFloat("valence"),
+        energy = nullableFloat("energy"),
+        danceability = nullableFloat("danceability"),
+        acousticness = nullableFloat("acousticness"),
+        instrumentalness = nullableFloat("instrumentalness"),
+        liveness = nullableFloat("liveness"),
+        speechiness = nullableFloat("speechiness"),
+    )
+
+    private fun ResultSet.nullableFloat(column: String): Float? = getFloat(column).let { value ->
+        if (wasNull()) null else value
+    }
 
     companion object {
         private const val LIBRARY_SELECT =
@@ -738,12 +1055,17 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             ON CONFLICT(id) DO UPDATE SET title=excluded.title, artist=excluded.artist, album=excluded.album,
               duration_ms=excluded.duration_ms, mime_type=excluded.mime_type, file_path=excluded.file_path,
               file_size=excluded.file_size, modified_at=excluded.modified_at, last_seen_scan=excluded.last_seen_scan,
-              library_id=excluded.library_id, deleted_at=NULL
+              library_id=excluded.library_id, deleted_at=NULL,
+              analysis_status='pending', analysis_progress=0, analysis_message=NULL,
+              bpm=NULL, key_name=NULL, camelot_code=NULL, valence=NULL, energy=NULL, danceability=NULL,
+              acousticness=NULL, instrumentalness=NULL, liveness=NULL, speechiness=NULL, analyzed_at=NULL
             """.trimIndent()
     }
 }
 
 data class TrackFingerprint(val size: Long, val modifiedAt: Long)
+
+data class AnalysisSource(val path: Path, val size: Long, val modifiedAt: Long)
 
 data class StoredTrackLocation(val path: Path, val libraryId: String)
 

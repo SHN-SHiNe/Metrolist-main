@@ -13,8 +13,9 @@ SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、
 ## 当前形态
 
 - Kotlin/JVM 21 + Ktor 单实例服务，SQLite/WAL 持久化共享数据。
-- React + TypeScript 响应式 Web：手机端底部导航与全屏播放，PC 端左侧导航、内容区、右侧队列和底部播放器。
+- React + TypeScript 响应式 Web：手机端延续原 Android/Compose 的四主入口、迷你播放器与沉浸式全屏播放；PC 端将同一套信息架构展开为左侧导航、内容区、右侧队列和底部播放器。
 - 多音频库扫描，可管理 NAS 本地目录、USB 设备和网络挂载；支持 HTTP Range 流媒体、在线歌曲直放与后台下载入库。
+- NAS 后台分析 BPM、调性/Camelot 与七维音乐特征，提供相似歌曲、雷达图、高级筛选和保持风格的连续续播；分析只读取三段有界采样，不会随单曲时长持续增加内存占用。
 - 共享收藏、歌单与历史；访客免登录，因此局域网内所有用户均有修改权限。
 - 多个命名同步房间，以 [Sendspin](https://www.sendspin-audio.com/) 协议、官方 Go 服务端与官方 Web SDK 为同步底座；SHiNe 只负责房间、队列和曲库编排。
 - 浅色、深色、纯黑主题，键盘焦点、44px 触控目标和减少动态效果支持。
@@ -69,9 +70,11 @@ services:
 | `SHINE_CACHE_PATH` | `./nas-cache` | 封面、下载临时文件与缓存 |
 | `SHINE_TRASH_RETENTION_DAYS` | `30` | 回收区保留天数 |
 | `SHINE_SCAN_ON_START` | `true` | 启动时是否增量扫描 |
+| `SHINE_ANALYSIS_ON_SCAN` | `true` | 扫描或下载入库后是否在后台补齐音乐分析 |
+| `SHINE_VIBENET_MODEL_PATH` | 镜像内置路径 | 可选的 VibeNet ONNX 模型覆盖路径 |
 | `SHINE_LOG_LEVEL` | `INFO` | 服务日志级别 |
 
-镜像定义支持 `linux/amd64` 和 `linux/arm64`。容器内由 Ktor 服务和 Sendspin 桥接进程协作，Ktor 同时托管 Web 静态资源并代理 Sendspin WebSocket，因此 NAS 对外仍只有一个容器和一个端口。
+镜像定义支持 `linux/amd64` 和 `linux/arm64`。容器内由 Ktor 服务和 Sendspin 桥接进程协作，Ktor 同时托管 Web 静态资源并代理 Sendspin WebSocket，因此 NAS 对外仍只有一个容器和一个端口。当前 VibeNet 所用 ONNX Runtime 原生包只在 `linux/amd64` 启用；ARM64 上曲库、播放与同步照常可用，但分析接口会明确返回不可用，不会反复崩溃或重试。
 
 ## 使用说明
 
@@ -88,6 +91,7 @@ Sendspin 当前仍标注为 Public Preview。SHiNe 将它封装在独立桥接�
 主要接口位于：
 
 - `/api/library`、`/api/libraries`、`/api/search`、`/api/media/{trackId}/stream`
+- `/api/analysis`、`/api/library/{trackId}/similar`、`/api/library/advanced-search`、`/api/radio/next`
 - `/api/playlists`、`/api/favorites`、`/api/history`
 - `/api/downloads`、`/api/scans`、`/api/settings/sources`
 - `/api/rooms`、`/api/rooms/{roomId}/state`、`/api/rooms/{roomId}/sendspin`、`/api/health`
@@ -107,7 +111,7 @@ npm run build
 npm run e2e
 ```
 
-服务端（需要 JDK 21 与 Gradle 9.4.1）：
+服务端（需要 JDK 21、Gradle 9.4.1、`ffmpeg`/`ffprobe`；VibeNet 推理还需要 x86_64）：
 
 ```bash
 gradle -p server test installDist
@@ -126,7 +130,9 @@ go build ./...
 
 ## Android 历史代码
 
-原 Android/Compose App 保留为 `legacy` 参考，不再进入默认发布流程，也不会继续作为 NAS 客户端开发。旧工作流只能手动触发；现有 Android 数据库不会迁移到 NAS。
+原 Android/Compose App 保留为手机 Web 的产品与视觉金标准，不再进入默认发布流程，也不会继续作为 NAS 客户端开发。旧工作流只能手动触发；现有 Android 数据库不会迁移到 NAS。16 张基准截图位于 `fastlane/metadata/android/en-US/images/screenshots`。
+
+仓库沿用 Android 代码中已有的 VibeNet/EfficientNet 模型供私人 NAS 部署。ONNX Runtime 使用 MIT 许可；模型原始发布来源与独立许可尚未在历史仓库中记录，若要把镜像公开分发给第三方，应先完成模型来源与许可审计，详见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)。
 
 ## 安全边界
 

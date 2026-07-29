@@ -8,6 +8,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.slf4j.LoggerFactory
 import java.net.InetAddress
 import java.net.URI
 import java.net.http.HttpClient
@@ -26,6 +27,7 @@ class DownloadManager(
     private val libraries: MusicLibraryManager,
     private val onlineCatalog: OnlineCatalog,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val onTrackIndexed: () -> Unit = {},
 ) : AutoCloseable {
     private val supervisor = SupervisorJob()
     private val scope = CoroutineScope(supervisor + Dispatchers.IO)
@@ -85,6 +87,7 @@ class DownloadManager(
             val destination = Files.move(part, musicDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
             temporary = null
             libraries.indexDownloaded(library.id, destination)
+            runCatching(onTrackIndexed).onFailure { logger.warn("Downloaded track was indexed but analysis enqueue failed", it) }
             update(job, "completed")
         } catch (error: Throwable) {
             if (!closed.get()) update(job, "failed", error.message ?: error::class.simpleName)
@@ -113,6 +116,10 @@ class DownloadManager(
         contentType.contains("mp4") || contentType.contains("aac") -> "m4a"
         contentType.contains("wav") -> "wav"
         else -> "mp3"
+    }
+
+    private companion object {
+        val logger = LoggerFactory.getLogger(DownloadManager::class.java)
     }
 
     override fun close() {

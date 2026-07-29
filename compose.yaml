@@ -8,6 +8,7 @@ services:
     image: shine-music:nas
     container_name: shine-music
     restart: unless-stopped
+    stop_grace_period: 40s
     ports:
       - "${SHINE_HOST_PORT:-8767}:8767"
     environment:
@@ -18,6 +19,7 @@ services:
       SHINE_CACHE_DIR: /cache
       SHINE_TRASH_RETENTION_DAYS: ${SHINE_TRASH_RETENTION_DAYS:-30}
       SHINE_SCAN_ON_START: ${SHINE_SCAN_ON_START:-true}
+      SHINE_ANALYSIS_ON_SCAN: ${SHINE_ANALYSIS_ON_SCAN:-true}
       SHINE_LOG_LEVEL: ${SHINE_LOG_LEVEL:-INFO}
     volumes:
       - ${SHINE_DATA_PATH:-./nas-data}:/data

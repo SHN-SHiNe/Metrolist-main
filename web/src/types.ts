@@ -11,7 +11,82 @@ export type Track = {
   artworkUrl?: string | null
   source?: string
   libraryId?: string
+  analysis?: TrackAnalysis
 }
+
+export type AnalysisStatus = 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'unavailable'
+
+export const analysisDimensionKeys = [
+  'valence',
+  'energy',
+  'danceability',
+  'acousticness',
+  'instrumentalness',
+  'liveness',
+  'speechiness',
+] as const
+
+export type AnalysisDimension = typeof analysisDimensionKeys[number]
+
+export type TrackAnalysis = {
+  status: AnalysisStatus
+  progress: number
+  message?: string | null
+  bpm?: number | null
+  keyName?: string | null
+  camelot?: string | null
+  valence?: number | null
+  energy?: number | null
+  danceability?: number | null
+  acousticness?: number | null
+  instrumentalness?: number | null
+  liveness?: number | null
+  speechiness?: number | null
+  analyzedAt?: number | null
+}
+
+export type SimilarTrack = {
+  track: Track
+  similarityPercent: number
+  bpmDelta?: number
+  camelotDelta?: number
+}
+
+export type SimilarTracksResponse = { seed: Track; items: SimilarTrack[] }
+
+export type AnalysisSummary = {
+  available: boolean
+  implementation: string
+  unavailableReason?: string | null
+  total: number
+  pending: number
+  queued: number
+  running: number
+  completed: number
+  failed: number
+}
+
+export type AnalysisEnqueueResponse = { queued: number; draining: boolean }
+
+export type AdvancedSearchRequest = {
+  text?: string
+  bpm?: number | null
+  bpmTolerance?: number
+  keyName?: string | null
+  keyTolerance?: number
+  emotionTolerance?: number
+  valence?: number | null
+  energy?: number | null
+  danceability?: number | null
+  acousticness?: number | null
+  instrumentalness?: number | null
+  liveness?: number | null
+  speechiness?: number | null
+  limit?: number
+}
+
+export type AdvancedSearchItem = { track: Track; similarityPercent: number }
+export type AdvancedSearchResponse = { items: AdvancedSearchItem[]; totalCandidates: number }
 
 export type TrackPage = { items: Track[]; total: number; offset: number; limit: number; revision: number }
 export type PlaylistSummary = { id: string; name: string; version: number; trackCount: number; updatedAt: number }

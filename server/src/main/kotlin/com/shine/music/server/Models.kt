@@ -22,6 +22,100 @@ data class Track(
     val artworkUrl: String? = null,
     val favorite: Boolean = false,
     val libraryId: String = DEFAULT_LIBRARY_ID,
+    val analysis: TrackAnalysis = TrackAnalysis(),
+)
+
+@Serializable
+data class TrackAnalysis(
+    val status: String = "pending",
+    val progress: Float = 0f,
+    val message: String? = null,
+    val bpm: Float? = null,
+    val keyName: String? = null,
+    val camelot: String? = null,
+    val valence: Float? = null,
+    val energy: Float? = null,
+    val danceability: Float? = null,
+    val acousticness: Float? = null,
+    val instrumentalness: Float? = null,
+    val liveness: Float? = null,
+    val speechiness: Float? = null,
+    val analyzedAt: Long? = null,
+)
+
+@Serializable
+data class SimilarTrack(
+    val track: Track,
+    val similarityPercent: Int,
+    val bpmDelta: Float,
+    val camelotDelta: Int,
+)
+
+@Serializable
+data class SimilarTracksResponse(
+    val seed: Track,
+    val items: List<SimilarTrack>,
+)
+
+@Serializable
+data class AnalysisSummary(
+    val available: Boolean,
+    val implementation: String,
+    val unavailableReason: String? = null,
+    val total: Int,
+    val pending: Int,
+    val queued: Int,
+    val running: Int,
+    val completed: Int,
+    val failed: Int,
+)
+
+@Serializable
+data class AnalysisEnqueueRequest(
+    val trackIds: List<String> = emptyList(),
+    val missingOnly: Boolean = true,
+)
+
+@Serializable
+data class AnalysisEnqueueResponse(
+    val queued: Int,
+    val draining: Boolean,
+)
+
+@Serializable
+data class AdvancedSearchRequest(
+    val text: String = "",
+    val bpm: Float? = null,
+    val bpmTolerance: Float = 5f,
+    val keyName: String? = null,
+    val keyTolerance: Int = 0,
+    val emotionTolerance: Float = 0.08f,
+    val valence: Float? = null,
+    val energy: Float? = null,
+    val danceability: Float? = null,
+    val acousticness: Float? = null,
+    val instrumentalness: Float? = null,
+    val liveness: Float? = null,
+    val speechiness: Float? = null,
+    val limit: Int = 100,
+)
+
+@Serializable
+data class AdvancedSearchItem(
+    val track: Track,
+    val similarityPercent: Int,
+)
+
+@Serializable
+data class AdvancedSearchResponse(
+    val items: List<AdvancedSearchItem>,
+    val totalCandidates: Int,
+)
+
+@Serializable
+data class RadioNextRequest(
+    val currentTrackId: String,
+    val recentTrackIds: List<String> = emptyList(),
 )
 
 @Serializable

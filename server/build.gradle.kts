@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.sqlite.jdbc)
     implementation(libs.hikari)
     implementation(libs.jaudiotagger)
+    implementation(libs.onnxruntime.jvm)
     runtimeOnly(libs.logback.classic)
 
     testImplementation(kotlin("test"))

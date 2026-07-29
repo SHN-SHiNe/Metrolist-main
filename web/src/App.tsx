@@ -1,16 +1,23 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
-import { LIBRARY_PAGE_SIZE, mergeTrackPage, TRACK_ROW_HEIGHT, visibleTrackRange } from './libraryPaging'
-import { mainNavigation, sectionFromHash, type Section } from './navigation'
+import { LIBRARY_PAGE_SIZE, mergeTrackPage } from './libraryPaging'
+import { desktopNavigation, sectionFromHash, type Section } from './navigation'
 import { randomId } from './randomId'
-import { swipeAction } from './swipeGesture'
-import type { DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, PlaylistDetail, PlaylistSummary, RoomSummary, SourceConfig, Track } from './types'
+import { mergeSimilarQueue, recentTrackIds } from './similarAutoplay'
+import type { DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, PlaylistDetail, PlaylistSummary, RoomSummary, SimilarTracksResponse, SourceConfig, Track } from './types'
 import { usePlayer } from './usePlayer'
 import { useRoomSync } from './useRoomSync'
+import { AdvancedSearchPanel } from './components/AdvancedSearchPanel'
+import { Icon } from './components/Icon'
+import { AlbumArt, AlbumRow, EmptyState, TrackList, TrackSection } from './components/TrackList'
+import { RadarChart } from './components/RadarChart'
+import { DesktopShell, MobileShell } from './layout/Shells'
+import { NowPlaying, AnalysisChips } from './player/NowPlaying'
+import { PlayerBar } from './player/PlayerBar'
 
 type Theme = 'light' | 'dark' | 'black'
 
-const navItems = mainNavigation as readonly { id: Exclude<Section, 'settings'>; label: string; icon: IconName }[]
+const navItems = desktopNavigation
 
 export default function App() {
   const [section, setSection] = useState<Section>(() => sectionFromHash(location.hash))
@@ -32,8 +39,16 @@ export default function App() {
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('shine-theme') as Theme) || 'dark')
   const [queueOpen, setQueueOpen] = useState(true)
+  const [queueTab, setQueueTab] = useState<'queue' | 'similar'>('queue')
+  const [similarByTrack, setSimilarByTrack] = useState<Record<string, SimilarTracksResponse>>({})
+  const [similarLoadingId, setSimilarLoadingId] = useState<string | null>(null)
+  const sessionRecent = useRef<string[]>([])
+  const autoPrefetched = useRef<string | null>(null)
+  const analysisPollTimers = useRef(new Map<string, number>())
   const player = usePlayer()
-  const allTracks = useMemo(() => [...library, ...searchResults].filter((track, index, array) => array.findIndex((item) => item.id === track.id) === index), [library, searchResults])
+  const activeTrackId = useRef<string | null>(player.current?.id ?? null)
+  activeTrackId.current = player.current?.id ?? null
+  const allTracks = useMemo(() => [...library, ...searchResults, ...favorites, ...history.map((entry) => entry.track), ...Object.values(similarByTrack).flatMap((response) => [response.seed, ...response.items.map((item) => item.track)])].filter((track, index, array) => array.findIndex((item) => item.id === track.id) === index), [favorites, history, library, searchResults, similarByTrack])
   const room = useRoomSync(player, allTracks)
 
   const refresh = useCallback(async () => {
@@ -59,8 +74,17 @@ export default function App() {
   }, [])
 
   const rememberLibraryTracks = useCallback((tracks: Track[]) => setLibrary((current) => mergeTrackPage(current, tracks)), [])
+  const updateKnownTrack = useCallback((track: Track) => {
+    setLibrary((current) => current.some((item) => item.id === track.id) ? current.map((item) => item.id === track.id ? track : item) : current)
+    setSearchResults((current) => current.map((item) => item.id === track.id ? track : item))
+    setFavorites((current) => current.map((item) => item.id === track.id ? track : item))
+    setHistory((current) => current.map((entry) => entry.track.id === track.id ? { ...entry, track } : entry))
+    setSelectedPlaylist((current) => current ? { ...current, tracks: current.tracks.map((item) => item.id === track.id ? track : item) } : current)
+    player.hydrateTracks([track])
+  }, [player.hydrateTracks])
 
   useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => { player.hydrateTracks(allTracks) }, [allTracks, player.hydrateTracks])
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('shine-theme', theme)
@@ -76,7 +100,61 @@ export default function App() {
     setSection(next)
   }
 
+  const rememberPlayed = useCallback((id: string) => {
+    sessionRecent.current = recentTrackIds(sessionRecent.current, id)
+  }, [])
+
+  const loadSimilar = useCallback(async (track: Track, force = false) => {
+    if (!force && similarByTrack[track.id]) return similarByTrack[track.id]
+    setSimilarLoadingId(track.id)
+    try {
+      const recent = recentTrackIds([
+        ...history.map((entry) => entry.track.id).reverse(),
+        ...sessionRecent.current,
+      ], track.id)
+      const response = await api.similar(track.id, 24, recent)
+      setSimilarByTrack((current) => ({ ...current, [track.id]: response }))
+      return response
+    } catch (error) {
+      if (force) setNotice(readError(error))
+      return null
+    } finally {
+      setSimilarLoadingId((current) => current === track.id ? null : current)
+    }
+  }, [history, similarByTrack])
+
+  const pollTrackAnalysis = useCallback((id: string) => {
+    const previous = analysisPollTimers.current.get(id)
+    if (previous) window.clearTimeout(previous)
+    const poll = async () => {
+      try {
+        const [track] = await api.tracks([id])
+        if (track) {
+          updateKnownTrack(track)
+          const terminal = track.analysis?.status === 'completed' || track.analysis?.status === 'failed' || track.analysis?.status === 'unavailable'
+          if (terminal) {
+            analysisPollTimers.current.delete(id)
+            if (track.analysis?.status === 'completed') {
+              setNotice(`《${track.title}》分析完成`)
+              void loadSimilar(track, true)
+            } else setNotice(track.analysis?.message || `《${track.title}》分析失败`)
+            return
+          }
+        }
+      } catch { /* transient NAS or network failure: keep polling */ }
+      const timer = window.setTimeout(() => { void poll() }, 2500)
+      analysisPollTimers.current.set(id, timer)
+    }
+    void poll()
+  }, [loadSimilar, updateKnownTrack])
+
+  useEffect(() => () => {
+    analysisPollTimers.current.forEach((timer) => window.clearTimeout(timer))
+    analysisPollTimers.current.clear()
+  }, [])
+
   const play = (track: Track, queue: Track[]) => {
+    rememberPlayed(track.id)
     if (room.roomId) {
       room.command({ queue: queue.map((item) => item.id), currentTrackId: track.id, positionMs: 0, playing: true })
     } else player.playTrack(track, queue)
@@ -114,10 +192,39 @@ export default function App() {
   }, [player, room])
 
   useEffect(() => {
-    const onEnded = () => skipPlayback(1)
+    if (room.roomId || !player.current || player.index < player.queue.length - 1) return
+    if (!player.duration || player.duration - player.position > 20 || autoPrefetched.current === player.current.id) return
+    autoPrefetched.current = player.current.id
+    const seedId = player.current.id
+    void loadSimilar(player.current).then((response) => {
+      if (!response || room.roomId || activeTrackId.current !== seedId) return
+      const additions = mergeSimilarQueue(player.queue, response.items, recentTrackIds(sessionRecent.current, player.current?.id))
+      player.appendTracks(additions)
+    })
+  }, [loadSimilar, player, room.roomId])
+
+  useEffect(() => {
+    const onEnded = () => {
+      if (room.roomId) { skipPlayback(1); return }
+      if (player.index < player.queue.length - 1) { player.next(); return }
+      if (!player.current) return
+      rememberPlayed(player.current.id)
+      const seedId = player.current.id
+      void loadSimilar(player.current, true).then((response) => {
+        if (!response || room.roomId || activeTrackId.current !== seedId) return
+        const additions = mergeSimilarQueue(player.queue, response.items, recentTrackIds(sessionRecent.current, player.current?.id))
+        player.continueWith(additions)
+      })
+    }
     player.audio.addEventListener('ended', onEnded)
     return () => player.audio.removeEventListener('ended', onEnded)
-  }, [player.audio, skipPlayback])
+  }, [loadSimilar, player, rememberPlayed, room.roomId, skipPlayback])
+
+  useEffect(() => {
+    autoPrefetched.current = null
+    if (!room.roomId && player.current) rememberPlayed(player.current.id)
+    if (player.current?.analysis?.status === 'completed') void loadSimilar(player.current)
+  }, [player.current?.id, room.roomId])
 
   const toggleFavorite = async (track: Track) => {
     const favorite = !favorites.some((item) => item.id === track.id)
@@ -125,19 +232,38 @@ export default function App() {
     await refresh()
   }
 
+  const analyzeCurrent = async () => {
+    if (!player.current) return
+    const original = player.current
+    if (original.id.toLowerCase().startsWith('online-')) {
+      setNotice('在线临时歌曲需先下载入 NAS 曲库，再进行音乐画像分析')
+      return
+    }
+    const queued: Track = { ...original, analysis: { ...original.analysis, status: 'queued', progress: .05, message: '等待分析' } }
+    updateKnownTrack(queued)
+    try {
+      await api.analyze([original.id], false)
+      setNotice(`《${original.title}》已加入分析队列`)
+      pollTrackAnalysis(original.id)
+    } catch (error) {
+      updateKnownTrack(original)
+      setNotice(readError(error))
+    }
+  }
+
   const title = navItems.find((item) => item.id === section)?.label ?? '设置'
+  const currentSimilar = player.current ? similarByTrack[player.current.id] ?? null : null
 
   return (
     <div className={`app-shell ${queueOpen ? '' : 'queue-closed'}`}>
-      <aside className="sidebar" aria-label="主导航">
-        <Brand />
-        <nav className="nav-list">
-          {navItems.map((item) => <NavButton key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}
-        </nav>
-        <button className="nav-settings" onClick={() => navigate('settings')} aria-current={section === 'settings' ? 'page' : undefined}>
-          <Icon name="settings" /><span>设置</span>
-        </button>
-      </aside>
+      <DesktopShell active={section} onNavigate={navigate} queueOpen={queueOpen} queue={<>
+        <div className="panel-tabs" role="tablist" aria-label="播放侧栏"><button role="tab" aria-selected={queueTab === 'queue'} className={queueTab === 'queue' ? 'active' : ''} onClick={() => setQueueTab('queue')}>队列 <span>{player.queue.length}</span></button><button role="tab" aria-selected={queueTab === 'similar'} className={queueTab === 'similar' ? 'active' : ''} onClick={() => { setQueueTab('similar'); if (player.current) void loadSimilar(player.current) }}>相似</button></div>
+        {queueTab === 'queue' ? player.queue.length ? player.queue.map((track, index) => (
+          <button key={`${track.id}-${index}`} className={`queue-item ${index === player.index ? 'active' : ''}`} onClick={() => play(track, player.queue)}>
+            <span className="queue-number">{index === player.index && player.playing ? '▶' : index + 1}</span><AlbumArt title={track.title} artworkUrl={track.artworkUrl} small /><span><strong>{track.title}</strong><small>{track.artist}</small></span>
+          </button>
+        )) : <EmptyState compact title="队列还是空的" body="从曲库或搜索结果中选择一首歌。" /> : currentSimilar?.items.length ? <div className="panel-similar-list">{currentSimilar.items.map((item) => <button key={item.track.id} onClick={() => play(item.track, currentSimilar.items.map((match) => match.track))}><RadarChart analysis={item.track.analysis} compact /><span><strong>{item.track.title}</strong><small>{item.track.artist}</small><AnalysisChips track={item.track} compact /></span><em>{item.similarityPercent}%</em></button>)}</div> : <EmptyState compact title={similarLoadingId ? '正在计算相似音乐' : '还没有相似推荐'} body="完成曲目分析后，会按节拍、调性和七维听感延续播放。" />}
+      </>} />
 
       <main className="main-content" id="main-content">
         <header className="topbar">
@@ -151,7 +277,7 @@ export default function App() {
         {notice && <div className="notice" role="status"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="关闭提示">×</button></div>}
         {loading ? <LoadingRows /> : (
           <div className="page-content">
-            {section === 'home' && <HomePage history={history} favorites={favorites} library={library} playlists={playlists} onPlay={play} onNavigate={navigate} />}
+            {section === 'home' && <HomePage history={history} favorites={favorites} library={library} libraryTotal={libraryTotal} playlists={playlists} similar={currentSimilar} current={player.current} onPlay={play} onNavigate={navigate} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} />}
             {section === 'search' && <SearchPage query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} favorites={favorites} onNotice={setNotice} />}
             {section === 'library' && <LibraryHub playlists={playlists} favorites={favorites} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onFavorite={toggleFavorite} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'local' && <LibraryPage libraries={libraries} initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onRefresh={refresh} onNotice={setNotice} />}
@@ -161,40 +287,31 @@ export default function App() {
         )}
       </main>
 
-      <aside id="play-queue" className={`queue-panel ${queueOpen ? '' : 'closed'}`} aria-label="播放队列">
-        <div className="panel-heading"><h2>接下来播放</h2><span>{player.queue.length} 首</span></div>
-        {player.queue.length ? player.queue.map((track, index) => (
-          <button key={`${track.id}-${index}`} className={`queue-item ${index === player.index ? 'active' : ''}`} onClick={() => play(track, player.queue)}>
-            <span className="queue-number">{index === player.index && player.playing ? '▶' : index + 1}</span>
-            <span><strong>{track.title}</strong><small>{track.artist}</small></span>
-          </button>
-        )) : <EmptyState compact title="队列还是空的" body="从曲库或搜索结果中选择一首歌。" />}
-      </aside>
-
       <PlayerBar player={player} room={room} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onOpen={() => setNowPlayingOpen(true)} />
-      <nav className="mobile-nav" aria-label="移动端主导航">
-        {navItems.map((item) => <NavButton key={item.id} item={item} active={section === item.id} onClick={() => navigate(item.id)} />)}
-      </nav>
-      {nowPlayingOpen && <NowPlaying player={player} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onClose={() => setNowPlayingOpen(false)} />}
+      <MobileShell active={section} onNavigate={navigate} />
+      {nowPlayingOpen && <NowPlaying player={player} favorite={Boolean(player.current && favorites.some((track) => track.id === player.current?.id))} similar={currentSimilar} similarLoading={similarLoadingId === player.current?.id} onFavorite={() => { if (player.current) void toggleFavorite(player.current) }} onToggle={togglePlayback} onPrevious={() => skipPlayback(-1)} onNext={() => skipPlayback(1)} onSeek={seekPlayback} onClose={() => setNowPlayingOpen(false)} onLoadSimilar={() => { if (player.current) void loadSimilar(player.current) }} onAnalyze={() => void analyzeCurrent()} onPlaySimilar={play} />}
     </div>
   )
 }
 
-function HomePage({ history, favorites, library, playlists, onPlay, onNavigate }: { history: HistoryEntry[]; favorites: Track[]; library: Track[]; playlists: PlaylistSummary[]; onPlay: (track: Track, queue: Track[]) => void; onNavigate: (section: Section) => void }) {
+function HomePage({ history, favorites, library, libraryTotal, playlists, current, similar, onPlay, onNavigate, onLoadSimilar }: { history: HistoryEntry[]; favorites: Track[]; library: Track[]; libraryTotal: number; playlists: PlaylistSummary[]; current: Track | null; similar: SimilarTracksResponse | null; onPlay: (track: Track, queue: Track[]) => void; onNavigate: (section: Section) => void; onLoadSimilar: () => void }) {
   const recent = history.slice(0, 8).map((entry) => entry.track)
+  const recommendations = similar?.items.map((item) => item.track) ?? library.filter((track) => track.analysis?.status === 'completed').slice(0, 10)
+  const recommendationBadges = new Map(similar?.items.map((item) => [item.track.id, `${item.similarityPercent}% 相似`]) ?? [])
   return <>
     <section className="home-greeting">
-      <div><h2>听点什么？</h2><p>{library.length} 首音乐已在家里的 NAS 上准备好</p></div>
+      <div><span className="section-kicker">SHiNe MUSIC</span><h2>听点什么？</h2><p>{libraryTotal} 首音乐已在家里的 NAS 上准备好</p></div>
       {library[0] && <button className="round-play" onClick={() => onPlay(library[0], library)} aria-label="播放 NAS 曲库"><Icon name="play" /></button>}
     </section>
-    <section><div className="section-heading"><div><h2>快速访问</h2><p>熟悉的位置，也连接着家里的音乐</p></div></div><div className="quick-grid">
-      <button onClick={() => onNavigate('local')}><span className="quick-art four-covers">{library.slice(0, 4).map((track) => <AlbumArt key={track.id} title={track.title} artworkUrl={track.artworkUrl} small />)}</span><strong>NAS 曲库</strong><small>{library.length} 首音乐</small></button>
+    <section className="content-rail"><div className="section-heading"><div><h2>快速访问</h2><p>熟悉的位置，也连接着家里的音乐</p></div></div><div className="quick-grid">
+      <button onClick={() => onNavigate('local')}><span className="quick-art four-covers">{library.slice(0, 4).map((track) => <AlbumArt key={track.id} title={track.title} artworkUrl={track.artworkUrl} small />)}</span><strong>NAS 曲库</strong><small>{libraryTotal} 首音乐</small></button>
       <button onClick={() => onNavigate('library')}><span className="quick-art liked"><Icon name="heart" /></span><strong>已点赞</strong><small>{favorites.length} 首音乐</small></button>
       <button onClick={() => onNavigate('library')}><span className="quick-art playlists"><Icon name="playlist" /></span><strong>播放列表</strong><small>{playlists.length} 个共享歌单</small></button>
       <button onClick={() => onNavigate('rooms')}><span className="quick-art room"><Icon name="room" /></span><strong>同步房间</strong><small>让多台音响一起播放</small></button>
     </div></section>
     <AlbumRow title="继续听" tracks={(recent.length ? recent : favorites).slice(0, 8)} onPlay={onPlay} />
-    <TrackSection title="最近播放" subtitle="家庭成员共同留下的播放记录" tracks={recent} favorites={favorites} onPlay={onPlay} />
+    <section className="content-rail"><div className="section-heading"><div><h2>相似推荐</h2><p>{current ? `延续《${current.title}》的节拍、调性与听感` : '播放一首已分析音乐后，从这里自然续播'}</p></div>{current && <button className="text-button" onClick={onLoadSimilar}><Icon name="sparkles" />重新计算</button>}</div><AlbumRow title="" tracks={recommendations} badges={recommendationBadges} onPlay={onPlay} />{!recommendations.length && <EmptyState compact title="等待音乐画像" body="NAS 完成曲目分析后，相似推荐会出现在这里。" />}</section>
+    <AlbumRow title="最近播放" tracks={recent} onPlay={onPlay} />
   </>
 }
 
@@ -204,6 +321,7 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
 }) {
   const [searching, setSearching] = useState(false)
   const [source, setSource] = useState('all')
+  const [mode, setMode] = useState<'online' | 'advanced'>('online')
   const search = async (event: FormEvent) => {
     event.preventDefault()
     if (!query.trim()) return
@@ -214,12 +332,13 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
     try { await api.download(track); onNotice(`《${track.title}》已加入 NAS 下载队列`) } catch (error) { onNotice(readError(error)) }
   }
   return <>
-    <form className="search-box" onSubmit={search} role="search">
+    <div className="search-mode-tabs" role="tablist" aria-label="搜索方式"><button role="tab" aria-selected={mode === 'online'} className={mode === 'online' ? 'active' : ''} onClick={() => setMode('online')}><Icon name="search" />在线与曲库</button><button role="tab" aria-selected={mode === 'advanced'} className={mode === 'advanced' ? 'active' : ''} onClick={() => setMode('advanced')}><Icon name="radar" />高级听感</button></div>
+    {mode === 'advanced' ? <AdvancedSearchPanel favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} onNotice={onNotice} /> : <><form className="search-box" onSubmit={search} role="search">
       <Icon name="search" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索歌曲、歌手或专辑" aria-label="在线搜索" />
       <button className="primary-button" disabled={searching}>{searching ? '搜索中…' : '搜索'}</button>
     </form>
     <div className="source-chips" role="group" aria-label="搜索音源">{[['all', '聚合'], ['netease', '网易云'], ['qq', 'QQ'], ['kugou', '酷狗'], ['kuwo', '酷我']].map(([value, label]) => <button key={value} className={source === value ? 'active' : ''} aria-pressed={source === value} onClick={() => setSource(value)}>{label}</button>)}</div>
-    {results.length ? <TrackList tracks={results} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} trailingAction={(track) => <button className="icon-button" onClick={() => void download(track)} title="下载到 NAS"><Icon name="download" /></button>} /> : <EmptyState title="从五大音源开始搜索" body="搜索结果可以直接播放，也可以下载到 NAS 永久保存。" />}
+    {results.length ? <TrackList tracks={results} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} trailingAction={(track) => <button className="icon-button" onClick={() => void download(track)} title="下载到 NAS"><Icon name="download" /></button>} /> : <EmptyState title="从五大音源开始搜索" body="搜索结果可以直接播放，也可以下载到 NAS 永久保存。" />}</>}
   </>
 }
 
@@ -374,7 +493,7 @@ function RoomsPage({ rooms, room, onRefresh, onNotice }: { rooms: RoomSummary[];
     <section className="room-intro"><div><h2>让不同设备连接的音响一起播放</h2><p>同步由 Sendspin 负责。每台设备需主动加入并启用声音，蓝牙链路可用静态延迟校准。</p></div><span className="latency-readout">同步误差 {Math.round(room.serverOffset)} ms</span></section>
     <form className="inline-create" onSubmit={create}><input value={name} onChange={(event) => setName(event.target.value)} aria-label="房间名称" /><button className="primary-button">创建并加入</button></form>
     <div className="room-list">{rooms.map((item) => <div key={item.id} className={`room-row ${room.roomId === item.id ? 'active' : ''}`}><span className="speaker-glyph"><Icon name="speaker" /></span><div><strong>{item.name}</strong><small>{item.memberCount} 台设备在线</small></div><span className="room-actions">{room.roomId === item.id ? <button className="secondary-button" onClick={room.leave}>离开</button> : <button className="primary-button" onClick={() => void join(item.id)}>加入并启用声音</button>}<button className="icon-button danger-button" onClick={() => void remove(item)} aria-label={`删除房间 ${item.name}`} title="删除房间"><Icon name="trash" /></button></span></div>)}</div>
-    <label className="delay-control"><span>本设备输出延迟补偿 <b>{room.deviceDelay} ms</b></span><input type="range" min="0" max="5000" step="10" value={room.deviceDelay} onChange={(event) => room.setDeviceDelay(Number(event.target.value))} /></label>
+    <details className="delay-calibration"><summary>音响固定延迟校准（高级）</summary><p>Sendspin 已自动动态校准网络与浏览器时钟；这里只补偿蓝牙音响或外接声卡自身的固定缓冲，通常保持 0 ms。</p><label className="delay-control"><span>固定输出补偿 <b>{room.deviceDelay} ms</b></span><input type="range" min="0" max="5000" step="10" value={room.deviceDelay} onChange={(event) => room.setDeviceDelay(Number(event.target.value))} /></label></details>
   </>
 }
 
@@ -427,66 +546,6 @@ function LibraryEditor({ library, onRefresh, onNotice }: { library: MusicLibrary
 
 function libraryStatusLabel(status: MusicLibrary['status']) { return ({ online: '已连接', offline: '设备离线', disabled: '已停用', unknown: '待扫描' })[status] }
 
-function TrackSection({ title, subtitle, tracks, favorites, onPlay, onFavorite }: { title: string; subtitle: string; tracks: Track[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void }) {
-  return <section className="track-section"><div className="section-heading"><div><h2>{title}</h2><p>{subtitle}</p></div>{tracks.length > 0 && <button className="round-play" onClick={() => onPlay(tracks[0], tracks)} aria-label={`播放${title}`}><Icon name="play" /></button>}</div>{tracks.length ? <TrackList tracks={tracks} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} /> : <EmptyState title="这里还没有音乐" body="扫描 NAS、在线下载或继续收藏后会显示在这里。" />}</section>
-}
-
-function TrackList({ tracks, favorites, onPlay, onFavorite, trailingAction, selectedIds, onSelection, sort, onSort, virtualized = false }: { tracks: Track[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void; trailingAction?: (track: Track) => React.ReactNode; selectedIds?: string[]; onSelection?: (ids: string[]) => void; sort?: 'title' | 'artist' | 'album'; onSort?: (value: 'title' | 'artist' | 'album') => void; virtualized?: boolean }) {
-  const selectable = Boolean(onSelection && selectedIds)
-  const favoriteIds = useMemo(() => new Set(favorites.map((track) => track.id)), [favorites])
-  const viewport = useRef<HTMLDivElement>(null)
-  const [scrollTop, setScrollTop] = useState(0)
-  const [viewportHeight, setViewportHeight] = useState(620)
-  const toggle = (id: string) => onSelection?.(selectedIds?.includes(id) ? selectedIds.filter((value) => value !== id) : [...(selectedIds ?? []), id])
-  useEffect(() => {
-    if (!virtualized || !viewport.current) return
-    const element = viewport.current
-    const observer = new ResizeObserver(() => setViewportHeight(element.clientHeight))
-    observer.observe(element)
-    setViewportHeight(element.clientHeight)
-    return () => observer.disconnect()
-  }, [virtualized])
-  const range = visibleTrackRange(scrollTop, viewportHeight, TRACK_ROW_HEIGHT, tracks.length)
-  const row = (track: Track, index: number, positioned = false) => <TrackRow
-    key={track.id}
-    track={track}
-    index={index}
-    tracks={tracks}
-    favorite={favoriteIds.has(track.id)}
-    selectable={selectable}
-    selected={selectedIds?.includes(track.id) ?? false}
-    onToggle={toggle}
-    onPlay={onPlay}
-    onFavorite={onFavorite}
-    trailingAction={trailingAction}
-    positioned={positioned}
-  />
-  return <div className={`track-list ${virtualized ? 'virtualized' : ''}`} role="list"><div className="track-header"><span>{selectable ? <label className="track-select"><input type="checkbox" aria-label="全选当前曲目" checked={selectedIds?.length === tracks.length && tracks.length > 0} onChange={(event) => onSelection?.(event.target.checked ? tracks.map((track) => track.id) : [])} /></label> : '#'}</span><button disabled={!onSort} onClick={() => onSort?.(sort === 'title' ? 'artist' : 'title')}>标题 / 歌手{sort === 'title' ? ' ↑' : sort === 'artist' ? ' ↓' : ''}</button><button disabled={!onSort} onClick={() => onSort?.('album')}>专辑{sort === 'album' ? ' ↑' : ''}</button><span>时长</span><span /></div>{virtualized ? <div className="track-viewport" ref={viewport} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}><div className="track-virtual-space" style={{ height: tracks.length * TRACK_ROW_HEIGHT }}>{tracks.slice(range.start, range.end).map((track, offset) => row(track, range.start + offset, true))}</div></div> : tracks.map((track, index) => row(track, index))}</div>
-}
-
-function TrackRow({ track, index, tracks, favorite, selectable, selected, onToggle, onPlay, onFavorite, trailingAction, positioned }: { track: Track; index: number; tracks: Track[]; favorite: boolean; selectable: boolean; selected: boolean; onToggle: (id: string) => void; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void; trailingAction?: (track: Track) => React.ReactNode; positioned: boolean }) {
-  return <div className={`track-row ${positioned ? 'positioned' : ''}`} style={positioned ? { transform: `translateY(${index * TRACK_ROW_HEIGHT}px)` } : undefined} role="listitem">{selectable ? <label className="track-select"><input type="checkbox" checked={selected} onChange={() => onToggle(track.id)} aria-label={`选择 ${track.title}`} /></label> : <button className="track-play" onClick={() => onPlay(track, tracks)} aria-label={`播放 ${track.title}`}>{index + 1}<span className="hover-play">▶</span></button>}<button className="track-identity" onClick={() => onPlay(track, tracks)} aria-label={`播放 ${track.title}`}><AlbumArt title={track.title} artworkUrl={track.artworkUrl} small /><span><strong>{track.title}</strong><small>{track.artist}</small></span></button><span className="track-album">{track.album || track.source || '本地音乐'}</span><span className="track-duration">{formatTime(track.durationMs / 1000)}</span><span className="track-actions">{onFavorite && <button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={() => onFavorite(track)} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button>}{trailingAction?.(track)}</span></div>
-}
-
-function AlbumRow({ title, tracks, onPlay }: { title: string; tracks: Track[]; onPlay: (track: Track, queue: Track[]) => void }) {
-  if (!tracks.length) return null
-  return <section><div className="section-heading"><h2>{title}</h2></div><div className="album-row">{tracks.map((track) => <button key={track.id} className="album-item" onClick={() => onPlay(track, tracks)}><AlbumArt title={track.title} artworkUrl={track.artworkUrl} /><strong>{track.title}</strong><span>{track.artist}</span></button>)}</div></section>
-}
-
-function PlayerBar({ player, room, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onOpen }: { player: ReturnType<typeof usePlayer>; room: ReturnType<typeof useRoomSync>; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onOpen: () => void }) {
-  const swipeStart = useRef<number | null>(null)
-  const swiped = useRef(false)
-  const finishSwipe = (x: number) => {
-    if (swipeStart.current === null) return
-    const action = swipeAction(swipeStart.current, x)
-    swipeStart.current = null
-    swiped.current = Boolean(action)
-    if (action === 'next') onNext()
-    if (action === 'previous') onPrevious()
-  }
-  return <footer className={`player-bar ${player.current ? 'has-track' : ''}`}><button className="player-track" onPointerDown={(event) => { swipeStart.current = event.clientX; swiped.current = false }} onPointerUp={(event) => finishSwipe(event.clientX)} onPointerCancel={() => { swipeStart.current = null }} onClick={() => { if (swiped.current) { swiped.current = false; return }; onOpen() }} disabled={!player.current} title="点击展开，左右滑动切歌"><AlbumArt title={player.current?.title ?? 'SHiNe'} artworkUrl={player.current?.artworkUrl} small /><span><strong>{player.current?.title ?? '选择一首歌开始播放'}</strong><small>{player.current?.artist ?? 'SHiNe MUSIC'}</small></span></button><div className="mobile-player-actions"><button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={onFavorite} disabled={!player.current} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button></div><div className="player-center"><div className="transport"><button className="icon-button" onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle} disabled={!player.current} aria-label={player.playing ? '暂停' : '播放'}><Icon name={player.playing ? 'pause' : 'play'} /></button><button className="icon-button" onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div><div className="progress-row"><span>{formatTime(player.position)}</span><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} step="0.1" value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.duration)}</span></div></div><div className="player-extras"><span className={`room-pill ${room.status}`}>{roomPlayerLabel(room)}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div></footer>
-}
-
 function roomConnectionLabel(room: ReturnType<typeof useRoomSync>) {
   if (!room.roomId) return '独立播放'
   if (room.status === 'joined') return `${room.members} 台设备同步中`
@@ -494,36 +553,15 @@ function roomConnectionLabel(room: ReturnType<typeof useRoomSync>) {
   return room.status === 'reconnecting' ? 'Sendspin 正在重连' : 'Sendspin 连接异常'
 }
 
-function roomPlayerLabel(room: ReturnType<typeof useRoomSync>) {
-  if (!room.roomId) return '本机'
-  if (room.status === 'joined') return `${room.members} 台同步`
-  if (room.status === 'connecting') return '连接中'
-  return room.status === 'reconnecting' ? '重连中' : '同步异常'
+function LoadingRows() {
+  return <div className="loading-rows" aria-label="加载中">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
 }
 
-function NowPlaying({ player, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onClose }: { player: ReturnType<typeof usePlayer>; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onClose: () => void }) {
-  const swipeStart = useRef<number | null>(null)
-  const finishSwipe = (x: number) => {
-    if (swipeStart.current === null) return
-    const action = swipeAction(swipeStart.current, x)
-    swipeStart.current = null
-    if (action === 'next') onNext()
-    if (action === 'previous') onPrevious()
-  }
-  return <div className="now-playing" role="dialog" aria-modal="true" aria-label="正在播放"><button className="close-now-playing" onClick={onClose} aria-label="关闭">⌄</button><div className="now-heading"><strong>正在播放</strong><span>{player.current?.album || 'NAS 音乐'}</span></div><div className="now-cover-swipe" onPointerDown={(event) => { swipeStart.current = event.clientX }} onPointerUp={(event) => finishSwipe(event.clientX)} onPointerCancel={() => { swipeStart.current = null }}><AlbumArt title={player.current?.title ?? 'SHiNe'} artworkUrl={player.current?.artworkUrl} hero /></div><div className="now-meta"><span><h2>{player.current?.title}</h2><p>{player.current?.artist}</p></span><button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={onFavorite} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button></div><div className="now-progress"><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} value={player.position} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.position)}</span><span>{formatTime(player.duration)}</span></div><div className="now-controls"><button onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle}><Icon name={player.playing ? 'pause' : 'play'} /><span>{player.playing ? '暂停' : '播放'}</span></button><button onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div></div>
+function StatusBadge({ status }: { status: string }) {
+  const labels: Record<string, string> = { queued: '等待中', downloading: '下载中', completed: '已完成', failed: '失败' }
+  return <span className={`status-badge ${status}`}>{labels[status] ?? status}</span>
 }
 
-function NavButton({ item, active, onClick }: { item: { id: Section; label: string; icon: IconName }; active: boolean; onClick: () => void }) { return <button className={`nav-button ${active ? 'active' : ''}`} onClick={onClick} aria-current={active ? 'page' : undefined}><Icon name={item.icon} /><span>{item.label}</span></button> }
-function Brand() { return <div className="brand"><span className="brand-icon">♪</span><span><strong>SHiNe</strong><small>家庭音乐</small></span></div> }
-function AlbumArt({ title, artworkUrl, small, hero }: { title: string; artworkUrl?: string | null; small?: boolean; hero?: boolean }) { return <span className={`album-art ${small ? 'small' : ''} ${hero ? 'hero' : ''}`} aria-hidden="true">{artworkUrl && <img src={artworkUrl} alt="" onError={(event) => event.currentTarget.remove()} />}<span>♪</span><i>{title.slice(0, 1).toUpperCase()}</i></span> }
-function EmptyState({ title, body, compact }: { title: string; body: string; compact?: boolean }) { return <div className={`empty-state ${compact ? 'compact' : ''}`}><span>♫</span><strong>{title}</strong><p>{body}</p></div> }
-function LoadingRows() { return <div className="loading-rows" aria-label="加载中">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div> }
-function StatusBadge({ status }: { status: string }) { const labels: Record<string, string> = { queued: '等待中', downloading: '下载中', completed: '已完成', failed: '失败' }; return <span className={`status-badge ${status}`}>{labels[status] ?? status}</span> }
-function formatTime(seconds: number) { if (!Number.isFinite(seconds) || seconds < 0) return '0:00'; return `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}` }
-function readError(error: unknown) { return error instanceof Error ? error.message : '操作失败，请稍后重试' }
-
-type IconName = 'home' | 'search' | 'library' | 'storage' | 'heart' | 'playlist' | 'room' | 'settings' | 'play' | 'pause' | 'previous' | 'next' | 'volume' | 'refresh' | 'download' | 'speaker' | 'trash'
-const paths: Record<IconName, string> = {
-  home: 'M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z', search: 'm21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z', library: 'M4 5h4v14H4zm6-2h4v16h-4zm6 5h4v11h-4z', storage: 'M4 5h16v14H4zM8 9h8m-8 4h8m-8 4h5', heart: 'M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.8l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.5a5.5 5.5 0 0 0 0-7.8Z', playlist: 'M4 6h11M4 11h11M4 16h7m7-3v8m-4-4h8', room: 'M4 14a8 8 0 0 1 16 0m-12 0a4 4 0 0 1 8 0m-4 0v.01', settings: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5 2-1.2-2-3.5-2.2.7a8 8 0 0 0-1.2-.7l-.5-2.3h-4l-.5 2.3a8 8 0 0 0-1.2.7l-2.2-.7-2 3.5 2 1.2v1.4l-2 1.2 2 3.5 2.2-.7 1.2.7.5 2.3h4l.5-2.3 1.2-.7 2.2.7 2-3.5-2-1.2z', play: 'm9 7 9 5-9 5z', pause: 'M8 6h3v12H8zm5 0h3v12h-3z', previous: 'M7 6h2v12H7zm3 6 8-6v12z', next: 'M15 6h2v12h-2zm-1 6-8 6V6z', volume: 'M4 10v4h4l5 4V6l-5 4zm12-1a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10', refresh: 'M20 7v5h-5m4-1a7 7 0 1 0 0 4', download: 'M12 3v12m-5-5 5 5 5-5M5 20h14', speaker: 'M5 9h4l5-4v14l-5-4H5zm12 1a3 3 0 0 1 0 4m2-7a7 7 0 0 1 0 10', trash: 'M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6',
+function readError(error: unknown) {
+  return error instanceof Error ? error.message : '操作失败，请稍后重试'
 }
-function Icon({ name }: { name: IconName }) { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={paths[name]} /></svg> }

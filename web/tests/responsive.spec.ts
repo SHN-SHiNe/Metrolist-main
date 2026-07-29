@@ -10,8 +10,9 @@ test('app shell exposes navigation and playback controls', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '首页' })).toBeVisible()
   await expect(page.locator('nav:visible').first()).toBeVisible()
   await expect(page.getByText('选择一首歌开始播放')).toBeVisible()
-  await expect(page.locator('.mobile-nav .nav-button')).toHaveCount(5)
-  await expect(page.locator('.mobile-nav')).toContainText('首页搜索音乐库本地同步')
+  await expect(page.locator('.mobile-nav .nav-button')).toHaveCount(4)
+  await expect(page.locator('.mobile-nav')).toContainText('首页搜索音乐库本地')
+  await expect(page.locator('.mobile-nav')).not.toContainText('同步')
 })
 
 test('large library loads pages while keeping the rendered row count bounded', async ({ page }) => {
@@ -135,4 +136,85 @@ test('a visitor can delete a shared sync room', async ({ page }) => {
   await page.getByRole('button', { name: '删除房间 临时房间' }).click()
   await expect(page.getByText('临时房间')).not.toBeVisible()
   await expect(page.getByText('同步房间已删除')).toBeVisible()
+})
+
+test('current track analysis updates the player without a page refresh', async ({ page }) => {
+  const pending = { id: 'track-analysis', title: '等待分析', artist: 'SHiNe', album: '家庭精选', durationMs: 180000, analysis: { status: 'pending', progress: 0 } }
+  const completed = { ...pending, analysis: { status: 'completed', progress: 1, bpm: 120, keyName: 'Am', camelot: '8A', valence: .6, energy: .7, danceability: .5, acousticness: .3, instrumentalness: .2, liveness: .1, speechiness: .08 } }
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = []
+    if (url.pathname === '/api/library') body = { items: [pending], total: 1, offset: 0, limit: 200, revision: 1 }
+    else if (url.pathname === '/api/tracks') body = [completed]
+    else if (url.pathname === '/api/analysis' && route.request().method() === 'POST') body = { queued: 1, draining: false }
+    else if (url.pathname.endsWith('/similar')) body = { seed: completed, items: [] }
+    else if (url.pathname === '/api/libraries') body = []
+    else if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#local')
+  await page.getByRole('button', { name: '播放 等待分析' }).click()
+  const trigger = page.locator('.player-track')
+  await trigger.click()
+  await expect(page.getByRole('button', { name: '关闭' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: '正在播放' })).toBeHidden()
+  await expect(trigger).toBeFocused()
+  await trigger.click()
+  await page.getByRole('tab', { name: '音乐画像' }).click()
+  await page.getByRole('button', { name: '分析这首歌' }).click()
+  await expect(page.getByText('120 BPM')).toBeVisible()
+  await expect(page.getByText('8A')).toBeVisible()
+})
+
+test('advanced analysis summary polls and reports the enqueue response', async ({ page }) => {
+  let summaryRequests = 0
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = []
+    if (url.pathname === '/api/library') body = { items: [], total: 0, offset: 0, limit: 200, revision: 1 }
+    else if (url.pathname === '/api/libraries') body = []
+    else if (url.pathname === '/api/analysis' && route.request().method() === 'POST') body = { queued: 7, draining: false }
+    else if (url.pathname === '/api/analysis') {
+      summaryRequests++
+      body = summaryRequests <= 2
+        ? { available: true, implementation: 'vibenet', total: 8, pending: 8, queued: 0, running: 0, completed: 0, failed: 0 }
+        : { available: true, implementation: 'vibenet', total: 8, pending: 0, queued: 0, running: 0, completed: 8, failed: 0 }
+    }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#search')
+  await page.getByRole('tab', { name: '高级听感' }).click()
+  await expect(page.locator('.analysis-progress strong')).toHaveText('8', { timeout: 7000 })
+  expect(summaryRequests).toBeGreaterThanOrEqual(2)
+  await page.getByRole('button', { name: '分析缺失曲目' }).click()
+  await expect(page.getByText('7 首曲目已加入分析队列')).toBeVisible()
+})
+
+test('online preview asks for download and never enters the NAS analysis queue', async ({ page }) => {
+  const online = { id: 'online-demo-1', title: '云端试听', artist: '在线音源', album: '搜索结果', durationMs: 180000, source: 'netease', analysis: { status: 'pending', progress: 0 } }
+  let analysisPosts = 0
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = []
+    if (url.pathname === '/api/library') body = { items: [], total: 0, offset: 0, limit: 200, revision: 1 }
+    else if (url.pathname === '/api/search') body = { items: [online], total: 1, page: 1, limit: 50 }
+    else if (url.pathname === '/api/libraries') body = []
+    else if (url.pathname === '/api/analysis' && route.request().method() === 'POST') { analysisPosts++; body = { queued: 0, draining: false } }
+    else if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#search')
+  await page.getByLabel('在线搜索').fill('云端试听')
+  await page.locator('.search-box').getByRole('button', { name: '搜索', exact: true }).click()
+  await page.locator('.track-identity').filter({ hasText: '云端试听' }).click()
+  await page.locator('.player-track').click()
+  await page.getByRole('tab', { name: '音乐画像' }).click()
+  await page.getByRole('button', { name: '先下载入库后分析' }).click()
+  await expect(page.getByText('在线临时歌曲需先下载入 NAS 曲库，再进行音乐画像分析')).toBeVisible()
+  expect(analysisPosts).toBe(0)
+  await page.keyboard.press('Escape')
+  await page.evaluate(() => { location.hash = 'local' })
+  await expect(page.getByRole('heading', { name: '本地' })).toBeVisible()
+  expect(await page.locator('.track-list').textContent()).not.toContain('云端试听')
 })
