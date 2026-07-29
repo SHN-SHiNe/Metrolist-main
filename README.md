@@ -1,136 +1,105 @@
 <div align="center">
 
-<img src="./SHiNe.png" alt="SHiNe MUSIC" width="180" />
+<img src="./SHiNe.png" alt="SHiNe MUSIC" width="160" />
 
 # SHiNe MUSIC
 
-Android 音乐播放器 | 完美适配落雪音乐六音源
+家庭 NAS 上的共享音乐服务
 
 </div>
 
----
+SHiNe MUSIC 现在由 NAS 统一管理曲库、在线搜索、下载、收藏、歌单、历史和同步播放房间。手机、平板与电脑无需安装 APK，连接家庭局域网后打开 `http://NAS-IP:8767` 即可使用。
 
-## 关于本项目
+## 当前形态
 
-SHiNe MUSIC 是基于 [Metrolist](https://github.com/MetrolistGroup/Metrolist) 深度定制的 Android 音乐播放器。
+- Kotlin/JVM 21 + Ktor 单实例服务，SQLite/WAL 持久化共享数据。
+- React + TypeScript 响应式 Web：手机端底部导航与全屏播放，PC 端左侧导航、内容区、右侧队列和底部播放器。
+- NAS 本地曲库扫描、HTTP Range 流媒体、在线歌曲直放与后台下载入库。
+- 共享收藏、歌单与历史；访客免登录，因此局域网内所有用户均有修改权限。
+- 多个命名同步房间，通过 WebSocket、NAS 时钟偏移估算、预定起播与设备延迟补偿实现听感同步。
+- 浅色、深色、纯黑主题，键盘焦点、44px 触控目标和减少动态效果支持。
 
-本项目**继承并改造了 Metrolist 的前端 UI 和整体架构**，在此基础上将后端完全重写，使其全面适配国内音乐平台。**核心目标是打造一款完美支持洛雪音乐（LX Music）六音源的 Android 客户端**，让移动端用户也能享受洛雪音乐带来的多平台音乐体验。
+产品边界与视觉规则分别见 [PRODUCT.md](./PRODUCT.md) 和 [DESIGN.md](./DESIGN.md)。
 
-与原始的 SHiNe MUSIC 客户端完全不同，SHiNe MUSIC 已彻底剥离所有 SHiNe 相关功能，专注于国内音乐生态。
+## 在 NAS 上部署
 
----
+要求 NAS 已安装 Docker Compose，音乐目录和数据目录对容器 UID/GID `1000:1000` 可读写。下载入库和移入回收区需要音乐目录写权限。
 
-## 完全适配洛雪音乐六音源
+```bash
+cp .env.example .env
+# 编辑 .env，将三个 SHINE_*_PATH 改成 NAS 上的绝对路径
+docker compose up -d --build
+docker compose ps
+curl http://127.0.0.1:8767/api/health
+```
 
-SHiNe MUSIC **已完全适配洛雪音乐（LX Music）的六大音乐平台**，支持以下音乐源：
+家庭 NAS 的目标入口为：
 
-| 平台 | 说明 |
-|------|------|
-| **酷狗音乐** | 49 个榜单（TOP500、飙升榜、抖音热歌榜、Billboard 等） |
-| **酷我音乐** | 43 个榜单（飙升榜、新歌榜、热歌榜、iTunes、SHiNe 等） |
-| **网易云音乐** | 41 个榜单（飙升榜、新歌榜、原创榜、ACG、韩语、俄语等） |
-| **QQ 音乐** | 25 个榜单（流行指数榜、热歌榜、新歌榜、说唱榜、电音榜等） |
-| **咪咕音乐** | 22 个榜单（新歌榜、热歌榜、港台榜、内地榜、Billboard、Melon 等） |
-| **聚合模式** | 同时搜索全部 5 个平台，自动去重合并结果 |
+```text
+http://192.168.31.142:8767
+```
 
-### 音乐源获取方式
+首次启动会扫描音乐目录。数据库、配置、回收区与每日备份位于 `SHINE_DATA_PATH`；下载临时文件与封面缓存位于 `SHINE_CACHE_PATH`。删除音乐时先移动至 `data/trash`，默认保留 30 天。
 
-软件已完美兼容洛雪音乐源格式，获取音乐源请访问：
+### 环境变量
 
-> **https://github.com/guoyue2010/lxmusic-/tree/main**
+| 变量 | 默认值 | 用途 |
+|---|---:|---|
+| `SHINE_HOST_PORT` | `8767` | NAS 对外端口 |
+| `SHINE_DATA_PATH` | `./nas-data` | SQLite、配置、备份与回收区 |
+| `SHINE_MUSIC_PATH` | `./nas-music` | 音乐文件目录 |
+| `SHINE_CACHE_PATH` | `./nas-cache` | 封面、下载临时文件与缓存 |
+| `SHINE_TRASH_RETENTION_DAYS` | `30` | 回收区保留天数 |
+| `SHINE_SCAN_ON_START` | `true` | 启动时是否增量扫描 |
+| `SHINE_LOG_LEVEL` | `INFO` | 服务日志级别 |
 
-在应用内 **设置 → 音乐源管理** 中配置：
+镜像定义支持 `linux/amd64` 和 `linux/arm64`。服务端同时托管构建后的 Web 静态资源，因此运行时只有一个容器和一个端口。
 
-- **URL 导入**：粘贴洛雪音乐源 JS 脚本链接，自动提取配置
-- **文件导入**：选择本地洛雪音乐 `.js` 源文件，自动解析
-- **手动输入**：填写 API 地址和密钥
+## 使用说明
 
-一行代码、一个链接即可完成配置，享受洛雪六音源的全部内容。
+独立播放状态保存在当前浏览器。收藏、歌单和历史会立即写入 NAS，并对所有访客可见。
 
----
+进入同步房间后，每台设备仍须点击“加入并启用声音”，浏览器不会在页面打开时自动发声。蓝牙、声卡与音响 DSP 的缓冲差异可通过每设备延迟补偿校准；这属于听感同步，不是专业多房间系统的样本级同步。
 
-## 功能
+当前 HTTP 局域网入口按普通 Web 验收。Manifest 和图标已经提供，但完整 PWA 安装、Service Worker、离线能力以及网页选择音频输出设备，需要未来配置受信任 HTTPS 后再启用。
 
-### 播放
-- 多音质选择（标准 / 高品质 / 极高品质）
-- 变速播放（速度与音调调节）
-- 定时关闭（支持淡出、当前歌曲播完后停止、定时重复）
-- 音乐闹钟
-- 断点续播（队列持久化，重启不丢失）
-- 蓝牙连接自动续播
+## API
 
-### 音效
-- 10+ 段参数均衡器
-- AutoEQ 耳机预设（从 GitHub 自动匹配你的耳机型号）
-- EQ 配置文件保存/管理
-- 音量归一化
+主要接口位于：
 
-### 歌词
-- 7+ 歌词源（LrcLib、BetterLyrics、酷狗、网易云等）
-- 时间同步滚动歌词
-- AI 歌词翻译（DeepL、Mistral、OpenRouter，支持流式输出）
-- 歌词罗马音标注（日语、韩语、中文等多语言支持）
-- 歌词手动微调同步
+- `/api/library`、`/api/search`、`/api/media/{trackId}/stream`
+- `/api/playlists`、`/api/favorites`、`/api/history`
+- `/api/downloads`、`/api/scans`、`/api/settings/sources`
+- `/api/rooms`、`/ws/rooms/{roomId}`、`/api/health`
 
-### 下载
-- 多音质离线下载
-- 自定义下载目录
-- 内嵌元数据和封面
-- 下载到真实本地文件后自动纳入本地音乐库
+音源密钥只保存在服务端，读取配置时返回脱敏值。流媒体支持 Range 请求、正确 Content-Type 和缓存头。
 
-### 音乐分析与智能推荐
-- 本机端音乐分析：自动提取 BPM、调性和 7 维情绪向量（愉悦度、能量、律动、原声、器乐、现场感、人声）
-- MP3 标签写入：将 BPM、Key 和情绪值写回文件标签，重新扫描也能恢复分析数据
-- 高级本地搜索：按 BPM 误差、Camelot 五度循环调性、7 维情绪滑条或雷达图精准筛选
-- 情绪雷达图：播放器封面、本地音乐卡片、相似推荐和高级筛选结果均可显示雷达图
-- 相似本地音乐：基于 BPM、调性和情绪向量匹配，并显示相似度、BPM 差值和 Key 差值
-- 推荐播放模式：播放本地音乐时可按相似度递归选择下一首，并带有随 BPM 呼吸的动态图标
-- 下载并分析：网络歌曲可一键下载到本地并分析，之后可参与本地相似推荐和高级筛选
+## 本地开发与测试
 
-### 数据统计
-- 详细听歌统计（多时间范围筛选）
-- 年度 Wrapped 报告（类似 Spotify Wrapped 的动画幻灯）
+Web 客户端：
 
-### 歌词评论
-- 酷狗 / 酷我 / QQ 音乐热门评论
+```bash
+cd web
+npm ci
+npm test
+npm run typecheck
+npm run build
+npm run e2e
+```
 
-### 集成
-- Discord Rich Presence（显示当前播放、自定义按钮）
-- Last.fm 记录
+服务端（需要 JDK 21 与 Gradle 9.4.1）：
 
----
+```bash
+gradle -p server test installDist
+server/build/install/shine-music-server/bin/shine-music-server
+```
 
-## 截图
+开发时可用 `npm run dev` 启动 Vite。生产构建必须先生成 `web/dist`，Gradle 会将其嵌入服务端发行包。
 
-<table>
-<tr>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_1.jpg" alt="截图 1" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_2.jpg" alt="截图 2" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_3.jpg" alt="截图 3" /></td>
-</tr>
-<tr>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_4.jpg" alt="截图 4" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_5.jpg" alt="截图 5" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_6.jpg" alt="截图 6" /></td>
-</tr>
-<tr>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_7.jpg" alt="截图 7" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_8.jpg" alt="截图 8" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_9.jpg" alt="截图 9" /></td>
-</tr>
-<tr>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_10.jpg" alt="截图 10" /></td>
-</tr>
-<tr>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_11.jpg" alt="高级筛选：五度循环调性" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_12.jpg" alt="高级筛选：七维情绪滑条" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_13.jpg" alt="高级筛选：情绪雷达图与结果" /></td>
-</tr>
-<tr>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_14.jpg" alt="相似本地音乐推荐" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_15.jpg" alt="播放器情绪雷达图" /></td>
-<td><img src="./fastlane/metadata/android/en-US/images/screenshots/screenshot_16.jpg" alt="下载并分析动画" /></td>
-</tr>
-</table>
+## Android 历史代码
 
-</div>
+原 Android/Compose App 保留为 `legacy` 参考，不再进入默认发布流程，也不会继续作为 NAS 客户端开发。旧工作流只能手动触发；现有 Android 数据库不会迁移到 NAS。
+
+## 安全边界
+
+这是为可信家庭局域网设计的免登录服务。所有访客都可以修改歌单、收藏、音源配置、发起下载，以及将音乐移入回收区。不要直接暴露到公网；若需要远程访问，应先增加身份认证、HTTPS 和访问控制。

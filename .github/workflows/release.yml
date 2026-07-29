@@ -1,10 +1,5 @@
-name: Bump to new version
+name: Legacy Android - Bump Version
 on:
-  push:
-    branches:
-      - "main"
-    paths:
-      - "app/build.gradle.kts"
   workflow_dispatch:
 
 jobs:

@@ -1,21 +1,6 @@
 plugins {
-    id("com.android.library")
+    id("org.jetbrains.kotlin.jvm")
     alias(libs.plugins.kotlin.serialization)
-}
-
-android {
-    namespace = "com.metrolist.chinamusic"
-    compileSdk = 36
-
-    defaultConfig {
-        minSdk = 26
-    }
-
-    compileOptions {
-        isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
 }
 
 kotlin {
@@ -28,7 +13,4 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
     implementation(libs.ktor.client.encoding)
-    implementation(libs.timber)
-
-    coreLibraryDesugaring(libs.desugaring)
 }

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "name": "SHiNe MUSIC",
+  "narrative": "The Shared Listening Room: familiar, immersive and restrained. Album art and current playback create atmosphere while navigation and controls stay dependable.",
+  "colorMeta": {
+    "brand": "#ED5564",
+    "lightBackground": "#F8F7FA",
+    "darkBackground": "#111113",
+    "blackBackground": "#000000",
+    "lightText": "#202124",
+    "darkText": "#FFFFFF",
+    "muted": "#6F6F78",
+    "success": "#2E7D5B",
+    "danger": "#BA1A1A"
+  },
+  "typographyMeta": {
+    "family": "Inter, system-ui, sans-serif",
+    "headline": "700 1.75rem/1.2",
+    "title": "600 1rem/1.4",
+    "body": "400 0.875rem/1.5",
+    "label": "600 0.75rem/1.3"
+  },
+  "breakpoints": {
+    "mobile": "0-767px",
+    "tablet": "768-1099px",
+    "desktop": "1100px+"
+  },
+  "motion": {
+    "default": "120-180ms ease-out",
+    "reducedMotion": "remove non-essential transitions and animations"
+  },
+  "components": [
+    "responsive-shell",
+    "side-navigation",
+    "bottom-navigation",
+    "track-list",
+    "persistent-player",
+    "room-control"
+  ]
+}

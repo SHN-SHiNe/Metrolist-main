@@ -17,7 +17,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import timber.log.Timber
+import com.metrolist.chinamusic.logging.MusicLog as Timber
 
 /**
  * Main entry point for Chinese music source APIs.

@@ -113,3 +113,21 @@ app/src/main/java/com/metrolist/music/listentogether/proto/*
 # FFTW third-party library build artifacts
 .build-fftw
 app/src/main/cpp/coverart/
+
+# NAS Web build and local runtime data
+web/node_modules/
+web/dist/
+web/playwright-report/
+web/test-results/
+web/*-ui.png
+web/*.tsbuildinfo
+web/src/*.js
+web/src/*.d.ts
+web/vite.config.js
+web/vite.config.d.ts
+web/playwright.config.js
+web/playwright.config.d.ts
+server/data/
+server/music/
+server/cache/
+.env.local

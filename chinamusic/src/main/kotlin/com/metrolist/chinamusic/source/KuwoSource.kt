@@ -8,7 +8,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.*
-import timber.log.Timber
+import com.metrolist.chinamusic.logging.MusicLog as Timber
 import java.net.URLEncoder
 import kotlin.math.ceil
 

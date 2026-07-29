@@ -6,7 +6,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.json.*
-import timber.log.Timber
+import com.metrolist.chinamusic.logging.MusicLog as Timber
 import java.net.URLEncoder
 
 /**

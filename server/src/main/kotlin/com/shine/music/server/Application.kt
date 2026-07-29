@@ -1,0 +1,236 @@
+package com.shine.music.server
+
+import io.ktor.http.CacheControl
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.http.content.staticResources
+import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.partialcontent.PartialContent
+import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.receive
+import io.ktor.server.response.header
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondRedirect
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import io.ktor.server.routing.routing
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.serialization.json.Json
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import kotlin.io.path.createDirectories
+
+fun Application.shineModule(
+    config: AppConfig = AppConfig.fromEnvironment(),
+    clock: () -> Long = System::currentTimeMillis,
+) {
+    config.dataDir.createDirectories()
+    config.musicDir.createDirectories()
+    config.cacheDir.createDirectories()
+    config.trashDir.createDirectories()
+
+    val store = openStoreWithRecovery(config, clock())
+    val scanner = LibraryScanner(config.musicDir, store, config.cacheDir, clock)
+    val catalog = OnlineCatalog(store)
+    val downloads = DownloadManager(config, store, scanner, catalog, clock)
+    val rooms = RoomHub(store, clock)
+    val maintenance = Maintenance(config, store, clock)
+    val jsonCodec = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+    install(CallLogging)
+    install(ContentNegotiation) { json(jsonCodec) }
+    install(PartialContent)
+    install(WebSockets)
+    install(StatusPages) {
+        exception<PlaylistVersionConflict> { call, _ ->
+            call.respond(HttpStatusCode.Conflict, mapOf("error" to "playlist_version_conflict"))
+        }
+        exception<IllegalArgumentException> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (cause.message ?: "bad_request")))
+        }
+        exception<Throwable> { call, cause ->
+            if (cause is CancellationException) throw cause
+            call.application.environment.log.error("Unhandled request failure", cause)
+            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "internal_error"))
+        }
+    }
+
+    if (config.scanOnStart) launch(Dispatchers.IO) { runCatching { scanner.scan() } }
+    launch(Dispatchers.IO) {
+        while (isActive) {
+            runCatching { maintenance.runOnce() }.onFailure { environment.log.error("Maintenance failed", it) }
+            delay(24 * 60 * 60 * 1000L)
+        }
+    }
+
+    routing {
+        get("/api/health") {
+            call.respond(HealthResponse("ok", BuildInfo.VERSION, clock()))
+        }
+
+        get("/api/library") {
+            val query = call.request.queryParameters["q"]
+            val offset = call.request.queryParameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
+            call.respond(store.listTracks(query, offset, limit))
+        }
+        get("/api/scans") { call.respond(store.scans()) }
+        post("/api/scans") { call.respond(scanner.scan()) }
+        delete("/api/library/{trackId}") {
+            val id = call.parameters["trackId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
+            val source = store.trackFile(id) ?: return@delete call.respond(HttpStatusCode.NotFound)
+            val normalized = source.toAbsolutePath().normalize()
+            require(normalized.startsWith(config.musicDir.toAbsolutePath().normalize())) { "track_outside_music_directory" }
+            val destination = config.trashDir.resolve("${clock()}-${normalized.fileName}")
+            Files.move(normalized, destination, StandardCopyOption.REPLACE_EXISTING)
+            store.markTrackDeleted(id, clock())
+            call.respond(MessageResponse("moved_to_trash"))
+        }
+
+        get("/api/media/{trackId}/stream") {
+            val id = call.parameters["trackId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val file = store.trackFile(id)?.toFile()
+            if (file?.isFile == true) {
+                call.response.header(HttpHeaders.CacheControl, CacheControl.MaxAge(maxAgeSeconds = 3600).toString())
+                return@get call.respondFile(file)
+            }
+            val url = catalog.resolve(id) ?: return@get call.respond(HttpStatusCode.NotFound)
+            call.respondRedirect(url)
+        }
+        get("/api/media/{trackId}/artwork") {
+            val id = call.parameters["trackId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val cover = listOf("jpg", "png").map { config.cacheDir.resolve("covers/$id.$it") }.firstOrNull(Files::isRegularFile)
+                ?: return@get call.respond(HttpStatusCode.NotFound)
+            call.response.header(HttpHeaders.CacheControl, CacheControl.MaxAge(maxAgeSeconds = 604800).toString())
+            call.respondFile(cover.toFile())
+        }
+
+        get("/api/search") {
+            val query = call.request.queryParameters["q"]?.trim().orEmpty()
+            require(query.isNotBlank()) { "query_required" }
+            val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 30
+            val source = call.request.queryParameters["source"] ?: "all"
+            call.respond(catalog.search(query, page, limit, source))
+        }
+
+        get("/api/favorites") { call.respond(store.favorites()) }
+        put("/api/favorites/{trackId}") {
+            val id = call.parameters["trackId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
+            store.setFavorite(id, true)
+            call.respond(MessageResponse("favorite_added"))
+        }
+        delete("/api/favorites/{trackId}") {
+            val id = call.parameters["trackId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
+            store.setFavorite(id, false)
+            call.respond(MessageResponse("favorite_removed"))
+        }
+
+        get("/api/playlists") { call.respond(store.playlists()) }
+        post("/api/playlists") {
+            val request = call.receive<CreatePlaylistRequest>()
+            require(request.name.isNotBlank()) { "playlist_name_required" }
+            call.respond(HttpStatusCode.Created, store.createPlaylist(request.name.trim(), clock()))
+        }
+        get("/api/playlists/{playlistId}") {
+            val id = call.parameters["playlistId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val playlist = store.playlist(id) ?: return@get call.respond(HttpStatusCode.NotFound)
+            call.respond(playlist)
+        }
+        put("/api/playlists/{playlistId}") {
+            val id = call.parameters["playlistId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
+            val updated = store.updatePlaylist(id, call.receive(), clock()) ?: return@put call.respond(HttpStatusCode.NotFound)
+            call.respond(updated)
+        }
+        delete("/api/playlists/{playlistId}") {
+            val id = call.parameters["playlistId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
+            if (store.deletePlaylist(id)) call.respond(MessageResponse("playlist_deleted")) else call.respond(HttpStatusCode.NotFound)
+        }
+
+        get("/api/history") {
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 500) ?: 100
+            call.respond(store.history(limit))
+        }
+        post("/api/history") {
+            val request = call.receive<HistoryRequest>()
+            store.recordHistory(request.trackId, request.playedAt ?: clock())
+            call.respond(HttpStatusCode.Created, MessageResponse("history_recorded"))
+        }
+
+        get("/api/settings/sources") { call.respond(store.sources()) }
+        post("/api/settings/sources") {
+            val request = call.receive<SourceConfigRequest>()
+            require(request.apiUrl.startsWith("http://") || request.apiUrl.startsWith("https://")) { "invalid_source_url" }
+            call.respond(HttpStatusCode.Created, store.saveSource(null, request, clock()))
+        }
+        put("/api/settings/sources/{sourceId}") {
+            val id = call.parameters["sourceId"] ?: return@put call.respond(HttpStatusCode.BadRequest)
+            call.respond(store.saveSource(id, call.receive(), clock()))
+        }
+
+        get("/api/downloads") { call.respond(store.downloads()) }
+        post("/api/downloads") { call.respond(HttpStatusCode.Accepted, downloads.enqueue(call.receive())) }
+        post("/api/downloads/{downloadId}/retry") {
+            val id = call.parameters["downloadId"] ?: return@post call.respond(HttpStatusCode.BadRequest)
+            call.respond(HttpStatusCode.Accepted, downloads.retry(id))
+        }
+
+        get("/api/rooms") { call.respond(rooms.list()) }
+        post("/api/rooms") {
+            val request = call.receive<CreateRoomRequest>()
+            require(request.name.isNotBlank()) { "room_name_required" }
+            call.respond(HttpStatusCode.Created, rooms.create(request.name))
+        }
+        webSocket("/ws/rooms/{roomId}") {
+            val id = call.parameters["roomId"] ?: return@webSocket
+            val room = rooms.join(id, this) ?: return@webSocket
+            try {
+                incoming.consumeEach { frame ->
+                    if (frame is Frame.Text) rooms.handle(room, this, rooms.decode(frame.readText()))
+                }
+            } finally {
+                rooms.leave(room, this)
+            }
+        }
+
+        staticResources("/", "web", index = "index.html")
+    }
+}
+
+internal object BuildInfo {
+    const val VERSION = "0.1.0"
+}
+
+private fun openStoreWithRecovery(config: AppConfig, now: Long): MusicStore = try {
+    MusicStore(config.databasePath)
+} catch (initial: Throwable) {
+    val backup = if (Files.isDirectory(config.backupDir)) Files.list(config.backupDir).use { paths ->
+        paths.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".db") }
+            .max(Comparator.comparingLong<Path> { Files.getLastModifiedTime(it).toMillis() })
+            .orElse(null)
+    } else null
+    if (backup == null) throw initial
+    val damaged = config.dataDir.resolve("shine-music-corrupt-$now.db")
+    if (Files.exists(config.databasePath)) Files.move(config.databasePath, damaged, StandardCopyOption.REPLACE_EXISTING)
+    Files.deleteIfExists(Path.of("${config.databasePath}-wal"))
+    Files.deleteIfExists(Path.of("${config.databasePath}-shm"))
+    Files.copy(backup, config.databasePath, StandardCopyOption.REPLACE_EXISTING)
+    MusicStore(config.databasePath)
+}
