@@ -16,10 +16,12 @@ class DownloadRetryApiTest {
         val root = Files.createTempDirectory("shine-download-retry")
         val config = AppConfig(root.resolve("data"), root.resolve("music"), root.resolve("cache"), scanOnStart = false)
         val failed = DownloadJob("job-1", "测试歌曲", "测试歌手", "failed", "network", 1, 2)
-        MusicStore(config.databasePath).saveDownload(
-            failed,
-            DownloadRequest(url = "http://127.0.0.1/not-allowed", title = failed.title, artist = failed.artist),
-        )
+        MusicStore(config.databasePath).use { store ->
+            store.saveDownload(
+                failed,
+                DownloadRequest(url = "http://127.0.0.1/not-allowed", title = failed.title, artist = failed.artist),
+            )
+        }
         application { shineModule(config) }
         val client = createClient { install(ContentNegotiation) { json() } }
 

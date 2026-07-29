@@ -5,6 +5,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.install
 import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.calllogging.CallLogging
@@ -41,6 +42,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
@@ -82,6 +84,10 @@ fun Application.shineModule(
             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "internal_error"))
         }
     }
+    monitor.subscribe(ApplicationStopped) {
+        downloads.close()
+        store.close()
+    }
 
     if (config.scanOnStart) launch(Dispatchers.IO) { runCatching { scanner.scan() } }
     launch(Dispatchers.IO) {
@@ -108,18 +114,15 @@ fun Application.shineModule(
             val query = call.request.queryParameters["q"]
             val offset = call.request.queryParameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
             val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 200) ?: 50
-            call.respond(store.listTracks(query, offset, limit))
+            val sort = call.request.queryParameters["sort"]?.takeIf { it in setOf("title", "artist", "album") } ?: "artist"
+            call.respond(store.listTracks(query, offset, limit, sort))
         }
         get("/api/scans") { call.respond(store.scans()) }
-        post("/api/scans") { call.respond(scanner.scan()) }
+        post("/api/scans") { call.respond(withContext(Dispatchers.IO) { scanner.scan() }) }
         delete("/api/library/{trackId}") {
             val id = call.parameters["trackId"] ?: return@delete call.respond(HttpStatusCode.BadRequest)
-            val source = store.trackFile(id) ?: return@delete call.respond(HttpStatusCode.NotFound)
-            val normalized = source.toAbsolutePath().normalize()
-            require(normalized.startsWith(config.musicDir.toAbsolutePath().normalize())) { "track_outside_music_directory" }
-            val destination = config.trashDir.resolve("${clock()}-${normalized.fileName}")
-            Files.move(normalized, destination, StandardCopyOption.REPLACE_EXISTING)
-            store.markTrackDeleted(id, clock())
+            val moved = withContext(Dispatchers.IO) { scanner.moveToTrash(id, config.trashDir, clock()) }
+            if (!moved) return@delete call.respond(HttpStatusCode.NotFound)
             call.respond(MessageResponse("moved_to_trash"))
         }
 

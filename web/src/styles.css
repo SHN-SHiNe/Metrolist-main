@@ -90,6 +90,10 @@ h2 { font-size: 1.25rem; line-height: 1.3; letter-spacing: -.015em; }
 .section-heading { min-height: 48px; margin-bottom: 14px; display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .section-heading p { margin-top: 4px; color: var(--muted); font-size: .82rem; }
 .track-list { width: 100%; }
+.track-viewport { height: clamp(360px, 62vh, 720px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.track-virtual-space { position: relative; min-width: 100%; }
+.track-row.positioned { position: absolute; top: 0; right: 0; left: 0; height: 62px; }
+.load-more { min-width: 220px; margin: 18px auto 0; display: flex; }
 .track-header, .track-row { display: grid; grid-template-columns: 44px minmax(220px, 2fr) minmax(120px, 1fr) 70px 90px; align-items: center; gap: 8px; }
 .track-header { min-height: 44px; padding: 0 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .72rem; }
 .track-header button { min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -241,6 +245,7 @@ input[type="range"] { accent-color: var(--accent); cursor: pointer; }
   .hero-strip .primary-button { align-self: stretch; }
   .section-heading { align-items: center; }
   .track-header { display: none; }
+  .track-viewport { height: 60dvh; min-height: 360px; }
   .track-row { grid-template-columns: 0 minmax(0, 1fr) auto; gap: 0; padding: 5px 0; }
   .track-play, .track-select { width: 0; overflow: hidden; padding: 0; }
   .track-album, .track-duration { display: none; }

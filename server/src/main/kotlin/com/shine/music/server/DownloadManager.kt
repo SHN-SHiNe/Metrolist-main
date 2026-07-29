@@ -3,7 +3,11 @@ package com.shine.music.server
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.InetAddress
 import java.net.URI
 import java.net.http.HttpClient
@@ -13,6 +17,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.createDirectories
 import kotlin.io.path.extension
 
@@ -22,11 +27,18 @@ class DownloadManager(
     private val scanner: LibraryScanner,
     private val onlineCatalog: OnlineCatalog,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+) : AutoCloseable {
+    private val supervisor = SupervisorJob()
+    private val scope = CoroutineScope(supervisor + Dispatchers.IO)
     private val http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(15)).build()
+    private val closed = AtomicBoolean()
+
+    init {
+        store.failInterruptedDownloads(clock())
+    }
 
     fun enqueue(request: DownloadRequest): DownloadJob {
+        check(!closed.get()) { "download_manager_closed" }
         require(request.url != null || request.trackId != null) { "url_or_track_id_required" }
         val now = clock()
         val job = DownloadJob(UUID.randomUUID().toString(), request.title.trim(), request.artist.trim(), "queued", createdAt = now, updatedAt = now)
@@ -36,6 +48,7 @@ class DownloadManager(
     }
 
     fun retry(id: String): DownloadJob {
+        check(!closed.get()) { "download_manager_closed" }
         val (previous, request) = store.downloadForRetry(id) ?: throw IllegalArgumentException("failed_download_not_found")
         val queued = previous.copy(status = "queued", error = null, updatedAt = clock())
         store.saveDownload(queued)
@@ -59,6 +72,7 @@ class DownloadManager(
                 HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(10)).header("User-Agent", "SHiNe-Music-NAS/0.1").GET().build(),
                 HttpResponse.BodyHandlers.ofInputStream(),
             )
+            currentCoroutineContext().ensureActive()
             require(response.statusCode() in 200..299) { "download_http_${response.statusCode()}" }
             val contentType = response.headers().firstValue("content-type").orElse("audio/mpeg").substringBefore(';')
             val extension = extensionFor(uri.path.substringAfterLast('.', ""), contentType)
@@ -66,12 +80,14 @@ class DownloadManager(
             val part = incomingDir.resolve("${job.id}.part")
             temporary = part
             response.body().use { input -> Files.copy(input, part, StandardCopyOption.REPLACE_EXISTING) }
+            currentCoroutineContext().ensureActive()
             require(Files.size(part) > 0) { "empty_download" }
-            Files.move(part, config.musicDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            scanner.scan()
+            val destination = Files.move(part, config.musicDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            temporary = null
+            scanner.index(destination)
             update(job, "completed")
         } catch (error: Throwable) {
-            update(job, "failed", error.message ?: error::class.simpleName)
+            if (!closed.get()) update(job, "failed", error.message ?: error::class.simpleName)
         } finally {
             temporary?.let(Files::deleteIfExists)
         }
@@ -97,5 +113,12 @@ class DownloadManager(
         contentType.contains("mp4") || contentType.contains("aac") -> "m4a"
         contentType.contains("wav") -> "wav"
         else -> "mp3"
+    }
+
+    override fun close() {
+        if (!closed.compareAndSet(false, true)) return
+        supervisor.cancel()
+        http.shutdownNow()
+        runBlocking { withTimeoutOrNull(5_000) { supervisor.join() } }
     }
 }

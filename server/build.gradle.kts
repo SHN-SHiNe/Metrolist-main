@@ -26,6 +26,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.websockets)
     implementation(libs.sqlite.jdbc)
+    implementation(libs.hikari)
     implementation(libs.jaudiotagger)
     runtimeOnly(libs.logback.classic)
 

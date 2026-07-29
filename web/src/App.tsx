@@ -1,5 +1,6 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
+import { LIBRARY_PAGE_SIZE, mergeTrackPage, TRACK_ROW_HEIGHT, visibleTrackRange } from './libraryPaging'
 import type { DownloadJob, HistoryEntry, PlaylistDetail, PlaylistSummary, RoomSummary, SourceConfig, Track } from './types'
 import { usePlayer } from './usePlayer'
 import { useRoomSync } from './useRoomSync'
@@ -19,6 +20,8 @@ const navItems: { id: Section; label: string; icon: IconName }[] = [
 export default function App() {
   const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home')
   const [library, setLibrary] = useState<Track[]>([])
+  const [libraryTotal, setLibraryTotal] = useState(0)
+  const [libraryRevision, setLibraryRevision] = useState(0)
   const [favorites, setFavorites] = useState<Track[]>([])
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([])
@@ -43,6 +46,8 @@ export default function App() {
         api.library(), api.favorites(), api.history(), api.playlists(), api.rooms(), api.sources(), api.downloads(),
       ])
       setLibrary(libraryPage.items)
+      setLibraryTotal(libraryPage.total)
+      setLibraryRevision(libraryPage.revision)
       setFavorites(favoriteTracks)
       setHistory(historyEntries)
       setPlaylists(playlistItems)
@@ -55,6 +60,8 @@ export default function App() {
       setLoading(false)
     }
   }, [])
+
+  const rememberLibraryTracks = useCallback((tracks: Track[]) => setLibrary((current) => mergeTrackPage(current, tracks)), [])
 
   useEffect(() => { void refresh() }, [refresh])
   useEffect(() => {
@@ -145,7 +152,7 @@ export default function App() {
           <div className="page-content">
             {section === 'home' && <HomePage history={history} favorites={favorites} onPlay={play} onNavigate={navigate} />}
             {section === 'search' && <SearchPage query={query} setQuery={setQuery} results={searchResults} setResults={setSearchResults} onPlay={play} onFavorite={toggleFavorite} favorites={favorites} onNotice={setNotice} />}
-            {section === 'library' && <LibraryPage tracks={library} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onRefresh={refresh} onNotice={setNotice} />}
+            {section === 'library' && <LibraryPage initialTracks={library} initialTotal={libraryTotal} initialRevision={libraryRevision} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} onDiscover={rememberLibraryTracks} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'favorites' && <TrackSection title="共享收藏" subtitle="局域网内所有访客看到同一份收藏" tracks={favorites} favorites={favorites} onPlay={play} onFavorite={toggleFavorite} />}
             {section === 'playlists' && <PlaylistsPage playlists={playlists} selected={selectedPlaylist} setSelected={setSelectedPlaylist} library={library} onPlay={play} onRefresh={refresh} onNotice={setNotice} />}
             {section === 'rooms' && <RoomsPage rooms={rooms} room={room} onRefresh={refresh} onNotice={setNotice} />}
@@ -209,22 +216,91 @@ function SearchPage({ query, setQuery, results, setResults, onPlay, onFavorite, 
   </>
 }
 
-function LibraryPage({ tracks, favorites, onPlay, onFavorite, onRefresh, onNotice }: { tracks: Track[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
+function LibraryPage({ initialTracks, initialTotal, initialRevision, favorites, onPlay, onFavorite, onDiscover, onRefresh, onNotice }: { initialTracks: Track[]; initialTotal: number; initialRevision: number; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite: (track: Track) => void; onDiscover: (tracks: Track[]) => void; onRefresh: () => Promise<void>; onNotice: (value: string) => void }) {
   const [filter, setFilter] = useState('')
   const [sort, setSort] = useState<'title' | 'artist' | 'album'>('artist')
   const [selected, setSelected] = useState<string[]>([])
-  const visible = tracks.filter((track) => `${track.title} ${track.artist} ${track.album}`.toLowerCase().includes(filter.toLowerCase()))
-    .sort((left, right) => left[sort].localeCompare(right[sort], 'zh-CN'))
+  const [tracks, setTracks] = useState(() => initialTracks.slice(0, LIBRARY_PAGE_SIZE))
+  const [total, setTotal] = useState(initialTotal)
+  const [revision, setRevision] = useState(initialRevision)
+  const [nextOffset, setNextOffset] = useState(Math.min(initialTracks.length, LIBRARY_PAGE_SIZE))
+  const [loadingMore, setLoadingMore] = useState(false)
+  const requestGeneration = useRef(0)
+  const filterRef = useRef(filter)
+  const sortRef = useRef(sort)
+  filterRef.current = filter
+  sortRef.current = sort
+  useEffect(() => {
+    let cancelled = false
+    const generation = requestGeneration.current
+    const timer = window.setTimeout(() => {
+      void api.library(0, filter, sort).then((page) => {
+        if (cancelled || generation !== requestGeneration.current) return
+        setTracks(page.items)
+        setTotal(page.total)
+        setRevision(page.revision)
+        setNextOffset(page.offset + page.items.length)
+        setSelected([])
+        onDiscover(page.items)
+      }).catch((error) => { if (!cancelled) onNotice(readError(error)) })
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [filter, onDiscover, onNotice, sort])
+  const reloadCurrentView = async () => {
+    const generation = requestGeneration.current
+    const page = await api.library(0, filterRef.current, sortRef.current)
+    if (generation !== requestGeneration.current) return
+    setTracks(page.items)
+    setTotal(page.total)
+    setRevision(page.revision)
+    setNextOffset(page.offset + page.items.length)
+    setSelected([])
+    onDiscover(page.items)
+  }
+  const loadMore = async () => {
+    if (loadingMore || nextOffset >= total) return
+    const generation = requestGeneration.current
+    setLoadingMore(true)
+    try {
+      const page = await api.library(nextOffset, filter, sort)
+      if (generation !== requestGeneration.current) return
+      const knownIds = new Set(tracks.map((track) => track.id))
+      if (page.revision !== revision || page.total !== total || page.items.some((track) => knownIds.has(track.id))) {
+        const fresh = await api.library(0, filter, sort)
+        if (generation !== requestGeneration.current) return
+        setTracks(fresh.items)
+        setTotal(fresh.total)
+        setRevision(fresh.revision)
+        setNextOffset(fresh.offset + fresh.items.length)
+        setSelected([])
+        onDiscover(fresh.items)
+      } else {
+        setTracks((current) => mergeTrackPage(current, page.items))
+        setNextOffset(page.offset + page.items.length)
+        onDiscover(page.items)
+      }
+    } catch (error) { if (generation === requestGeneration.current) onNotice(readError(error)) } finally { if (generation === requestGeneration.current) setLoadingMore(false) }
+  }
   const scan = async () => {
-    try { await api.scan(); await onRefresh(); onNotice('NAS 曲库扫描完成') } catch (error) { onNotice(readError(error)) }
+    requestGeneration.current++
+    setLoadingMore(false)
+    try {
+      await api.scan()
+      await onRefresh()
+      requestGeneration.current++
+      await reloadCurrentView()
+      onNotice('NAS 曲库扫描完成')
+    } catch (error) { onNotice(readError(error)) }
   }
   const remove = async (track: Track) => {
     if (!window.confirm(`将《${track.title}》移入 NAS 回收区？`)) return
-    try { await api.deleteTrack(track.id); setSelected((ids) => ids.filter((id) => id !== track.id)); await onRefresh(); onNotice('音乐已移入服务端回收区') } catch (error) { onNotice(readError(error)) }
+    requestGeneration.current++
+    setLoadingMore(false)
+    try { await api.deleteTrack(track.id); await onRefresh(); requestGeneration.current++; await reloadCurrentView(); onNotice('音乐已移入服务端回收区') } catch (error) { onNotice(readError(error)) }
   }
   return <>
-    <div className="toolbar"><label className="filter-field"><Icon name="search" /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="筛选当前曲库" /></label><div className="toolbar-actions">{selected.length > 0 && <button className="primary-button" onClick={() => { const chosen = visible.filter((track) => selected.includes(track.id)); if (chosen[0]) onPlay(chosen[0], chosen) }}>播放选中（{selected.length}）</button>}<button className="secondary-button" onClick={() => void scan()}><Icon name="refresh" />重新扫描</button></div></div>
-    <section className="track-section"><div className="section-heading"><div><h2>{visible.length} 首音乐</h2><p>扫描自 NAS 挂载目录 · 可排序和多选</p></div>{visible[0] && <button className="round-play" onClick={() => onPlay(visible[0], visible)} aria-label="播放当前曲库"><Icon name="play" /></button>}</div><TrackList tracks={visible} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} selectedIds={selected} onSelection={setSelected} sort={sort} onSort={setSort} trailingAction={(track) => <button className="icon-button" onClick={() => void remove(track)} aria-label={`将 ${track.title} 移入回收区`}><Icon name="trash" /></button>} /></section>
+    <div className="toolbar"><label className="filter-field"><Icon name="search" /><input value={filter} onChange={(event) => { requestGeneration.current++; setLoadingMore(false); setFilter(event.target.value) }} placeholder="搜索整个 NAS 曲库" /></label><div className="toolbar-actions">{selected.length > 0 && <button className="primary-button" onClick={() => { const chosen = tracks.filter((track) => selected.includes(track.id)); if (chosen[0]) onPlay(chosen[0], chosen) }}>播放选中（{selected.length}）</button>}<button className="secondary-button" onClick={() => void scan()}><Icon name="refresh" />重新扫描</button></div></div>
+    <section className="track-section"><div className="section-heading"><div><h2>{filter ? `${total} 首匹配` : `${total} 首音乐`}</h2><p>已加载 {tracks.length} / {total} 首 · 筛选和排序覆盖整个 NAS 曲库</p></div>{tracks[0] && <button className="round-play" onClick={() => onPlay(tracks[0], tracks)} aria-label="播放当前已加载曲目"><Icon name="play" /></button>}</div><TrackList tracks={tracks} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} selectedIds={selected} onSelection={setSelected} sort={sort} onSort={(value) => { requestGeneration.current++; setLoadingMore(false); setSort(value) }} virtualized trailingAction={(track) => <button className="icon-button" onClick={() => void remove(track)} aria-label={`将 ${track.title} 移入回收区`}><Icon name="trash" /></button>} />{tracks.length < total && <button className="load-more secondary-button" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? '正在加载…' : `继续加载（剩余 ${total - tracks.length} 首）`}</button>}</section>
   </>
 }
 
@@ -289,13 +365,41 @@ function TrackSection({ title, subtitle, tracks, favorites, onPlay, onFavorite }
   return <section className="track-section"><div className="section-heading"><div><h2>{title}</h2><p>{subtitle}</p></div>{tracks.length > 0 && <button className="round-play" onClick={() => onPlay(tracks[0], tracks)} aria-label={`播放${title}`}><Icon name="play" /></button>}</div>{tracks.length ? <TrackList tracks={tracks} favorites={favorites} onPlay={onPlay} onFavorite={onFavorite} /> : <EmptyState title="这里还没有音乐" body="扫描 NAS、在线下载或继续收藏后会显示在这里。" />}</section>
 }
 
-function TrackList({ tracks, favorites, onPlay, onFavorite, trailingAction, selectedIds, onSelection, sort, onSort }: { tracks: Track[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void; trailingAction?: (track: Track) => React.ReactNode; selectedIds?: string[]; onSelection?: (ids: string[]) => void; sort?: 'title' | 'artist' | 'album'; onSort?: (value: 'title' | 'artist' | 'album') => void }) {
+function TrackList({ tracks, favorites, onPlay, onFavorite, trailingAction, selectedIds, onSelection, sort, onSort, virtualized = false }: { tracks: Track[]; favorites: Track[]; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void; trailingAction?: (track: Track) => React.ReactNode; selectedIds?: string[]; onSelection?: (ids: string[]) => void; sort?: 'title' | 'artist' | 'album'; onSort?: (value: 'title' | 'artist' | 'album') => void; virtualized?: boolean }) {
   const selectable = Boolean(onSelection && selectedIds)
+  const favoriteIds = useMemo(() => new Set(favorites.map((track) => track.id)), [favorites])
+  const viewport = useRef<HTMLDivElement>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewportHeight, setViewportHeight] = useState(620)
   const toggle = (id: string) => onSelection?.(selectedIds?.includes(id) ? selectedIds.filter((value) => value !== id) : [...(selectedIds ?? []), id])
-  return <div className="track-list" role="list"><div className="track-header"><span>{selectable ? <label className="track-select"><input type="checkbox" aria-label="全选当前曲目" checked={selectedIds?.length === tracks.length && tracks.length > 0} onChange={(event) => onSelection?.(event.target.checked ? tracks.map((track) => track.id) : [])} /></label> : '#'}</span><button disabled={!onSort} onClick={() => onSort?.(sort === 'title' ? 'artist' : 'title')}>标题 / 歌手{sort === 'title' ? ' ↑' : sort === 'artist' ? ' ↓' : ''}</button><button disabled={!onSort} onClick={() => onSort?.('album')}>专辑{sort === 'album' ? ' ↑' : ''}</button><span>时长</span><span /></div>{tracks.map((track, index) => {
-    const favorite = favorites.some((item) => item.id === track.id)
-    return <div className="track-row" role="listitem" key={track.id}>{selectable ? <label className="track-select"><input type="checkbox" checked={selectedIds?.includes(track.id)} onChange={() => toggle(track.id)} aria-label={`选择 ${track.title}`} /></label> : <button className="track-play" onClick={() => onPlay(track, tracks)} aria-label={`播放 ${track.title}`}>{index + 1}<span className="hover-play">▶</span></button>}<button className="track-identity" onClick={() => onPlay(track, tracks)} aria-label={`播放 ${track.title}`}><AlbumArt title={track.title} artworkUrl={track.artworkUrl} small /><span><strong>{track.title}</strong><small>{track.artist}</small></span></button><span className="track-album">{track.album || track.source || '本地音乐'}</span><span className="track-duration">{formatTime(track.durationMs / 1000)}</span><span className="track-actions">{onFavorite && <button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={() => onFavorite(track)} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button>}{trailingAction?.(track)}</span></div>
-  })}</div>
+  useEffect(() => {
+    if (!virtualized || !viewport.current) return
+    const element = viewport.current
+    const observer = new ResizeObserver(() => setViewportHeight(element.clientHeight))
+    observer.observe(element)
+    setViewportHeight(element.clientHeight)
+    return () => observer.disconnect()
+  }, [virtualized])
+  const range = visibleTrackRange(scrollTop, viewportHeight, TRACK_ROW_HEIGHT, tracks.length)
+  const row = (track: Track, index: number, positioned = false) => <TrackRow
+    key={track.id}
+    track={track}
+    index={index}
+    tracks={tracks}
+    favorite={favoriteIds.has(track.id)}
+    selectable={selectable}
+    selected={selectedIds?.includes(track.id) ?? false}
+    onToggle={toggle}
+    onPlay={onPlay}
+    onFavorite={onFavorite}
+    trailingAction={trailingAction}
+    positioned={positioned}
+  />
+  return <div className={`track-list ${virtualized ? 'virtualized' : ''}`} role="list"><div className="track-header"><span>{selectable ? <label className="track-select"><input type="checkbox" aria-label="全选当前曲目" checked={selectedIds?.length === tracks.length && tracks.length > 0} onChange={(event) => onSelection?.(event.target.checked ? tracks.map((track) => track.id) : [])} /></label> : '#'}</span><button disabled={!onSort} onClick={() => onSort?.(sort === 'title' ? 'artist' : 'title')}>标题 / 歌手{sort === 'title' ? ' ↑' : sort === 'artist' ? ' ↓' : ''}</button><button disabled={!onSort} onClick={() => onSort?.('album')}>专辑{sort === 'album' ? ' ↑' : ''}</button><span>时长</span><span /></div>{virtualized ? <div className="track-viewport" ref={viewport} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}><div className="track-virtual-space" style={{ height: tracks.length * TRACK_ROW_HEIGHT }}>{tracks.slice(range.start, range.end).map((track, offset) => row(track, range.start + offset, true))}</div></div> : tracks.map((track, index) => row(track, index))}</div>
+}
+
+function TrackRow({ track, index, tracks, favorite, selectable, selected, onToggle, onPlay, onFavorite, trailingAction, positioned }: { track: Track; index: number; tracks: Track[]; favorite: boolean; selectable: boolean; selected: boolean; onToggle: (id: string) => void; onPlay: (track: Track, queue: Track[]) => void; onFavorite?: (track: Track) => void; trailingAction?: (track: Track) => React.ReactNode; positioned: boolean }) {
+  return <div className={`track-row ${positioned ? 'positioned' : ''}`} style={positioned ? { transform: `translateY(${index * TRACK_ROW_HEIGHT}px)` } : undefined} role="listitem">{selectable ? <label className="track-select"><input type="checkbox" checked={selected} onChange={() => onToggle(track.id)} aria-label={`选择 ${track.title}`} /></label> : <button className="track-play" onClick={() => onPlay(track, tracks)} aria-label={`播放 ${track.title}`}>{index + 1}<span className="hover-play">▶</span></button>}<button className="track-identity" onClick={() => onPlay(track, tracks)} aria-label={`播放 ${track.title}`}><AlbumArt title={track.title} artworkUrl={track.artworkUrl} small /><span><strong>{track.title}</strong><small>{track.artist}</small></span></button><span className="track-album">{track.album || track.source || '本地音乐'}</span><span className="track-duration">{formatTime(track.durationMs / 1000)}</span><span className="track-actions">{onFavorite && <button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={() => onFavorite(track)} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button>}{trailingAction?.(track)}</span></div>
 }
 
 function AlbumRow({ title, tracks, onPlay }: { title: string; tracks: Track[]; onPlay: (track: Track, queue: Track[]) => void }) {

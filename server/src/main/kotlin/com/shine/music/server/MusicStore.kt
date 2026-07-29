@@ -1,18 +1,42 @@
 package com.shine.music.server
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import org.sqlite.SQLiteConfig
+import org.sqlite.SQLiteDataSource
 import java.nio.file.Path
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.ResultSet
 import java.util.UUID
 import kotlin.io.path.createDirectories
 
-class MusicStore(private val databasePath: Path) {
+class MusicStore(private val databasePath: Path) : AutoCloseable {
+    private val dataSource: HikariDataSource
+    private var fullTextSearchEnabled = false
+
     init {
         databasePath.parent.createDirectories()
         Class.forName("org.sqlite.JDBC")
-        connection().use { db ->
-            db.createStatement().use { statement ->
+        val sqliteConfig = SQLiteConfig().apply {
+            setBusyTimeout(10_000)
+            enforceForeignKeys(true)
+            setJournalMode(SQLiteConfig.JournalMode.WAL)
+        }
+        val sqliteDataSource = SQLiteDataSource(sqliteConfig).apply {
+            url = "jdbc:sqlite:${databasePath.toAbsolutePath()}"
+        }
+        dataSource = HikariDataSource(HikariConfig().apply {
+            dataSource = sqliteDataSource
+            poolName = "shine-sqlite-${databasePath.toAbsolutePath().toString().hashCode().toUInt()}"
+            maximumPoolSize = 4
+            minimumIdle = 1
+            connectionTimeout = 10_000
+            validationTimeout = 3_000
+            connectionTestQuery = "SELECT 1"
+        })
+        try {
+            connection().use { db ->
+                db.createStatement().use { statement ->
                 statement.execute("PRAGMA journal_mode=WAL")
                 statement.execute("PRAGMA busy_timeout=10000")
                 statement.execute("PRAGMA foreign_keys=ON")
@@ -92,48 +116,104 @@ class MusicStore(private val databasePath: Path) {
                     )
                     """.trimIndent(),
                 )
+                statement.execute("CREATE TABLE IF NOT EXISTS library_revision (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL)")
+                statement.execute("INSERT OR IGNORE INTO library_revision(id,revision) VALUES(1,0)")
+                statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_revision_insert AFTER INSERT ON tracks BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END")
+                statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_revision_delete AFTER DELETE ON tracks BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END")
+                statement.execute(
+                    """
+                    CREATE TRIGGER IF NOT EXISTS tracks_revision_update
+                    AFTER UPDATE OF title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,deleted_at ON tracks
+                    WHEN OLD.title IS NOT NEW.title OR OLD.artist IS NOT NEW.artist OR OLD.album IS NOT NEW.album
+                      OR OLD.duration_ms IS NOT NEW.duration_ms OR OLD.mime_type IS NOT NEW.mime_type
+                      OR OLD.file_path IS NOT NEW.file_path OR OLD.file_size IS NOT NEW.file_size
+                      OR OLD.modified_at IS NOT NEW.modified_at OR OLD.deleted_at IS NOT NEW.deleted_at
+                    BEGIN UPDATE library_revision SET revision=revision+1 WHERE id=1; END
+                    """.trimIndent(),
+                )
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_library_sort ON tracks(deleted_at, artist COLLATE NOCASE, album COLLATE NOCASE, title COLLATE NOCASE)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_title_sort ON tracks(deleted_at, title COLLATE NOCASE, artist COLLATE NOCASE)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_album_sort ON tracks(deleted_at, album COLLATE NOCASE, artist COLLATE NOCASE, title COLLATE NOCASE)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_tracks_scan ON tracks(last_seen_scan, deleted_at)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_history_played_at ON history(played_at DESC)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_playlist_items_track ON playlist_items(track_id)")
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_download_jobs_created_at ON download_jobs(created_at DESC)")
+                    statement.execute("CREATE INDEX IF NOT EXISTS idx_rooms_updated_at ON rooms(updated_at DESC)")
+                    fullTextSearchEnabled = runCatching {
+                        statement.execute("CREATE VIRTUAL TABLE IF NOT EXISTS tracks_fts USING fts5(id UNINDEXED,title,artist,album,tokenize='trigram')")
+                        statement.execute("INSERT INTO tracks_fts(id,title,artist,album) SELECT id,title,artist,album FROM tracks WHERE deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM tracks_fts LIMIT 1)")
+                        statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_fts_insert AFTER INSERT ON tracks WHEN NEW.deleted_at IS NULL BEGIN INSERT INTO tracks_fts(id,title,artist,album) VALUES(NEW.id,NEW.title,NEW.artist,NEW.album); END")
+                        statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_fts_delete AFTER DELETE ON tracks BEGIN DELETE FROM tracks_fts WHERE id=OLD.id; END")
+                        statement.execute("CREATE TRIGGER IF NOT EXISTS tracks_fts_update AFTER UPDATE OF title,artist,album,deleted_at ON tracks BEGIN DELETE FROM tracks_fts WHERE id=OLD.id; INSERT INTO tracks_fts(id,title,artist,album) SELECT NEW.id,NEW.title,NEW.artist,NEW.album WHERE NEW.deleted_at IS NULL; END")
+                        true
+                    }.getOrDefault(false)
+                }
             }
+        } catch (error: Throwable) {
+            dataSource.close()
+            throw error
         }
     }
 
-    private fun connection(): Connection = DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").also { db ->
-        db.createStatement().use { statement ->
-            statement.execute("PRAGMA busy_timeout=10000")
-            statement.execute("PRAGMA foreign_keys=ON")
-        }
-    }
+    private fun connection(): Connection = dataSource.connection
+
+    override fun close() = dataSource.close()
 
     fun upsertTrack(scanId: String, file: ScannedFile): ScanChange = connection().use { db ->
         val previous = db.prepareStatement("SELECT modified_at, file_size FROM tracks WHERE id = ?").use { query ->
             query.setString(1, file.id)
             query.executeQuery().use { row -> if (row.next()) row.getLong(1) to row.getLong(2) else null }
         }
-        db.prepareStatement(
-            """
-            INSERT INTO tracks(id,title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,last_seen_scan,deleted_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,NULL)
-            ON CONFLICT(id) DO UPDATE SET title=excluded.title, artist=excluded.artist, album=excluded.album,
-              duration_ms=excluded.duration_ms, mime_type=excluded.mime_type, file_path=excluded.file_path,
-              file_size=excluded.file_size, modified_at=excluded.modified_at, last_seen_scan=excluded.last_seen_scan,
-              deleted_at=NULL
-            """.trimIndent(),
-        ).use { statement ->
-            statement.setString(1, file.id)
-            statement.setString(2, file.title)
-            statement.setString(3, file.artist)
-            statement.setString(4, file.album)
-            statement.setLong(5, file.durationMs)
-            statement.setString(6, file.mimeType)
-            statement.setString(7, file.path.toAbsolutePath().normalize().toString())
-            statement.setLong(8, file.size)
-            statement.setLong(9, file.modifiedAt)
-            statement.setString(10, scanId)
+        db.prepareStatement(UPSERT_TRACK_SQL).use { statement ->
+            bindTrack(statement, scanId, file)
             statement.executeUpdate()
         }
         when {
             previous == null -> ScanChange.DISCOVERED
             previous.first != file.modifiedAt || previous.second != file.size -> ScanChange.UPDATED
             else -> ScanChange.UNCHANGED
+        }
+    }
+
+    fun scanSession() = ScanSession(connection())
+
+    inner class ScanSession internal constructor(private val db: Connection) : AutoCloseable {
+        private val fingerprint = db.prepareStatement("SELECT file_size,modified_at FROM tracks WHERE id=? AND deleted_at IS NULL")
+
+        fun fingerprint(id: String): TrackFingerprint? {
+            fingerprint.setString(1, id)
+            return fingerprint.executeQuery().use { row ->
+                if (row.next()) TrackFingerprint(row.getLong("file_size"), row.getLong("modified_at")) else null
+            }
+        }
+
+        fun applyBatch(scanId: String, changed: List<ScannedFile>, unchangedIds: List<String>) {
+            db.autoCommit = false
+            try {
+                if (changed.isNotEmpty()) {
+                    db.prepareStatement(UPSERT_TRACK_SQL).use { statement ->
+                        changed.forEach { file -> bindTrack(statement, scanId, file); statement.addBatch() }
+                        statement.executeBatch()
+                    }
+                }
+                if (unchangedIds.isNotEmpty()) {
+                    db.prepareStatement("UPDATE tracks SET last_seen_scan=? WHERE id=? AND deleted_at IS NULL").use { statement ->
+                        unchangedIds.forEach { id -> statement.setString(1, scanId); statement.setString(2, id); statement.addBatch() }
+                        statement.executeBatch()
+                    }
+                }
+                db.commit()
+            } catch (error: Throwable) {
+                db.rollback()
+                throw error
+            } finally {
+                db.autoCommit = true
+            }
+        }
+
+        override fun close() {
+            fingerprint.close()
+            db.close()
         }
     }
 
@@ -167,26 +247,47 @@ class MusicStore(private val databasePath: Path) {
         }
     }
 
-    fun listTracks(query: String?, offset: Int, limit: Int): TrackPage = connection().use { db ->
+    fun listTracks(query: String?, offset: Int, limit: Int, sort: String = "artist"): TrackPage = connection().use { db ->
         val filter = query?.trim().orEmpty()
-        val where = if (filter.isBlank()) "deleted_at IS NULL" else "deleted_at IS NULL AND (title LIKE ? ESCAPE '\\' OR artist LIKE ? ESCAPE '\\' OR album LIKE ? ESCAPE '\\')"
-        val total = db.prepareStatement("SELECT COUNT(*) FROM tracks WHERE $where").use { statement ->
-            bindSearch(statement, filter)
-            statement.executeQuery().use { it.next(); it.getInt(1) }
+        val useFullTextSearch = fullTextSearchEnabled && filter.length >= 3
+        val from = if (useFullTextSearch) "tracks t JOIN tracks_fts ON tracks_fts.id=t.id" else "tracks t"
+        val where = when {
+            filter.isBlank() -> "t.deleted_at IS NULL"
+            useFullTextSearch -> "t.deleted_at IS NULL AND tracks_fts MATCH ?"
+            else -> "t.deleted_at IS NULL AND (t.title LIKE ? ESCAPE '\\' OR t.artist LIKE ? ESCAPE '\\' OR t.album LIKE ? ESCAPE '\\')"
         }
-        val items = db.prepareStatement(
-            """
-            SELECT t.*, EXISTS(SELECT 1 FROM favorites f WHERE f.track_id=t.id) AS favorite
-            FROM tracks t WHERE $where ORDER BY artist COLLATE NOCASE, album COLLATE NOCASE, title COLLATE NOCASE
-            LIMIT ? OFFSET ?
-            """.trimIndent(),
-        ).use { statement ->
-            var index = bindSearch(statement, filter)
-            statement.setInt(index++, limit)
-            statement.setInt(index, offset)
-            statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.toTrack()) } }
+        val orderBy = when (sort) {
+            "title" -> "t.title COLLATE NOCASE, t.artist COLLATE NOCASE, t.album COLLATE NOCASE, t.id"
+            "album" -> "t.album COLLATE NOCASE, t.artist COLLATE NOCASE, t.title COLLATE NOCASE, t.id"
+            else -> "t.artist COLLATE NOCASE, t.album COLLATE NOCASE, t.title COLLATE NOCASE, t.id"
         }
-        TrackPage(items, total, offset, limit)
+        db.autoCommit = false
+        try {
+            val revision = db.createStatement().use { statement -> statement.executeQuery("SELECT revision FROM library_revision WHERE id=1").use { it.next(); it.getLong(1) } }
+            val total = db.prepareStatement("SELECT COUNT(*) FROM $from WHERE $where").use { statement ->
+                bindSearch(statement, filter, useFullTextSearch)
+                statement.executeQuery().use { it.next(); it.getInt(1) }
+            }
+            val items = db.prepareStatement(
+                """
+                SELECT t.*, EXISTS(SELECT 1 FROM favorites f WHERE f.track_id=t.id) AS favorite
+                FROM $from WHERE $where ORDER BY $orderBy
+                LIMIT ? OFFSET ?
+                """.trimIndent(),
+            ).use { statement ->
+                var index = bindSearch(statement, filter, useFullTextSearch)
+                statement.setInt(index++, limit)
+                statement.setInt(index, offset)
+                statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.toTrack()) } }
+            }
+            db.commit()
+            TrackPage(items, total, offset, limit, revision)
+        } catch (error: Throwable) {
+            db.rollback()
+            throw error
+        } finally {
+            db.autoCommit = true
+        }
     }
 
     fun trackFile(id: String): Path? = connection().use { db ->
@@ -360,6 +461,13 @@ class MusicStore(private val databasePath: Path) {
         } } }
     }
 
+    fun failInterruptedDownloads(now: Long) = connection().use { db ->
+        db.prepareStatement("UPDATE download_jobs SET status='failed',error='server_restarted',updated_at=? WHERE status IN ('queued','downloading')").use {
+            it.setLong(1, now)
+            it.executeUpdate()
+        }
+    }
+
     fun createRoom(name: String, stateJson: String, now: Long, requestedId: String? = null): RoomSummary {
         val id = requestedId ?: UUID.randomUUID().toString()
         connection().use { db -> db.prepareStatement("INSERT INTO rooms(id,name,state_json,version,updated_at) VALUES(?,?,?,0,?)").use {
@@ -398,14 +506,31 @@ class MusicStore(private val databasePath: Path) {
     }
 
     private fun ResultSet.toPlaylistSummary() = PlaylistSummary(getString("id"), getString("name"), getLong("version"), getInt("track_count"), getLong("updated_at"))
+
+    private fun bindTrack(statement: java.sql.PreparedStatement, scanId: String, file: ScannedFile) {
+        statement.setString(1, file.id)
+        statement.setString(2, file.title)
+        statement.setString(3, file.artist)
+        statement.setString(4, file.album)
+        statement.setLong(5, file.durationMs)
+        statement.setString(6, file.mimeType)
+        statement.setString(7, file.path.toAbsolutePath().normalize().toString())
+        statement.setLong(8, file.size)
+        statement.setLong(9, file.modifiedAt)
+        statement.setString(10, scanId)
+    }
     private fun maskSecret(secret: String) = when {
         secret.isBlank() -> ""
         secret.length <= 4 -> "••••"
         else -> "••••${secret.takeLast(4)}"
     }
 
-    private fun bindSearch(statement: java.sql.PreparedStatement, filter: String): Int {
+    private fun bindSearch(statement: java.sql.PreparedStatement, filter: String, fullText: Boolean): Int {
         if (filter.isBlank()) return 1
+        if (fullText) {
+            statement.setString(1, "\"${filter.replace("\"", "\"\"")}\"")
+            return 2
+        }
         val value = "%${filter.replace("%", "\\%").replace("_", "\\_")}%"
         statement.setString(1, value)
         statement.setString(2, value)
@@ -425,7 +550,21 @@ class MusicStore(private val databasePath: Path) {
         artworkUrl = "/api/media/${getString("id")}/artwork",
         favorite = getBoolean("favorite"),
     )
+
+    companion object {
+        private val UPSERT_TRACK_SQL =
+            """
+            INSERT INTO tracks(id,title,artist,album,duration_ms,mime_type,file_path,file_size,modified_at,last_seen_scan,deleted_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,NULL)
+            ON CONFLICT(id) DO UPDATE SET title=excluded.title, artist=excluded.artist, album=excluded.album,
+              duration_ms=excluded.duration_ms, mime_type=excluded.mime_type, file_path=excluded.file_path,
+              file_size=excluded.file_size, modified_at=excluded.modified_at, last_seen_scan=excluded.last_seen_scan,
+              deleted_at=NULL
+            """.trimIndent()
+    }
 }
+
+data class TrackFingerprint(val size: Long, val modifiedAt: Long)
 
 data class StoredRoom(val id: String, val name: String, val stateJson: String, val version: Long, val updatedAt: Long)
 

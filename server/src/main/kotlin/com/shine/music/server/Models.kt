@@ -29,6 +29,7 @@ data class TrackPage(
     val total: Int,
     val offset: Int,
     val limit: Int,
+    val revision: Long = 0,
 )
 
 @Serializable

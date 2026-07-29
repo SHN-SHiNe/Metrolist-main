@@ -1,4 +1,5 @@
 import type { DownloadJob, HistoryEntry, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SourceConfig, Track, TrackPage } from './types'
+import { LIBRARY_PAGE_SIZE } from './libraryPaging'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -13,7 +14,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  library: (q = '') => request<TrackPage>(`/api/library?limit=200&q=${encodeURIComponent(q)}`),
+  library: (offset = 0, q = '', sort: 'title' | 'artist' | 'album' = 'artist') => request<TrackPage>(`/api/library?offset=${offset}&limit=${LIBRARY_PAGE_SIZE}&q=${encodeURIComponent(q)}&sort=${sort}`),
   scan: () => request('/api/scans', { method: 'POST' }),
   deleteTrack: (id: string) => request(`/api/library/${id}`, { method: 'DELETE' }),
   search: (q: string, source = 'all') => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}&source=${source}`),

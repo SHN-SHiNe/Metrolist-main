@@ -12,7 +12,7 @@ export type Track = {
   source?: string
 }
 
-export type TrackPage = { items: Track[]; total: number; offset: number; limit: number }
+export type TrackPage = { items: Track[]; total: number; offset: number; limit: number; revision: number }
 export type PlaylistSummary = { id: string; name: string; version: number; trackCount: number; updatedAt: number }
 export type PlaylistDetail = { id: string; name: string; version: number; tracks: Track[]; updatedAt: number }
 export type HistoryEntry = { id: number; track: Track; playedAt: number }

@@ -24,5 +24,6 @@ class MaintenanceTest {
         assertTrue(result.backup.exists())
         assertEquals(1, result.purgedTrashFiles)
         assertTrue(!oldTrash.exists())
+        store.close()
     }
 }

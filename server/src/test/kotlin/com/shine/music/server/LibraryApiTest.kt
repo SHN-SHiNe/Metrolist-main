@@ -41,4 +41,29 @@ class LibraryApiTest {
         assertEquals(0, unchanged.updated)
         assertEquals(2, api.get("/api/scans").body<List<ScanResult>>().size)
     }
+
+    @Test
+    fun `library query and sorting apply before pagination`() = testApplication {
+        val root = Files.createTempDirectory("shine-library-page-test")
+        val music = root.resolve("music")
+        Files.createDirectories(music)
+        music.resolve("Zulu - Artist B.mp3").writeBytes(byteArrayOf(1))
+        music.resolve("Alpha - Artist C.mp3").writeBytes(byteArrayOf(2))
+        music.resolve("Middle - Artist A.mp3").writeBytes(byteArrayOf(3))
+
+        application { shineModule(AppConfig(root.resolve("data"), music, root.resolve("cache"), scanOnStart = false)) }
+        val api = createClient { install(ContentNegotiation) { json() } }
+        api.post("/api/scans")
+
+        val secondByTitle = api.get("/api/library?sort=title&offset=1&limit=1").body<TrackPage>()
+        val filtered = api.get("/api/library?q=Artist%20A&sort=title&limit=1").body<TrackPage>()
+        val quotedFilter = api.get("/api/library?q=%22Artist%20A&sort=title&limit=1")
+
+        assertEquals(3, secondByTitle.total)
+        assertEquals("Middle", secondByTitle.items.single().title)
+        assertEquals(1, filtered.total)
+        assertEquals("Middle", filtered.items.single().title)
+        assertEquals(HttpStatusCode.OK, quotedFilter.status)
+        assertEquals(0, quotedFilter.body<TrackPage>().total)
+    }
 }

@@ -28,6 +28,8 @@ jobs:
           npm test
           npm run typecheck
           npm run build
+          npx playwright install --with-deps chromium
+          npm run e2e
 
       - uses: actions/setup-go@v6
         with:
