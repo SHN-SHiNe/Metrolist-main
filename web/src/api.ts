@@ -1,4 +1,4 @@
-import type { AdvancedSearchRequest, AdvancedSearchResponse, AnalysisEnqueueResponse, AnalysisSummary, DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SimilarTracksResponse, SourceConfig, Track, TrackPage } from './types'
+import type { AdvancedSearchRequest, AdvancedSearchResponse, AnalysisEnqueueResponse, AnalysisSummary, DownloadJob, HistoryEntry, MusicLibrary, MusicLibraryInput, OnlinePlaylistDetailResponse, OnlinePlaylistSearchResponse, PlaylistDetail, PlaylistSummary, RoomDetail, RoomPlaybackState, RoomSummary, SearchResponse, SimilarTracksResponse, SourceConfig, Track, TrackPage } from './types'
 import { LIBRARY_PAGE_SIZE } from './libraryPaging'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -35,7 +35,15 @@ export const api = {
   analyze: (trackIds: string[] = [], missingOnly = true) => request<AnalysisEnqueueResponse>('/api/analysis', {
     method: 'POST', body: JSON.stringify({ trackIds, missingOnly }),
   }),
-  search: (q: string, source = 'all') => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}&source=${source}`),
+  search: (q: string, source = 'all') => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}&source=${encodeURIComponent(source)}`),
+  searchPlaylists: (q: string, source = 'all', page = 1, limit = 20, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ q, source, page: String(page), limit: String(limit) })
+    return request<OnlinePlaylistSearchResponse>(`/api/search/playlists?${query}`, { signal })
+  },
+  onlinePlaylistDetail: (id: string, source: string, page = 1, limit = 100, signal?: AbortSignal) => {
+    const query = new URLSearchParams({ id, source, page: String(page), limit: String(limit) })
+    return request<OnlinePlaylistDetailResponse>(`/api/search/playlists/detail?${query}`, { signal })
+  },
   favorites: () => request<Track[]>('/api/favorites'),
   setFavorite: (id: string, favorite: boolean) => request(`/api/favorites/${id}`, { method: favorite ? 'PUT' : 'DELETE' }),
   playlists: () => request<PlaylistSummary[]>('/api/playlists'),

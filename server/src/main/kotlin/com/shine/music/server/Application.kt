@@ -53,6 +53,7 @@ fun Application.shineModule(
     config: AppConfig = AppConfig.fromEnvironment(),
     clock: () -> Long = System::currentTimeMillis,
     sendspinBridge: SendspinBridge = config.sendspinBridgeUrl?.let(::HttpSendspinBridge) ?: InMemorySendspinBridge(),
+    onlineCatalogGateway: OnlineCatalogGateway = ChinaMusicOnlineCatalogGateway,
 ) {
     config.dataDir.createDirectories()
     config.musicDir.createDirectories()
@@ -62,7 +63,7 @@ fun Application.shineModule(
 
     val store = openStoreWithRecovery(config, clock())
     val libraries = MusicLibraryManager(config, store, clock)
-    val catalog = OnlineCatalog(store)
+    val catalog = OnlineCatalog(store, onlineCatalogGateway)
     val analyses = AnalysisManager(store, clock = clock)
     val downloads = DownloadManager(store, libraries, catalog, clock) {
         if (config.analysisOnScan) analyses.enqueueMissing()
@@ -84,6 +85,13 @@ fun Application.shineModule(
         }
         exception<NoSuchElementException> { call, cause ->
             call.respond(HttpStatusCode.NotFound, mapOf("error" to (cause.message ?: "not_found")))
+        }
+        exception<OnlineCatalogUpstreamException> { call, cause ->
+            call.application.environment.log.warn("Online catalog upstream failed operation=${cause.operation}", cause.cause)
+            call.respond(
+                HttpStatusCode.BadGateway,
+                mapOf("error" to "online_source_unavailable", "operation" to cause.operation),
+            )
         }
         exception<Throwable> { call, cause ->
             if (cause is CancellationException) throw cause
@@ -234,12 +242,25 @@ fun Application.shineModule(
         }
 
         get("/api/search") {
-            val query = call.request.queryParameters["q"]?.trim().orEmpty()
-            require(query.isNotBlank()) { "query_required" }
-            val page = call.request.queryParameters["page"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1
-            val limit = call.request.queryParameters["limit"]?.toIntOrNull()?.coerceIn(1, 100) ?: 30
-            val source = call.request.queryParameters["source"] ?: "all"
+            val query = requireOnlineQuery(call.request.queryParameters["q"])
+            val page = parseOnlinePage(call.request.queryParameters["page"])
+            val limit = parseOnlineLimit(call.request.queryParameters["limit"], default = 30)
+            val source = call.request.queryParameters["source"]
             call.respond(catalog.search(query, page, limit, source))
+        }
+        get("/api/search/playlists") {
+            val query = requireOnlineQuery(call.request.queryParameters["q"])
+            val page = parseOnlinePage(call.request.queryParameters["page"])
+            val limit = parseOnlineLimit(call.request.queryParameters["limit"], default = 20)
+            val source = call.request.queryParameters["source"]
+            call.respond(catalog.searchPlaylists(query, page, limit, source))
+        }
+        get("/api/search/playlists/detail") {
+            val id = requireOnlinePlaylistId(call.request.queryParameters["id"])
+            val page = parseOnlinePage(call.request.queryParameters["page"])
+            val limit = parseOnlineLimit(call.request.queryParameters["limit"], default = 50)
+            val source = call.request.queryParameters["source"]
+            call.respond(catalog.playlistDetail(id, page, limit, source))
         }
 
         get("/api/favorites") { call.respond(store.favorites()) }

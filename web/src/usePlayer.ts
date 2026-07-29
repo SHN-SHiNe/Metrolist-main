@@ -74,6 +74,44 @@ export function usePlayer() {
     setQueue((current) => current.map((track) => byId.get(track.id) ?? track))
   }, [])
 
+  const moveQueueItem = useCallback((from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= queue.length || to >= queue.length) return
+    const nextQueue = [...queue]
+    const [moved] = nextQueue.splice(from, 1)
+    nextQueue.splice(to, 0, moved)
+    const currentId = current?.id
+    setQueue(nextQueue)
+    setIndex(currentId ? Math.max(0, nextQueue.findIndex((track) => track.id === currentId)) : -1)
+  }, [current?.id, queue])
+
+  const removeQueueItem = useCallback((removeIndex: number) => {
+    if (removeIndex < 0 || removeIndex >= queue.length) return
+    const removedCurrent = removeIndex === index
+    const nextQueue = queue.filter((_, itemIndex) => itemIndex !== removeIndex)
+    if (!nextQueue.length) {
+      audio.pause()
+      audio.removeAttribute('src')
+      audio.load()
+      setQueue([])
+      setIndex(-1)
+      setPosition(0)
+      setDuration(0)
+      return
+    }
+    const nextIndex = removedCurrent
+      ? Math.min(removeIndex, nextQueue.length - 1)
+      : Math.max(0, nextQueue.findIndex((track) => track.id === current?.id))
+    setQueue(nextQueue)
+    setIndex(nextIndex)
+    if (removedCurrent) {
+      const next = nextQueue[nextIndex]
+      audio.src = `/api/media/${next.id}/stream`
+      audio.load()
+      void api.recordHistory(next.id).catch(() => undefined)
+      if (playing) void audio.play().catch(() => setPlaying(false))
+    }
+  }, [audio, current?.id, index, playing, queue])
+
   const toggle = useCallback(() => {
     if (!current) return
     if (audio.paused) void audio.play()
@@ -173,7 +211,7 @@ export function usePlayer() {
     navigator.mediaSession.setActionHandler('previoustrack', () => { if (!roomMode.current) previous() })
   }, [audio, current, next, previous])
 
-  return { audio, current, queue, index, playing, position, duration, volume, playTrack, appendTracks, continueWith, hydrateTracks, toggle, next, previous, seek, setVolume, enterRoomMode, leaveRoomMode, reflectRoomState }
+  return { audio, current, queue, index, playing, position, duration, volume, playTrack, appendTracks, continueWith, hydrateTracks, moveQueueItem, removeQueueItem, toggle, next, previous, seek, setVolume, enterRoomMode, leaveRoomMode, reflectRoomState }
 }
 
 export type PlayerController = ReturnType<typeof usePlayer>

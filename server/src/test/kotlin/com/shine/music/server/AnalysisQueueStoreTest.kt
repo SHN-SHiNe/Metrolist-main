@@ -26,6 +26,10 @@ class AnalysisQueueStoreTest {
 
             assertEquals(listOf(pendingId), store.pendingAnalysisTrackIds(includeFailed = false))
             assertTrue(store.pendingAnalysisTrackIds().containsAll(listOf(failedId, pendingId)))
+            assertEquals(listOf(pendingId), store.claimPendingAnalysisTrackIds(limit = 1))
+            assertEquals(emptyList(), store.claimPendingAnalysisTrackIds(limit = 1))
+            assertEquals("queued", store.track(pendingId)?.analysis?.status)
+            assertEquals("failed", store.track(failedId)?.analysis?.status)
         }
     }
 }

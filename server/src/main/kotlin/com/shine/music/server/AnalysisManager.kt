@@ -71,8 +71,7 @@ class AnalysisManager(
         if (closed.get() || !drainRequested || drainScheduled) return 0
         drainScheduled = true
         val queuedIds = try {
-            store.pendingAnalysisTrackIds(drainBatchSize, includeFailed = false)
-                .filter { store.setAnalysisQueued(it) }
+            store.claimPendingAnalysisTrackIds(drainBatchSize)
         } catch (error: Exception) {
             drainRequested = false
             drainScheduled = false

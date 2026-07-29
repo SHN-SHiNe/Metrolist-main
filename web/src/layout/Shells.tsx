@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { desktopNavigation, mainNavigation, type Section } from '../navigation'
 import { Icon, type IconName } from '../components/Icon'
+import shineLogoUrl from '../../../SHiNe.png'
 
 type Navigate = (section: Section) => void
 
@@ -24,5 +25,5 @@ function NavButton({ item, active, onClick }: { item: { id: Section; label: stri
 }
 
 function Brand() {
-  return <div className="brand"><span className="brand-icon">♪</span><span><strong>SHiNe</strong><small>家庭音乐</small></span></div>
+  return <div className="brand"><span className="brand-icon"><img src={shineLogoUrl} alt="" /></span><span><strong>SHiNe</strong><small>家庭音乐</small></span></div>
 }

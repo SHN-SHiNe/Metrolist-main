@@ -6,7 +6,7 @@ import { Icon } from '../components/Icon'
 
 type RoomIndicator = { roomId: string | null; status: string; members: number }
 
-export function PlayerBar({ player, room, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onOpen }: { player: PlayerController; room: RoomIndicator; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onOpen: () => void }) {
+export function PlayerBar({ player, room, favorite, onFavorite, onToggle, onPrevious, onNext, onSeek, onOpen, onLyrics }: { player: PlayerController; room: RoomIndicator; favorite: boolean; onFavorite: () => void; onToggle: () => void; onPrevious: () => void; onNext: () => void; onSeek: (seconds: number) => void; onOpen: () => void; onLyrics: () => void }) {
   const swipeStart = useRef<number | null>(null)
   const swiped = useRef(false)
   const finishSwipe = (x: number) => {
@@ -24,7 +24,7 @@ export function PlayerBar({ player, room, favorite, onFavorite, onToggle, onPrev
     </button>
     <div className="mobile-player-actions"><button className={`icon-button ${favorite ? 'favorite' : ''}`} onClick={onFavorite} disabled={!player.current} aria-label={favorite ? '取消收藏' : '收藏'}><Icon name="heart" /></button></div>
     <div className="player-center"><div className="transport"><button className="icon-button" onClick={onPrevious} aria-label="上一首"><Icon name="previous" /></button><button className="player-toggle" onClick={onToggle} disabled={!player.current} aria-label={player.playing ? '暂停' : '播放'}><Icon name={player.playing ? 'pause' : 'play'} /></button><button className="icon-button" onClick={onNext} aria-label="下一首"><Icon name="next" /></button></div><div className="progress-row"><span>{formatTime(player.position)}</span><input aria-label="播放进度" type="range" min="0" max={player.duration || 1} step="0.1" value={Math.min(player.position, player.duration || 1)} onChange={(event) => onSeek(Number(event.target.value))} /><span>{formatTime(player.duration)}</span></div></div>
-    <div className="player-extras"><span className={`room-pill ${room.status}`}>{roomPlayerLabel(room)}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div>
+    <div className="player-extras"><button className="icon-button lyrics-shortcut" onClick={onLyrics} aria-label="在侧栏打开歌词" title="歌词"><Icon name="playlist" /></button><span className={`room-pill ${room.status}`}>{roomPlayerLabel(room)}</span><Icon name="volume" /><input aria-label="音量" type="range" min="0" max="1" step="0.01" value={player.volume} onChange={(event) => player.setVolume(Number(event.target.value))} /></div>
   </footer>
 }
 

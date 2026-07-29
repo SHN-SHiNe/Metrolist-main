@@ -14,6 +14,40 @@ export type Track = {
   analysis?: TrackAnalysis
 }
 
+export type OnlineTrack = Omit<Track, 'source'> & { source: string }
+
+export type OnlinePlaylistSummary = {
+  id: string
+  name: string
+  author: string
+  artworkUrl?: string | null
+  playCount: number
+  source: string
+}
+
+export type OnlinePlaylistSearchResponse = {
+  items: OnlinePlaylistSummary[]
+  total: number
+  page: number
+  limit: number
+  allPages: number
+  source: string
+}
+
+export type OnlinePlaylistDetailResponse = {
+  id: string
+  name: string
+  author: string
+  artworkUrl?: string | null
+  description: string
+  tracks: OnlineTrack[]
+  total: number
+  page: number
+  limit: number
+  allPages: number
+  source: string
+}
+
 export type AnalysisStatus = 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'unavailable'
 
 export const analysisDimensionKeys = [
@@ -85,7 +119,13 @@ export type AdvancedSearchRequest = {
   limit?: number
 }
 
-export type AdvancedSearchItem = { track: Track; similarityPercent: number }
+export type AdvancedSearchItem = {
+  track: Track
+  similarityPercent: number
+  bpmDelta?: number | null
+  camelotDelta?: number | null
+  camelotModeChanged?: boolean | null
+}
 export type AdvancedSearchResponse = { items: AdvancedSearchItem[]; totalCandidates: number }
 
 export type TrackPage = { items: Track[]; total: number; offset: number; limit: number; revision: number }
@@ -94,7 +134,7 @@ export type PlaylistDetail = { id: string; name: string; version: number; tracks
 export type HistoryEntry = { id: number; track: Track; playedAt: number }
 export type SourceConfig = { id: string; name: string; apiUrl: string; apiKeyMasked: string; enabled: boolean; updatedAt: number }
 export type DownloadJob = { id: string; title: string; artist: string; status: string; error?: string; createdAt: number; updatedAt: number }
-export type SearchResponse = { items: Track[]; total: number; page: number; limit: number }
+export type SearchResponse = { items: OnlineTrack[]; total: number; page: number; limit: number }
 export type RoomSummary = { id: string; name: string; memberCount: number; version: number; updatedAt: number }
 export type RoomPlaybackState = { queue: string[]; currentTrackId: string | null; positionMs: number; playing: boolean; effectiveAt: number }
 export type RoomDetail = { summary: RoomSummary; state: RoomPlaybackState }

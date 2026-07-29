@@ -104,6 +104,9 @@ data class AdvancedSearchRequest(
 data class AdvancedSearchItem(
     val track: Track,
     val similarityPercent: Int,
+    val bpmDelta: Float? = null,
+    val camelotDelta: Int? = null,
+    val camelotModeChanged: Boolean? = null,
 )
 
 @Serializable
@@ -224,6 +227,41 @@ data class OnlineTrack(
 
 @Serializable
 data class SearchResponse(val items: List<OnlineTrack>, val total: Int, val page: Int, val limit: Int)
+
+@Serializable
+data class OnlinePlaylist(
+    val id: String,
+    val name: String,
+    val author: String = "",
+    val artworkUrl: String? = null,
+    val playCount: Long = 0,
+    val source: String,
+)
+
+@Serializable
+data class OnlinePlaylistSearchResponse(
+    val items: List<OnlinePlaylist>,
+    val total: Int,
+    val page: Int,
+    val limit: Int,
+    val allPages: Int,
+    val source: String,
+)
+
+@Serializable
+data class OnlinePlaylistDetailResponse(
+    val id: String,
+    val name: String,
+    val author: String = "",
+    val artworkUrl: String? = null,
+    val description: String = "",
+    val tracks: List<OnlineTrack>,
+    val total: Int,
+    val page: Int,
+    val limit: Int,
+    val allPages: Int,
+    val source: String,
+)
 
 @Serializable
 data class CreateRoomRequest(val name: String, val id: String? = null)

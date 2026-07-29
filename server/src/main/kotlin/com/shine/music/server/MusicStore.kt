@@ -447,6 +447,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
     }
 
     fun advancedSearch(request: AdvancedSearchRequest): AdvancedSearchResponse {
+        AdvancedTrackSearch.validate(request)
         val clauses = mutableListOf("deleted_at IS NULL", "analysis_status='completed'")
         val whereBinders = mutableListOf<(java.sql.PreparedStatement, Int) -> Unit>()
         val scoreExpressions = mutableListOf<String>()
@@ -458,7 +459,6 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             repeat(3) { whereBinders += { statement, index -> statement.setString(index, value) } }
         }
         request.bpm?.let { target ->
-            require(target.isFinite() && target > 0f) { "invalid_bpm" }
             val tolerance = request.bpmTolerance.coerceAtLeast(0f)
             clauses += "bpm BETWEEN ? AND ?"
             whereBinders += { statement, index -> statement.setFloat(index, target - tolerance) }
@@ -533,7 +533,17 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
         val ranked = AdvancedTrackSearch.rank(candidates, request).take(resultLimit)
         val tracks = tracks(ranked.map(AdvancedRankedTrack::trackId)).associateBy(Track::id)
         return AdvancedSearchResponse(
-            items = ranked.mapNotNull { match -> tracks[match.trackId]?.let { AdvancedSearchItem(it, match.similarityPercent) } },
+            items = ranked.mapNotNull { match ->
+                tracks[match.trackId]?.let {
+                    AdvancedSearchItem(
+                        track = it,
+                        similarityPercent = match.similarityPercent,
+                        bpmDelta = match.bpmDelta,
+                        camelotDelta = match.camelotDelta,
+                        camelotModeChanged = match.camelotModeChanged,
+                    )
+                }
+            },
             totalCandidates = totalCandidates,
         )
     }
@@ -550,6 +560,28 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
             "SELECT id FROM tracks WHERE deleted_at IS NULL AND analysis_status IN $statuses ORDER BY modified_at DESC LIMIT ?",
         ).use { statement ->
             statement.setInt(1, limit.coerceIn(1, 100_000))
+            statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+        }
+    }
+
+    /** Atomically reserves a bounded background batch so explicit requests cannot steal a stale selection. */
+    fun claimPendingAnalysisTrackIds(limit: Int = 1): List<String> = connection().use { db ->
+        db.prepareStatement(
+            """
+            UPDATE tracks
+            SET analysis_status='queued',analysis_progress=0.05,analysis_message='等待分析'
+            WHERE id IN (
+                SELECT id FROM tracks
+                WHERE deleted_at IS NULL AND analysis_status='pending'
+                ORDER BY modified_at DESC
+                LIMIT ?
+            )
+              AND deleted_at IS NULL
+              AND analysis_status='pending'
+            RETURNING id
+            """.trimIndent(),
+        ).use { statement ->
+            statement.setInt(1, limit.coerceIn(1, MAX_ANALYSIS_CLAIM_BATCH_SIZE))
             statement.executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
         }
     }
@@ -1046,6 +1078,7 @@ class MusicStore(private val databasePath: Path) : AutoCloseable {
     }
 
     companion object {
+        private const val MAX_ANALYSIS_CLAIM_BATCH_SIZE = 256
         private const val LIBRARY_SELECT =
             "SELECT l.*, (SELECT COUNT(*) FROM tracks t WHERE t.library_id=l.id AND t.deleted_at IS NULL) track_count FROM music_libraries l"
         private val UPSERT_TRACK_SQL =

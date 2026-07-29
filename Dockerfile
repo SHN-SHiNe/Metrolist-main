@@ -2,6 +2,7 @@ FROM node:24-alpine AS web-build
 WORKDIR /workspace/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
+COPY SHiNe.png /workspace/SHiNe.png
 COPY web/ ./
 RUN npm run build
 

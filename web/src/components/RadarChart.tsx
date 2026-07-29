@@ -18,17 +18,21 @@ export function analysisValues(analysis?: TrackAnalysis) {
   })
 }
 
-export function RadarChart({ analysis, compact = false, className = '' }: { analysis?: TrackAnalysis; compact?: boolean; className?: string }) {
+export function RadarChart({ analysis, comparison, compact = false, className = '' }: { analysis?: TrackAnalysis; comparison?: TrackAnalysis; compact?: boolean; className?: string }) {
   const values = analysisValues(analysis)
+  const comparisonValues = analysisValues(comparison)
   const complete = analysis?.status === 'completed' && values.some(Boolean)
+  const comparisonComplete = comparison?.status === 'completed' && comparisonValues.some(Boolean)
   const rings = [24, 48, 72, 92]
   const polygon = values.map((value, index) => point(index, value * 92)).join(' ')
+  const comparisonPolygon = comparisonValues.map((value, index) => point(index, value * 92)).join(' ')
   const summary = radarDimensions.map(([, label], index) => `${label} ${Math.round(values[index] * 100)}`).join('，')
-  const label = complete ? `音乐特征：${summary}` : '音乐特征尚未完成分析'
+  const label = complete ? `${comparisonComplete ? '曲目与目标对比，曲目特征' : '音乐特征'}：${summary}` : '音乐特征尚未完成分析'
   const chart = <svg viewBox="0 0 200 200" role="img">
       <title>{complete ? summary : '等待音乐特征分析'}</title>
       {rings.map((radius) => <polygon key={radius} className="radar-grid" points={radarDimensions.map((_, index) => point(index, radius)).join(' ')} />)}
       {radarDimensions.map((_, index) => <line key={index} className="radar-axis" x1="100" y1="100" x2={point(index, 92).split(',')[0]} y2={point(index, 92).split(',')[1]} />)}
+      {comparisonComplete && <polygon className="radar-comparison" points={comparisonPolygon} />}
       {complete && <polygon className="radar-value" points={polygon} />}
       {!compact && radarDimensions.map(([, label], index) => {
         const [x, y] = point(index, 108).split(',').map(Number)

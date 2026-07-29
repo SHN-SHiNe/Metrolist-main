@@ -218,3 +218,158 @@ test('online preview asks for download and never enters the NAS analysis queue',
   await expect(page.getByRole('heading', { name: '本地' })).toBeVisible()
   expect(await page.locator('.track-list').textContent()).not.toContain('云端试听')
 })
+
+test('mobile home keeps the paged three-column speed dial with random play last', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const tracks = Array.from({ length: 8 }, (_, index) => ({ id: `home-${index}`, title: `首页歌曲 ${index + 1}`, artist: 'SHiNe', album: '每日发现', durationMs: 180000 }))
+    const body = url.pathname === '/api/library' ? { items: tracks, total: tracks.length, offset: 0, limit: 200, revision: 1 } : []
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#home')
+  const firstPage = page.locator('.speed-dial .quick-grid > button')
+  await expect(firstPage).toHaveCount(3)
+  await expect(firstPage.nth(2)).toContainText('随机播放')
+  await expect(page.locator('.speed-dial-pages button')).toHaveCount(3)
+  await page.getByRole('button', { name: '第 2 页' }).click()
+  await expect(firstPage).toHaveCount(3)
+  await expect(firstPage).toContainText(['播放列表', '同步房间', '继续聆听'])
+})
+
+test('search restores two paired source capsules and persistent history chips', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = []
+    if (url.pathname === '/api/library') body = { items: [], total: 0, offset: 0, limit: 200, revision: 1 }
+    if (url.pathname === '/api/search') body = { items: [], total: 0, page: 1, limit: 50 }
+    if (url.pathname === '/api/search/playlists') body = { items: [{ id: 'online-list', name: '夜跑精选', author: 'SHiNe', playCount: 12000, source: 'wy' }], total: 1, page: 1, limit: 20, allPages: 1, source: 'wy' }
+    if (url.pathname === '/api/search/playlists/detail') body = { id: 'online-list', name: '夜跑精选', author: 'SHiNe', description: '稳定风格的夜跑歌单', tracks: [{ id: 'online-song', title: '夜色节拍', artist: '在线歌手', album: '夜跑精选', durationMs: 180000, source: 'wy' }], total: 1, page: 1, limit: 100, allPages: 1, source: 'wy' }
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#search')
+  await expect(page.getByRole('tab', { name: '国内歌曲' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '国内歌单' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '曲库' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: '高级听感' })).toBeVisible()
+  await page.getByLabel('在线搜索').fill('Cruel Summer')
+  await page.locator('.search-box').getByRole('button', { name: '搜索', exact: true }).click()
+  await page.reload()
+  await page.getByLabel('在线搜索').fill('')
+  await expect(page.getByRole('button', { name: 'Cruel Summer' })).toBeVisible()
+  await page.getByRole('tab', { name: '国内歌单' }).click()
+  await expect(page.getByText('搜索国内歌单')).toBeVisible()
+  await page.getByLabel('在线搜索').fill('夜跑')
+  await page.locator('.search-box').getByRole('button', { name: '搜索', exact: true }).click()
+  await page.getByRole('button', { name: '打开歌单 夜跑精选' }).click()
+  await expect(page.getByRole('heading', { name: '夜跑精选' })).toBeVisible()
+  await expect(page.getByText('夜色节拍')).toBeVisible()
+})
+
+test('sync status describes automatic clock calibration instead of listening error', async ({ page }) => {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const body = url.pathname === '/api/library' ? { items: [], total: 0, offset: 0, limit: 200, revision: 1 } : []
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/#rooms')
+  await expect(page.getByText('自动时钟校准')).toBeVisible()
+  await expect(page.getByText(/NAS 时钟偏移/)).toBeVisible()
+  await expect(page.getByText(/同步误差/)).toHaveCount(0)
+})
+
+test('player exposes lyrics and an editable queue on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  const tracks = Array.from({ length: 3 }, (_, index) => ({ id: `queue-${index}`, title: `队列歌曲 ${index + 1}`, artist: '家庭歌手', album: '家庭精选', durationMs: 180000 }))
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: tracks, total: tracks.length, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname.startsWith('/api/media/')) return route.fulfill({ status: 206, contentType: 'audio/mpeg', body: '' })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#local')
+  await page.getByRole('button', { name: '播放 队列歌曲 1' }).first().click()
+  await page.locator('.player-track').click()
+  await page.getByRole('tab', { name: '队列' }).click()
+  await expect(page.getByRole('region', { name: '可编辑播放队列' })).toBeVisible()
+  await page.getByRole('button', { name: '下移 队列歌曲 1' }).click()
+  await expect(page.locator('.now-playing .queue-editor-item').first()).toContainText('队列歌曲 2')
+  await page.getByRole('button', { name: '从队列移除 队列歌曲 3' }).click()
+  await expect(page.locator('.now-playing .queue-editor-item')).toHaveCount(2)
+  await page.getByRole('tab', { name: '歌词' }).click()
+  await expect(page.getByText('这首歌还没有歌词')).toBeVisible()
+  await page.getByRole('button', { name: '添加歌词' }).click()
+  await page.getByLabel('歌词文本').fill('第一行\n第二行')
+  await page.getByRole('button', { name: '保存歌词' }).click()
+  await expect(page.getByText('第一行')).toBeVisible()
+})
+
+test('shared playlist detail has artwork, duration, play controls and persistent reordering', async ({ page }) => {
+  const tracks = [
+    { id: 'playlist-a', title: '第一首', artist: '歌手 A', album: '专辑', durationMs: 120000 },
+    { id: 'playlist-b', title: '第二首', artist: '歌手 B', album: '专辑', durationMs: 180000 },
+  ]
+  let detail = { id: 'shared-1', name: '家庭精选', version: 1, tracks, updatedAt: 1 }
+  let updateBody: { trackIds: string[]; expectedVersion: number } | null = null
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: tracks, total: tracks.length, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname === '/api/playlists' && route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 'shared-1', name: '家庭精选', version: detail.version, trackCount: 2, updatedAt: 1 }]) })
+    if (url.pathname === '/api/playlists/shared-1' && route.request().method() === 'GET') return route.fulfill({ contentType: 'application/json', body: JSON.stringify(detail) })
+    if (url.pathname === '/api/playlists/shared-1' && route.request().method() === 'PUT') {
+      updateBody = route.request().postDataJSON() as { trackIds: string[]; expectedVersion: number }
+      detail = { ...detail, version: 2, tracks: updateBody.trackIds.map((id) => tracks.find((track) => track.id === id)!) }
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(detail) })
+    }
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#library')
+  await page.getByRole('button', { name: /家庭精选/ }).click()
+  await expect(page.locator('.playlist-detail-hero')).toContainText('家庭精选')
+  await expect(page.locator('.playlist-detail-hero')).toContainText('5:00')
+  await expect(page.getByRole('button', { name: '播放歌单 家庭精选' })).toBeEnabled()
+  await page.getByRole('button', { name: '下移 第一首' }).click()
+  await expect.poll(() => updateBody?.trackIds.join(',')).toBe('playlist-b,playlist-a')
+  expect(updateBody?.expectedVersion).toBe(1)
+  await expect(page.locator('.track-row').first()).toContainText('第二首')
+})
+
+test('advanced filter exposes the original Camelot and interactive radar workflow', async ({ page }) => {
+  const match = {
+    id: 'advanced-match', title: '邻位延续', artist: 'SHiNe', album: '听感测试', durationMs: 180000,
+    analysis: { status: 'completed', progress: 1, bpm: 118, keyName: 'F', camelot: '7B', valence: .54, energy: .82, danceability: .61, acousticness: .2, instrumentalness: .08, liveness: .15, speechiness: .1 },
+  }
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/library') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [], total: 0, offset: 0, limit: 200, revision: 1 }) })
+    if (url.pathname === '/api/libraries') return route.fulfill({ contentType: 'application/json', body: '[]' })
+    if (url.pathname === '/api/analysis') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ available: true, implementation: 'vibenet', total: 2, pending: 0, queued: 0, running: 0, completed: 2, failed: 0 }) })
+    if (url.pathname === '/api/library/advanced-search') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ items: [{ track: match, similarityPercent: 94, bpmDelta: -2, camelotDelta: -1, camelotModeChanged: false }], totalCandidates: 1 }) })
+    await route.fulfill({ contentType: 'application/json', body: '[]' })
+  })
+  await page.goto('/#search')
+  await page.getByRole('tab', { name: '高级听感' }).click()
+
+  const bpm = page.getByRole('spinbutton', { name: /目标 BPM/ })
+  await expect(bpm).toHaveAttribute('max', '220')
+  await bpm.fill('221')
+  await expect(bpm).toHaveValue('220')
+  await page.getByRole('button', { name: /^8A，/ }).click()
+  await page.getByRole('button', { name: '增加 Camelot 邻位容差' }).click()
+  await expect(page.getByText('邻位 ±1')).toBeVisible()
+  await page.getByRole('tab', { name: '雷达' }).click()
+  const energy = page.getByRole('slider', { name: /能量目标/ })
+  await energy.focus()
+  await page.keyboard.press('ArrowUp')
+  await expect(energy).toHaveAttribute('aria-valuetext', /已启用/)
+
+  const advancedRequest = page.waitForRequest((request) => request.url().endsWith('/api/library/advanced-search'))
+  await page.getByRole('button', { name: '执行筛选' }).click()
+  const request = await advancedRequest
+  expect(request.postDataJSON()).toMatchObject({ bpm: 220, keyName: '8A', keyTolerance: 1, energy: .51 })
+  await expect(page.getByText('94% 相似')).toBeVisible()
+  await expect(page.getByText('118 BPM · Δ-2')).toBeVisible()
+  await expect(page.getByText('F · 7B · 邻位 -1')).toBeVisible()
+  await expect(page.locator('.advanced-comparison-radar')).toHaveCount(1)
+})
